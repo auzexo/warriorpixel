@@ -1,0 +1,13 @@
+{
+  "name": "warriorpixel-mobile",
+  "private": true,
+  "main": "node_modules/expo/AppEntry.js",
+  "dependencies": {
+    "expo": "^48.0.0",
+    "react": "18.2.0",
+    "react-native": "0.71.0",
+    "expo-auth-session": "~4.0.0",
+    "firebase": "^10.0.0",
+    "@react-navigation/native": "^6.0.0"
+  }
+}
