@@ -1,0 +1,88 @@
+body {
+    margin: 0;
+    font-family: 'Poppins', sans-serif;
+    background: linear-gradient(135deg, #0d0d0f, #1a1a22);
+    color: white;
+    display: flex;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 230px;
+    background: #111;
+    height: 100vh;
+    position: fixed;
+    padding-top: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.logo {
+    text-align: center;
+    font-size: 22px;
+    font-weight: bold;
+    margin-bottom: 30px;
+}
+
+.sidebar a {
+    padding: 15px 20px;
+    color: #aaa;
+    text-decoration: none;
+    font-size: 17px;
+    transition: 0.2s;
+}
+
+.sidebar a:hover,
+.sidebar .active {
+    background: #5a2dff;
+    color: white;
+}
+
+/* Main section */
+.main {
+    margin-left: 230px;
+    width: calc(100% - 230px);
+    padding: 20px;
+}
+
+/* Top bar */
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.currency {
+    display: flex;
+    gap: 20px;
+}
+
+.currency .item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.currency img {
+    width: 20px;
+    height: 20px;
+}
+
+.profile img {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+}
+
+/* Content */
+.content {
+    margin-top: 40px;
+}
+
+.content h1 {
+    font-size: 32px;
+}
+
+.content p {
+    color: #bbb;
+}
