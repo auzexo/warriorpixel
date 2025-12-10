@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>WarriorPixel — Dashboard</title>
+
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body class="section-ff">
+
+  <!-- overlay (for mobile sidebar/right panels) -->
+  <div id="overlay" class="overlay hidden" aria-hidden="true"></div>
+
+  <!-- LEFT SIDEBAR -->
+  <aside id="sidebar" class="sidebar">
+    <div class="brand">WARRIORPIXEL</div>
+
+    <nav class="nav" aria-label="Main navigation">
+      <a href="#" class="nav-item active" data-section="ff"><i class="fa-solid fa-fire"></i><span>Free Fire</span></a>
+      <a href="#" class="nav-item" data-section="mc"><i class="fa-solid fa-cube"></i><span>Minecraft</span></a>
+      <a href="#" class="nav-item" data-section="ach"><i class="fa-solid fa-award"></i><span>Achievements</span></a>
+
+      <div class="nav-divider"></div>
+
+      <!-- utility links -->
+      <a href="#" class="nav-item" data-section="wallet"><i class="fa-solid fa-wallet"></i><span>Wallet</span></a>
+      <a href="#" class="nav-item" data-section="admin"><i class="fa-solid fa-gear"></i><span>Admin (priv)</span></a>
+      <a href="#" class="nav-item" data-section="info"><i class="fa-solid fa-info-circle"></i><span>Info</span></a>
+    </nav>
+
+    <button id="sidebarClose" class="close-btn" aria-label="Close sidebar">&times;</button>
+  </aside>
+
+  <!-- MAIN AREA -->
+  <div class="main-area">
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div class="top-left">
+        <button id="menuToggle" class="menu-btn" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+        <div class="page-title" id="pageTitle">HOME</div>
+      </div>
+
+      <div class="top-right">
+        <div class="currencies" aria-hidden="false">
+          <div class="cur"><i class="fa-solid fa-gem"></i><span id="gems-top">0</span></div>
+          <div class="cur"><i class="fa-solid fa-coins"></i><span id="coins-top">0</span></div>
+          <div class="cur"><i class="fa-solid fa-ticket"></i><span id="vouchers-top">0</span></div>
+        </div>
+
+        <div class="actions">
+          <button id="walletBtn" class="icon-btn" title="Wallet" aria-label="Open wallet"><i class="fa-solid fa-wallet"></i></button>
+          <button id="bellBtn" class="icon-btn" title="Notifications" aria-label="Open notifications"><i class="fa-solid fa-bell"></i></button>
+          <button id="friendsBtn" class="icon-btn" title="Friends" aria-label="Open friends"><i class="fa-solid fa-user-friends"></i></button>
+          <div class="avatar"><img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="profile"></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- CONTENT -->
+    <main class="content-wrapper" id="mainContent" tabindex="-1">
+
+      <!-- HERO -->
+      <section class="hero">
+        <div class="hero-inner">
+          <h1 id="heroTitle">Welcome to WarriorPixel</h1>
+          <p id="heroSub">Pick a section from the left. Join tournaments, watch highlights, earn rewards.</p>
+          <a class="cta" id="heroCTA" href="#" role="button">Explore</a>
+        </div>
+      </section>
+
+      <!-- PANELS -->
+      <div class="panels">
+
+        <!-- main panel (left) -->
+        <section class="panel main-panel" id="panelMain">
+          <div class="panel-title">Placeholder — Content will be added</div>
+
+          <!-- Placeholder sub-sections for each major section.
+               These are intentionally empty so you can fill later. -->
+          <div id="section-ff" class="section-content hidden">
+            <!-- Tournaments / Highlights / Matches / Social Updates (PLACEHOLDER) -->
+            <div class="subpanel"> <!-- Leave content empty; fill later --> </div>
+          </div>
+
+          <div id="section-mc" class="section-content hidden">
+            <!-- Minecraft server updates / shop / videos (PLACEHOLDER) -->
+            <div class="subpanel"> <!-- empty --> </div>
+          </div>
+
+          <div id="section-ach" class="section-content hidden">
+            <!-- Achievements / Rewards / Tasks / Store (PLACEHOLDER) -->
+            <div class="subpanel"> <!-- empty --> </div>
+          </div>
+
+        </section>
+
+        <!-- right panel (friends/chat) inside main area -->
+        <aside class="panel rightpanel">
+          <div class="panel-title">Friends & Chat</div>
+          <div class="panel-body friends">
+            <!-- Friend items (empty placeholders) -->
+            <div class="friend placeholder" aria-hidden="true"></div>
+            <div class="chat-box">
+              <!-- messages area left intentionally empty -->
+              <div class="chat-input">
+                <input id="chatText" placeholder="Type a message..." aria-label="Chat message">
+                <button id="sendChat" class="btn-primary">Send</button>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+      </div>
+
+    </main>
+  </div>
+
+  <!-- RIGHT SLIDING PANEL (Notifications / Requests / Gifts) -->
+  <aside id="rightPanel" class="rightbar" aria-hidden="true">
+    <div class="rb-block">
+      <div class="rb-title" id="rightPanelTitle">Panel</div>
+      <div class="rb-body" id="rightPanelBody">
+        <!-- intentionally empty: notifications / friend requests / gifts placeholders -->
+      </div>
+    </div>
+  </aside>
+
+<script src="script.js"></script>
+</body>
+</html>
