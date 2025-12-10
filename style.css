@@ -1,0 +1,135 @@
+/* General */
+body {
+    margin: 0;
+    font-family: 'Poppins', sans-serif;
+    background: linear-gradient(135deg, #0d0d0f, #1a1a22);
+    color: white;
+    display: flex;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 230px;
+    background: #0e0e10;
+    height: 100vh;
+    position: fixed;
+    padding-top: 20px;
+    display: flex;
+    flex-direction: column;
+    border-right: 2px solid #1d1d22;
+}
+
+.logo {
+    text-align: center;
+    font-size: 22px;
+    font-weight: bold;
+    margin-bottom: 30px;
+}
+
+.sidebar-item {
+    padding: 15px 20px;
+    color: #b5b5b5;
+    text-decoration: none;
+    font-size: 17px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.sidebar-item:hover {
+    background: #3e1fff4f;
+    color: white;
+}
+
+.sidebar-item.active {
+    background: #5a2dff;
+    color: white;
+    box-shadow: 0 0 12px #5a2dff;
+}
+
+/* Main */
+.main {
+    margin-left: 230px;
+    width: calc(100% - 230px);
+    padding: 20px;
+}
+
+/* Top Bar */
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.currency {
+    display: flex;
+    gap: 20px;
+}
+
+.currency .item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    background:#141419;
+    padding: 6px 12px;
+    border-radius: 10px;
+    transition: 0.25s;
+}
+
+.currency .item:hover {
+    box-shadow: 0 0 10px #5a2dff;
+    transform: translateY(-2px);
+}
+
+.currency i {
+    font-size: 18px;
+    color: #a78bff;
+}
+
+.profile img {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.profile img:hover {
+    box-shadow: 0 0 10px #5a2dff;
+}
+
+/* Profile Dropdown */
+.profile-menu {
+    position: absolute;
+    top: 85px;
+    right: 30px;
+    width: 150px;
+    background: #141419;
+    border-radius: 10px;
+    padding: 10px;
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: 0 0 12px #5a2dff;
+}
+
+.profile-menu p {
+    margin: 0;
+    padding: 10px;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: 0.2s;
+}
+
+.profile-menu p:hover {
+    background: #5a2dff;
+}
+
+/* Content */
+.content {
+    margin-top: 40px;
+}
+
+.content h1 {
+    font-size: 32px;
+}
