@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>WarriorPixel — Dashboard</title>
+
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+
+  <!-- OVERLAY for mobile when sidebar opens -->
+  <div id="overlay" class="overlay hidden"></div>
+
+  <!-- LEFT SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">WARRIORPIXEL</div>
+    <nav class="nav">
+      <a href="index.html" class="nav-item active"><i class="fa-solid fa-fire"></i><span>Free Fire</span></a>
+      <a href="minecraft.html" class="nav-item"><i class="fa-solid fa-cube"></i><span>Minecraft</span></a>
+      <a href="achievements.html" class="nav-item"><i class="fa-solid fa-award"></i><span>Achievements</span></a>
+      <a href="wallet.html" class="nav-item"><i class="fa-solid fa-wallet"></i><span>Wallet</span></a>
+      <a href="friends.html" class="nav-item"><i class="fa-solid fa-user-friends"></i><span>Friends</span></a>
+      <a href="notifications.html" class="nav-item"><i class="fa-solid fa-bell"></i><span>Notifications</span></a>
+      <a href="info.html" class="nav-item"><i class="fa-solid fa-info-circle"></i><span>Info</span></a>
+    </nav>
+    <button id="sidebarClose" class="close-btn" aria-label="Close menu">&times;</button>
+  </aside>
+
+  <!-- MAIN AREA -->
+  <div class="main-area">
+
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div class="top-left">
+        <button class="menu-btn" id="menuToggle" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+        <div class="page-title" id="pageTitle">HOME</div>
+      </div>
+
+      <div class="top-right">
+        <div class="currencies">
+          <div class="cur"><i class="fa-solid fa-coins"></i><span id="coins-top">0</span></div>
+          <div class="cur"><i class="fa-solid fa-gem"></i><span id="gems-top">0</span></div>
+          <div class="cur"><i class="fa-solid fa-ticket"></i><span id="vouchers-top">0</span></div>
+        </div>
+
+        <div class="actions">
+          <button class="icon-btn" id="walletBtn" title="Wallet"><i class="fa-solid fa-wallet"></i></button>
+          <button class="icon-btn" id="bellBtn" title="Notifications"><i class="fa-solid fa-bell"></i></button>
+          <button class="icon-btn" id="friendsBtn" title="Friends"><i class="fa-solid fa-user-friends"></i></button>
+          <div class="avatar"><img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="profile"></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- HERO / CONTENT WRAPPER -->
+    <section class="content-wrapper">
+      <div class="hero">
+        <div class="hero-inner">
+          <h1>Welcome to WarriorPixel</h1>
+          <p>Pick a section from the left. Join tournaments, watch highlights, earn rewards.</p>
+          <a class="cta" href="freefire.html">Explore Free Fire</a>
+        </div>
+      </div>
+
+      <div class="panels">
+        <div class="panel large">
+          <div class="panel-title">Upcoming Tournaments</div>
+          <div class="panel-body">
+            <div class="tournament">
+              <h3>FF King of Battle</h3>
+              <div class="meta">ID: FF53 • Prize ₹10,000 • 12 Nov</div>
+            </div>
+            <div class="tournament">
+              <h3>Quick Match Cup</h3>
+              <div class="meta">ID: FF54 • Prize ₹1,500 • 18 Nov</div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="panel rightpanel">
+          <div class="panel-title">Friends & Chat</div>
+          <div class="panel-body friends">
+            <div class="friend">
+              <img src="https://cdn-icons-png.flaticon.com/512/147/147144.png" alt="">
+              <div class="fn">JohnDoe <small class="status online">online</small></div>
+            </div>
+
+            <div class="friend">
+              <img src="https://cdn-icons-png.flaticon.com/512/147/147140.png" alt="">
+              <div class="fn">JaneDoe <small class="status away">away</small></div>
+            </div>
+
+            <div class="chat-box">
+              <div class="msg other">Hello! Want to play?</div>
+              <div class="msg me">Yes, in 10 mins.</div>
+              <div class="chat-input">
+                <input id="chatText" placeholder="Type a message..." />
+                <button id="sendChat">Send</button>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </div>
+
+  <!-- RIGHT SIDEBAR -->
+  <aside class="rightbar">
+    <div class="rb-block">
+      <div class="rb-title">Requests</div>
+      <div class="rb-body">
+        <div class="req">Friend request from Alex <button class="mini">Accept</button></div>
+        <div class="req">Gift: 1 Voucher <button class="mini">Open</button></div>
+      </div>
+    </div>
+
+    <div class="rb-block">
+      <div class="rb-title">Notifications</div>
+      <div class="rb-body small">
+        <div class="note">Tournament FF53 created</div>
+        <div class="note">New highlight uploaded</div>
+      </div>
+    </div>
+  </aside>
+
+<script src="script.js"></script>
+</body>
+</html>
