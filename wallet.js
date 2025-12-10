@@ -1,1 +1,0 @@
-console.log("Wallet page loaded");
