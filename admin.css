@@ -1,0 +1,24 @@
+/* Admin styles */
+.admin-header { display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid rgba(255,255,255,0.03); }
+.admin-root{ display:flex; gap:18px; padding:18px; flex-wrap:wrap; justify-content:center; }
+.admin-left{ width:420px; max-width:95%; display:flex; flex-direction:column; gap:12px; }
+.admin-right{ flex:1; max-width:760px; }
+
+.panel{ background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:12px; border-radius:12px; box-shadow: 0 8px 28px rgba(0,0,0,0.45); }
+.panel-title{ font-weight:700; margin-bottom:8px; }
+.panel-body label{ display:block; margin-bottom:8px; font-size:14px; color:var(--muted); }
+.panel-body input{ width:100%; padding:8px; border-radius:8px; border:0; background:rgba(255,255,255,0.02); color:#fff; }
+
+/* tournament list */
+.t-list{ list-style:none; padding:0; margin:0; }
+.t-list li{ display:flex; justify-content:space-between; align-items:center; padding:10px; border-radius:8px; background:rgba(255,255,255,0.02); margin-bottom:8px; }
+.t-list .meta{ font-size:13px; opacity:0.9; }
+
+/* small */
+.panel.small{ padding:10px; }
+
+/* responsive */
+@media (max-width:900px){
+  .admin-root{ flex-direction:column; padding:12px; }
+  .admin-left, .admin-right{ width:100%; }
+}

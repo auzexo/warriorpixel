@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Admin Panel — WarriorPixel</title>
+  <link rel="stylesheet" href="style.css">   <!-- global -->
+  <link rel="stylesheet" href="admin.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body class="section-ff">
+
+  <header class="admin-header">
+    <a href="index.html" class="back-link">← Back</a>
+    <h1>Admin Panel</h1>
+  </header>
+
+  <main class="admin-root">
+    <section class="admin-left">
+      <div class="panel">
+        <div class="panel-title">Create Tournament</div>
+        <div class="panel-body">
+          <label>Title <input id="tTitle" type="text"></label>
+          <label>Prize (₹) <input id="tPrize" type="number" min="0"></label>
+          <label>Entry Fee (₹) <input id="tFee" type="number" min="0"></label>
+          <label>Date <input id="tDate" type="date"></label>
+          <label>Time <input id="tTime" type="time"></label>
+          <div class="form-row">
+            <button id="createTournament" class="btn-primary">Create Tournament</button>
+            <button id="resetForm" class="btn-outline">Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel small">
+        <div class="panel-title">Quick Tools</div>
+        <div class="panel-body">
+          <button id="issueVoucher" class="btn-outline">Issue Voucher (global)</button>
+          <button id="clearTournaments" class="btn-negative">Clear All Tournaments</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="admin-right">
+      <div class="panel">
+        <div class="panel-title">Tournaments List</div>
+        <div class="panel-body">
+          <ul id="tList" class="t-list"></ul>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Upload / Highlights</div>
+        <div class="panel-body">
+          <p>Placeholder — upload UI (file inputs) can be added later</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+<script src="admin.js"></script>
+</body>
+</html>

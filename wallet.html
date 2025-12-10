@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Wallet — WarriorPixel</title>
+
+  <link rel="stylesheet" href="style.css">    <!-- optional global -->
+  <link rel="stylesheet" href="wallet.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body class="section-ff">
+
+  <!-- Simple header/navigation (keeps consistency with your site) -->
+  <header class="wallet-header">
+    <a href="index.html" class="back-link">← Back</a>
+    <h1>Wallet</h1>
+  </header>
+
+  <main class="wallet-root">
+    <section class="wallet-card">
+      <div class="wallet-top">
+        <div class="wallet-balance">
+          <div class="label">Wallet Balance</div>
+          <div id="walletAmount" class="amount">₹0</div>
+        </div>
+
+        <div class="wallet-currencies">
+          <div class="cur"><i class="fa-solid fa-gem"></i><div><small>Gems</small><div id="gemsCount">0</div></div></div>
+          <div class="cur"><i class="fa-solid fa-coins"></i><div><small>Coins</small><div id="coinsCount">0</div></div></div>
+          <div class="cur"><i class="fa-solid fa-ticket"></i><div><small>Vouchers</small><div id="vouchersCount">0</div></div></div>
+        </div>
+      </div>
+
+      <div class="wallet-actions">
+        <div class="control">
+          <label for="amountInput">Amount (₹)</label>
+          <input id="amountInput" type="number" min="1" placeholder="Enter amount">
+        </div>
+
+        <div class="buttons">
+          <button id="addMoneyBtn" class="btn-primary">Add Money</button>
+          <button id="withdrawMoneyBtn" class="btn-negative">Withdraw</button>
+        </div>
+      </div>
+
+      <div class="quick-actions">
+        <button id="add100Btn" class="btn-outline">+ ₹100</button>
+        <button id="add500Btn" class="btn-outline">+ ₹500</button>
+        <button id="giveVoucherBtn" class="btn-outline">Give Voucher</button>
+      </div>
+    </section>
+
+    <section class="txn-section">
+      <div class="panel-title">Transaction History</div>
+      <ul id="txnList" class="txn-list">
+        <!-- transactions appended here -->
+      </ul>
+      <div class="txn-controls">
+        <button id="clearTxns" class="btn-outline">Clear History</button>
+        <button id="exportTxns" class="btn-outline">Export JSON</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Simple confirm modal -->
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-inner">
+      <h3 id="modalTitle">Confirm</h3>
+      <p id="modalBody">Are you sure?</p>
+      <div class="modal-actions">
+        <button id="confirmBtn" class="btn-primary">Yes</button>
+        <button id="cancelBtn" class="btn-outline">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+<script src="wallet.js"></script>
+</body>
+</html>
