@@ -93,7 +93,11 @@ const Sidebar = ({ isOpen, onClose }) => {
 
           <div className="my-4 border-t border-white border-opacity-5" />
 
-          {userProfile?.is_admin && (
+          {(() => {
+            console.log('User Profile:', userProfile);
+            console.log('Is Admin:', userProfile?.is_admin);
+            return userProfile?.is_admin;
+          })() && (
             <Link
               href={adminNav.href}
               onClick={() => onClose()}
