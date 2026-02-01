@@ -132,19 +132,25 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Logout
-  const logout = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      
-      setUser(null);
-      setUserProfile(null);
-      return { success: true };
-    } catch (error) {
-      console.error('Logout error:', error);
-      return { success: false, error: error.message };
+const logout = async () => {
+  try {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+    
+    setUser(null);
+    setUserProfile(null);
+    
+    // Force reload to clear all state
+    if (typeof window !== 'undefined') {
+      window.location.href = '/';
     }
-  };
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Logout error:', error);
+    return { success: false, error: error.message };
+  }
+};
 
   // Refresh user profile
   const refreshProfile = async () => {
