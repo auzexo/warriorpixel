@@ -38,7 +38,7 @@ export default function InfoPage() {
   ];
 
   const team = [
-    'Sanket', 'Ayush', 'Suraj', 'Dipan', 'Om', 'Devourer', 'Innocent'
+    'Ninja_Hazuto', 'Phoenix', 'Suraj', 'Prime', 'RDX_Warrior', 'Devourer', 'Innocent'
   ];
 
   return (
