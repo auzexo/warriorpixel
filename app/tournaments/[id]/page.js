@@ -5,36 +5,6 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { getTournamentWithDetails, joinTournament } from '@/lib/database';
 import JoinTournamentModal from '@/components/JoinTournamentModal';
-// ... rest of imports
-
-export default function TournamentDetailPage() {
-  const params = useParams();
-  const router = useRouter();
-  const { userProfile, refreshProfile } = useAuth();
-  const [tournament, setTournament] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [showJoinModal, setShowJoinModal] = useState(false);
-  const [joining, setJoining] = useState(false);
-
-  // Safety check
-  if (!userProfile) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <p className="text-gray-400">Loading profile...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // ... rest of the component
-'use client';
-
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
-import { getTournamentWithDetails, joinTournament } from '@/lib/database';
-import JoinTournamentModal from '@/components/JoinTournamentModal';
 import { FaTrophy, FaUsers, FaCalendar, FaTicketAlt, FaLock, FaGamepad, FaArrowLeft } from 'react-icons/fa';
 import { format } from 'date-fns';
 
