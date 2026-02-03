@@ -32,64 +32,86 @@ const TournamentCard = ({ tournament, onClick }) => {
     }
   };
 
+  // Safe access to tournament data
+  const tournamentId = tournament?.tournament_id || null;
+  const name = tournament?.name || 'Tournament';
+  const game = tournament?.game || 'unknown';
+  const status = tournament?.status || 'upcoming';
+  const prizePool = tournament?.prize_pool || 0;
+  const participantsCount = tournament?.participants_count || 0;
+  const maxParticipants = tournament?.max_participants || 0;
+  const entryFee = tournament?.entry_fee || 0;
+  const tournamentDate = tournament?.tournament_date || null;
+
   return (
-    
     <div 
       onClick={onClick}
       className="bg-primary-card rounded-xl overflow-hidden border border-white border-opacity-5 hover:border-purple-500 transition-all cursor-pointer group"
     >
-      <div className={`h-32 bg-gradient-to-br ${getGameGradient(tournament.game)} relative`}>
+      <div className={`h-32 bg-gradient-to-br ${getGameGradient(game)} relative`}>
         <div className="absolute top-3 right-3">
-          <span className={`px-3 py-1 rounded-full text-xs font-bold text-white ${getStatusColor(tournament.status)}`}>
-            {tournament.status?.toUpperCase()}
+          <span className={`px-3 py-1 rounded-full text-xs font-bold text-white ${getStatusColor(status)}`}>
+            {status.toUpperCase()}
           </span>
         </div>
 
         <div className="absolute bottom-0 left-0 right-0 p-4">
-          <h3 className="text-xl font-bold text-white line-clamp-2">{tournament.name}</h3>
+          <h3 className="text-xl font-bold text-white line-clamp-2">{name}</h3>
         </div>
       </div>
 
       <div className="p-4 space-y-3">
+        {/* Tournament ID */}
+        {tournamentId && (
+          <div className="text-xs font-mono text-gray-400 bg-white bg-opacity-5 px-2 py-1 rounded inline-block">
+            {tournamentId}
+          </div>
+        )}
+
+        {/* Game Name */}
         <div className="flex items-center gap-2 text-sm">
           <FaGamepad className="text-gray-400" />
           <span className="px-2 py-1 bg-white bg-opacity-5 rounded text-gray-400 capitalize">
-            {getGameName(tournament.game)}
+            {getGameName(game)}
           </span>
         </div>
 
+        {/* Prize Pool */}
         <div className="flex items-center gap-2 text-lg font-bold">
           <FaTrophy className="text-yellow-500" />
           <span className="bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
-            ₹{tournament.prize_pool || 0}
+            ₹{prizePool}
           </span>
         </div>
 
+        {/* Stats */}
         <div className="grid grid-cols-2 gap-3 pt-3 border-t border-white border-opacity-5">
           <div className="flex items-center gap-2 text-sm text-gray-400">
             <FaUsers />
-            <span>{tournament.participants_count || 0}/{tournament.max_participants || 0}</span>
+            <span>{participantsCount}/{maxParticipants}</span>
           </div>
 
           <div className="flex items-center gap-2 text-sm text-gray-400">
             <FaCalendar />
             <span>
-              {tournament.tournament_date ? format(new Date(tournament.tournament_date), 'MMM dd') : 'TBA'}
+              {tournamentDate ? format(new Date(tournamentDate), 'MMM dd') : 'TBA'}
             </span>
           </div>
         </div>
 
+        {/* Entry Fee */}
         <div className="pt-3 border-t border-white border-opacity-5">
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-400">Entry Fee:</span>
             <span className="font-semibold text-white">
-              {tournament.entry_fee > 0 ? `₹${tournament.entry_fee}` : 'Free'}
+              {entryFee > 0 ? `₹${entryFee}` : 'Free'}
             </span>
           </div>
         </div>
 
+        {/* Action Button */}
         <button className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg font-semibold group-hover:scale-105 transition-transform">
-          {tournament.status === 'live' ? 'Join Now' : 'View Details'}
+          {status === 'live' ? 'Join Now' : status === 'completed' ? 'View Results' : 'View Details'}
         </button>
       </div>
     </div>
