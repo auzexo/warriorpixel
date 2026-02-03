@@ -1,4 +1,3 @@
-// components/TournamentCard.js
 'use client';
 
 import { FaUsers, FaTrophy, FaCalendar, FaGamepad } from 'react-icons/fa';
@@ -32,7 +31,6 @@ const TournamentCard = ({ tournament, onClick }) => {
     }
   };
 
-  // Safe access to tournament data
   const tournamentId = tournament?.tournament_id || null;
   const name = tournament?.name || 'Tournament';
   const game = tournament?.game || 'unknown';
@@ -61,14 +59,12 @@ const TournamentCard = ({ tournament, onClick }) => {
       </div>
 
       <div className="p-4 space-y-3">
-        {/* Tournament ID */}
         {tournamentId && (
           <div className="text-xs font-mono text-gray-400 bg-white bg-opacity-5 px-2 py-1 rounded inline-block">
             {tournamentId}
           </div>
         )}
 
-        {/* Game Name */}
         <div className="flex items-center gap-2 text-sm">
           <FaGamepad className="text-gray-400" />
           <span className="px-2 py-1 bg-white bg-opacity-5 rounded text-gray-400 capitalize">
@@ -76,7 +72,6 @@ const TournamentCard = ({ tournament, onClick }) => {
           </span>
         </div>
 
-        {/* Prize Pool */}
         <div className="flex items-center gap-2 text-lg font-bold">
           <FaTrophy className="text-yellow-500" />
           <span className="bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
@@ -84,7 +79,6 @@ const TournamentCard = ({ tournament, onClick }) => {
           </span>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-2 gap-3 pt-3 border-t border-white border-opacity-5">
           <div className="flex items-center gap-2 text-sm text-gray-400">
             <FaUsers />
@@ -99,7 +93,6 @@ const TournamentCard = ({ tournament, onClick }) => {
           </div>
         </div>
 
-        {/* Entry Fee */}
         <div className="pt-3 border-t border-white border-opacity-5">
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-400">Entry Fee:</span>
@@ -109,7 +102,6 @@ const TournamentCard = ({ tournament, onClick }) => {
           </div>
         </div>
 
-        {/* Action Button */}
         <button className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg font-semibold group-hover:scale-105 transition-transform">
           {status === 'live' ? 'Join Now' : status === 'completed' ? 'View Results' : 'View Details'}
         </button>
