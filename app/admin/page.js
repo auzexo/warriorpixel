@@ -333,7 +333,18 @@ export default function AdminPage() {
           )}
         </div>
       </div>
-
+       <div className="flex-1">
+  <h4 className="font-bold text-lg mb-1">{tournament.name}</h4>
+  {/* ADD THIS */}
+  {tournament.tournament_id && (
+    <p className="text-xs font-mono text-purple-400 mb-2">
+      ID: {tournament.tournament_id}
+    </p>
+  )}
+  <div className="flex flex-wrap gap-2 md:gap-4 text-xs md:text-sm text-gray-400">
+    {/* ... existing content */}
+  </div>
+</div>
       {/* Create Tournament Modal - Continue in next message due to length... */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
