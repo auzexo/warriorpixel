@@ -34,8 +34,8 @@ export default function TournamentsPage() {
   };
 
   const handleTournamentClick = (tournament) => {
-    setSelectedTournament(tournament);
-    setShowJoinModal(true);
+    // Navigate to detail page instead of opening modal
+    router.push(`/tournaments/${tournament.id}`);
   };
 
   const handleJoin = async (inGameName, voucherType) => {
