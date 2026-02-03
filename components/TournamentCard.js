@@ -31,9 +31,7 @@ const TournamentCard = ({ tournament, onClick }) => {
       default: return game;
     }
   };
-
-  return (
-    <div className="p-4 space-y-3">
+<div className="p-4 space-y-3">
   {/* ADD THIS at the top of card content */}
   {tournament.tournament_id && (
     <div className="text-xs font-mono text-gray-400 bg-white bg-opacity-5 px-2 py-1 rounded inline-block">
@@ -49,6 +47,8 @@ const TournamentCard = ({ tournament, onClick }) => {
   
   {/* ... rest of card content */}
 </div>
+  return (
+    
     <div 
       onClick={onClick}
       className="bg-primary-card rounded-xl overflow-hidden border border-white border-opacity-5 hover:border-purple-500 transition-all cursor-pointer group"
