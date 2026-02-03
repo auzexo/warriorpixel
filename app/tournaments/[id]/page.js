@@ -1,4 +1,3 @@
-// app/tournaments/[id]/page.js
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -6,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { getTournamentWithDetails, joinTournament } from '@/lib/database';
 import JoinTournamentModal from '@/components/JoinTournamentModal';
-import { FaTrophy, FaUsers, FaCalendar, FaClock, FaGamepad, FaTicketAlt, FaLock } from 'react-icons/fa';
+import { FaTrophy, FaUsers, FaCalendar, FaTicketAlt, FaLock, FaGamepad, FaArrowLeft } from 'react-icons/fa';
 import { format } from 'date-fns';
 
 export default function TournamentDetailPage() {
@@ -82,21 +81,26 @@ export default function TournamentDetailPage() {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
+      {/* Back Button */}
+      <button
+        onClick={() => router.push('/tournaments')}
+        className="flex items-center gap-2 text-gray-400 hover:text-white transition-all"
+      >
+        <FaArrowLeft />
+        Back to Tournaments
+      </button>
+
       {/* Header */}
       <div className={`rounded-2xl p-6 md:p-8 ${
         tournament.game === 'freefire' ? 'bg-gradient-ff' :
         tournament.game === 'bgmi' ? 'bg-gradient-to-br from-red-600 to-orange-600' :
         'bg-gradient-to-br from-purple-600 to-pink-600'
       }`}>
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold text-white ${getStatusColor(tournament.status)} mb-3`}>
-              {tournament.status?.toUpperCase()}
-            </span>
-            <h1 className="text-3xl md:text-4xl font-bold mb-2">{tournament.name}</h1>
-            <p className="text-white text-opacity-90">{getGameName(tournament.game)}</p>
-          </div>
-        </div>
+        <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold text-white ${getStatusColor(tournament.status)} mb-3`}>
+          {tournament.status?.toUpperCase()}
+        </span>
+        <h1 className="text-3xl md:text-4xl font-bold mb-2">{tournament.name}</h1>
+        <p className="text-white text-opacity-90">{getGameName(tournament.game)}</p>
       </div>
 
       {/* Main Info */}
@@ -172,7 +176,7 @@ export default function TournamentDetailPage() {
         )}
       </div>
 
-      {/* Room Details (if joined and visible) */}
+      {/* Room Details (if joined) */}
       {tournament.is_participant && (
         <div className="bg-primary-card rounded-xl p-6 border border-white border-opacity-5">
           <h3 className="font-bold mb-4 text-xl flex items-center gap-2">
@@ -210,8 +214,8 @@ export default function TournamentDetailPage() {
             <div className="bg-yellow-500 bg-opacity-10 border border-yellow-500 rounded-lg p-4 flex items-center gap-3">
               <FaLock className="text-yellow-400 text-2xl" />
               <div>
-                <p className="font-bold text-yellow-400">Room details will be available 5 minutes before the tournament</p>
-                <p className="text-sm text-gray-400 mt-1">Check back closer to the start time</p>
+                <p className="font-bold text-yellow-400">Room details will be available 5 minutes before tournament</p>
+                <p className="text-sm text-gray-400 mt-1">Check back closer to start time</p>
               </div>
             </div>
           )}
@@ -220,18 +224,16 @@ export default function TournamentDetailPage() {
 
       {/* Join Button */}
       {!tournament.is_participant && tournament.status !== 'completed' && (
-        <div className="bg-primary-card rounded-xl p-6 border border-white border-opacity-5">
-          <button
-            onClick={() => setShowJoinModal(true)}
-            disabled={tournament.participants_count >= tournament.max_participants}
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-lg font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-          >
-            {tournament.participants_count >= tournament.max_participants 
-              ? 'Tournament Full' 
-              : `Join Tournament ${tournament.entry_fee > 0 ? `- ₹${tournament.entry_fee}` : '- Free'}`
-            }
-          </button>
-        </div>
+        <button
+          onClick={() => setShowJoinModal(true)}
+          disabled={tournament.participants_count >= tournament.max_participants}
+          className="w-full bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-lg font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+        >
+          {tournament.participants_count >= tournament.max_participants 
+            ? 'Tournament Full' 
+            : `Join Tournament ${tournament.entry_fee > 0 ? `- ₹${tournament.entry_fee}` : '- Free'}`
+          }
+        </button>
       )}
 
       {/* Join Modal */}
@@ -246,4 +248,4 @@ export default function TournamentDetailPage() {
       )}
     </div>
   );
-      }
+}
