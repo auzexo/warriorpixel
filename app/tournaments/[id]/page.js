@@ -90,18 +90,30 @@ export default function TournamentDetailPage() {
         Back to Tournaments
       </button>
 
-      {/* Header */}
-      <div className={`rounded-2xl p-6 md:p-8 ${
-        tournament.game === 'freefire' ? 'bg-gradient-ff' :
-        tournament.game === 'bgmi' ? 'bg-gradient-to-br from-red-600 to-orange-600' :
-        'bg-gradient-to-br from-purple-600 to-pink-600'
-      }`}>
-        <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold text-white ${getStatusColor(tournament.status)} mb-3`}>
-          {tournament.status?.toUpperCase()}
-        </span>
-        <h1 className="text-3xl md:text-4xl font-bold mb-2">{tournament.name}</h1>
-        <p className="text-white text-opacity-90">{getGameName(tournament.game)}</p>
-      </div>
+{/* Header */}
+<div className={`rounded-2xl p-6 md:p-8 ${
+  tournament.game === 'freefire' ? 'bg-gradient-ff' :
+  tournament.game === 'bgmi' ? 'bg-gradient-to-br from-red-600 to-orange-600' :
+  'bg-gradient-to-br from-purple-600 to-pink-600'
+}`}>
+  <div className="flex items-start justify-between mb-4">
+    <div>
+      <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold text-white ${getStatusColor(tournament.status)} mb-3`}>
+        {tournament.status?.toUpperCase()}
+      </span>
+      {/* ADD THIS: Tournament ID Display */}
+      {tournament.tournament_id && (
+        <div className="mb-2">
+          <span className="px-3 py-1 bg-white bg-opacity-20 rounded-lg text-sm font-mono font-bold">
+            ID: {tournament.tournament_id}
+          </span>
+        </div>
+      )}
+      <h1 className="text-3xl md:text-4xl font-bold mb-2">{tournament.name}</h1>
+      <p className="text-white text-opacity-90">{getGameName(tournament.game)}</p>
+    </div>
+  </div>
+</div>
 
       {/* Main Info */}
       <div className="grid md:grid-cols-2 gap-6">
