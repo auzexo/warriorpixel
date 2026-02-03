@@ -1,20 +1,10 @@
-// app/admin/page.js
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { 
-  getTournaments, 
-  createTournament, 
-  updateTournament, 
-  deleteTournament,
-  getTournamentParticipants,
-  getAllUsers,
-  giveWinTag
-} from '@/lib/database';
-import { FaCrown, FaPlus, FaEdit, FaTrash, FaUsers, FaTrophy, FaGamepad } from 'react-icons/fa';
-import { format } from 'date-fns';
+import { getTournaments, createTournament, deleteTournament, getAllUsers } from '@/lib/database';
+import { FaCrown, FaPlus, FaTrash, FaUsers, FaTrophy } from 'react-icons/fa';
 
 export default function AdminPage() {
   const { userProfile } = useAuth();
@@ -24,20 +14,16 @@ export default function AdminPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedTournament, setSelectedTournament] = useState(null);
-  const [participants, setParticipants] = useState([]);
+
   const [formData, setFormData] = useState({
     name: '',
     game: 'freefire',
     status: 'upcoming',
     prize_pool: '',
-    entry_fee: '',
-    max_participants: '',
+    entry_fee: '0',
+    max_participants: '50',
     tournament_date: '',
-    room_id: '',
-    room_password: '',
     description: '',
-    rules: ''
   });
 
   useEffect(() => {
@@ -72,16 +58,9 @@ export default function AdminPage() {
     setLoading(false);
   };
 
-  const loadParticipants = async (tournamentId) => {
-    const result = await getTournamentParticipants(tournamentId);
-    if (result.success) {
-      setParticipants(result.data);
-    }
-  };
-
   const handleCreateTournament = async (e) => {
     e.preventDefault();
-    
+
     const tournamentData = {
       name: formData.name,
       game: formData.game,
@@ -90,12 +69,9 @@ export default function AdminPage() {
       entry_fee: parseFloat(formData.entry_fee),
       max_participants: parseInt(formData.max_participants),
       tournament_date: formData.tournament_date,
-      room_id: formData.room_id || null,
-      room_password: formData.room_password || null,
       description: formData.description || null,
-      rules: formData.rules || null,
       participants_count: 0,
-      created_by: userProfile.id
+      created_by: userProfile.id,
     };
 
     // Set room_visible_at to 5 minutes before tournament
@@ -107,7 +83,7 @@ export default function AdminPage() {
 
     const result = await createTournament(tournamentData);
     if (result.success) {
-      alert('✅ Tournament created successfully!');
+      alert('✅ Tournament created!\nID: ' + (result.data.tournament_id || 'Generated'));
       setShowCreateModal(false);
       resetForm();
       loadTournaments();
@@ -117,25 +93,12 @@ export default function AdminPage() {
   };
 
   const handleDeleteTournament = async (tournamentId) => {
-    if (!confirm('Are you sure you want to delete this tournament?')) return;
-    
+    if (!confirm('Delete this tournament?')) return;
+
     const result = await deleteTournament(tournamentId);
     if (result.success) {
       alert('✅ Tournament deleted!');
       loadTournaments();
-    } else {
-      alert(`❌ Error: ${result.error}`);
-    }
-  };
-
-  const handleGiveWinTag = async (userId, tournamentId) => {
-    const prize = prompt('Enter prize amount (₹):');
-    if (!prize) return;
-
-    const result = await giveWinTag(userId, tournamentId, parseFloat(prize));
-    if (result.success) {
-      alert('✅ Win tag given & prize credited!');
-      loadParticipants(tournamentId);
     } else {
       alert(`❌ Error: ${result.error}`);
     }
@@ -147,13 +110,10 @@ export default function AdminPage() {
       game: 'freefire',
       status: 'upcoming',
       prize_pool: '',
-      entry_fee: '',
-      max_participants: '',
+      entry_fee: '0',
+      max_participants: '50',
       tournament_date: '',
-      room_id: '',
-      room_password: '',
       description: '',
-      rules: ''
     });
   };
 
@@ -163,7 +123,7 @@ export default function AdminPage() {
         <div className="text-center">
           <FaCrown className="text-6xl text-gray-600 mx-auto mb-4" />
           <h2 className="text-2xl font-bold mb-2">Admin Access Required</h2>
-          <p className="text-gray-400">You don't have permission to access this page</p>
+          <p className="text-gray-400">You don't have permission</p>
         </div>
       </div>
     );
@@ -177,9 +137,7 @@ export default function AdminPage() {
           <FaCrown />
           Admin Panel
         </h1>
-        <p className="text-white text-opacity-90 text-base md:text-lg">
-          Manage tournaments, users, and platform settings
-        </p>
+        <p className="text-white text-opacity-90">Manage tournaments and users</p>
       </div>
 
       {/* Tabs */}
@@ -187,132 +145,95 @@ export default function AdminPage() {
         <div className="flex border-b border-white border-opacity-5">
           <button
             onClick={() => setActiveTab('tournaments')}
-            className={`flex-1 px-4 md:px-6 py-4 font-semibold transition-all flex items-center justify-center gap-2 ${
-              activeTab === 'tournaments' 
-                ? 'bg-purple-600 text-white' 
-                : 'text-gray-400 hover:text-white'
+            className={`flex-1 px-6 py-4 font-semibold transition-all flex items-center justify-center gap-2 ${
+              activeTab === 'tournaments' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'
             }`}
           >
             <FaTrophy />
-            <span className="hidden sm:inline">Tournaments</span>
+            Tournaments
           </button>
           <button
             onClick={() => setActiveTab('users')}
-            className={`flex-1 px-4 md:px-6 py-4 font-semibold transition-all flex items-center justify-center gap-2 ${
-              activeTab === 'users' 
-                ? 'bg-purple-600 text-white' 
-                : 'text-gray-400 hover:text-white'
+            className={`flex-1 px-6 py-4 font-semibold transition-all flex items-center justify-center gap-2 ${
+              activeTab === 'users' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'
             }`}
           >
             <FaUsers />
-            <span className="hidden sm:inline">Users</span>
+            Users
           </button>
         </div>
 
-        <div className="p-4 md:p-6">
+        <div className="p-6">
+          {/* TOURNAMENTS TAB */}
           {activeTab === 'tournaments' && (
             <div>
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-bold">Manage Tournaments</h3>
                 <button
                   onClick={() => setShowCreateModal(true)}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all text-sm"
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2"
                 >
                   <FaPlus />
-                  <span className="hidden sm:inline">Create</span>
+                  Create
                 </button>
               </div>
 
               {loading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="bg-white bg-opacity-5 rounded-lg h-20 skeleton"></div>
-                  ))}
-                </div>
+                <div className="text-center py-8">Loading...</div>
               ) : tournaments.length > 0 ? (
                 <div className="space-y-3">
-                  {tournaments.map((tournament) => (
-                    <div
-                      key={tournament.id}
-                      className="bg-white bg-opacity-5 rounded-lg p-4 hover:bg-opacity-10 transition-all"
-                    >
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="flex-1">
-                          <h4 className="font-bold text-lg mb-1">{tournament.name}</h4>
-                          <div className="flex flex-wrap gap-2 md:gap-4 text-xs md:text-sm text-gray-400">
-                            <span className="capitalize">{tournament.game}</span>
-                            <span>•</span>
-                            <span className="capitalize">{tournament.status}</span>
-                            <span>•</span>
-                            <span>₹{tournament.prize_pool}</span>
-                            <span>•</span>
-                            <span>{tournament.participants_count}/{tournament.max_participants} players</span>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button 
-                            onClick={() => {
-                              setSelectedTournament(tournament);
-                              loadParticipants(tournament.id);
-                            }}
-                            className="p-2 bg-blue-500 bg-opacity-20 hover:bg-opacity-30 rounded-lg text-blue-400 transition-all"
-                          >
-                            <FaUsers />
-                          </button>
-                          <button className="p-2 bg-green-500 bg-opacity-20 hover:bg-opacity-30 rounded-lg text-green-400 transition-all">
-                            <FaEdit />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteTournament(tournament.id)}
-                            className="p-2 bg-red-500 bg-opacity-20 hover:bg-opacity-30 rounded-lg text-red-400 transition-all"
-                          >
-                            <FaTrash />
-                          </button>
-                        </div>
+                  {tournaments.map((t) => (
+                    <div key={t.id} className="bg-white bg-opacity-5 rounded-lg p-4 flex justify-between items-center">
+                      <div>
+                        <h4 className="font-bold">{t.name}</h4>
+                        {t.tournament_id && (
+                          <p className="text-xs font-mono text-purple-400">ID: {t.tournament_id}</p>
+                        )}
+                        <p className="text-sm text-gray-400">
+                          {t.game} • {t.status} • ₹{t.prize_pool} • {t.participants_count}/{t.max_participants}
+                        </p>
                       </div>
+                      <button
+                        onClick={() => handleDeleteTournament(t.id)}
+                        className="p-2 bg-red-500 bg-opacity-20 hover:bg-opacity-30 rounded-lg text-red-400"
+                      >
+                        <FaTrash />
+                      </button>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12 text-gray-400">
-                  No tournaments yet. Click "Create" to add one.
-                </div>
+                <div className="text-center py-12 text-gray-400">No tournaments yet</div>
               )}
             </div>
           )}
 
+          {/* USERS TAB */}
           {activeTab === 'users' && (
             <div>
               <h3 className="text-xl font-bold mb-6">User Management</h3>
-
               {loading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="bg-white bg-opacity-5 rounded-lg h-16 skeleton"></div>
-                  ))}
-                </div>
+                <div className="text-center py-8">Loading...</div>
               ) : users.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-white border-opacity-5">
-                        <th className="text-left py-3 px-2 md:px-4">Username</th>
-                        <th className="text-left py-3 px-2 md:px-4 hidden md:table-cell">Email</th>
-                        <th className="text-left py-3 px-2 md:px-4">Wins</th>
-                        <th className="text-left py-3 px-2 md:px-4">Wallet</th>
-                        <th className="text-left py-3 px-2 md:px-4">Role</th>
+                        <th className="text-left py-3 px-4">Username</th>
+                        <th className="text-left py-3 px-4">Email</th>
+                        <th className="text-left py-3 px-4">Balance</th>
+                        <th className="text-left py-3 px-4">Role</th>
                       </tr>
                     </thead>
                     <tbody>
                       {users.slice(0, 20).map((user) => (
-                        <tr key={user.id} className="border-b border-white border-opacity-5 hover:bg-white hover:bg-opacity-5">
-                          <td className="py-3 px-2 md:px-4">{user.username}</td>
-                          <td className="py-3 px-2 md:px-4 text-gray-400 hidden md:table-cell text-xs">{user.email}</td>
-                          <td className="py-3 px-2 md:px-4">{user.total_wins}</td>
-                          <td className="py-3 px-2 md:px-4">₹{user.wallet_real?.toFixed(0)}</td>
-                          <td className="py-3 px-2 md:px-4">
+                        <tr key={user.id} className="border-b border-white border-opacity-5">
+                          <td className="py-3 px-4">{user.username}</td>
+                          <td className="py-3 px-4 text-xs text-gray-400">{user.email}</td>
+                          <td className="py-3 px-4">₹{user.wallet_real?.toFixed(2) || '0.00'}</td>
+                          <td className="py-3 px-4">
                             {user.is_admin ? (
-                              <span className="px-2 py-1 bg-red-500 bg-opacity-20 text-red-400 rounded text-xs font-bold">
+                              <span className="px-2 py-1 bg-red-500 bg-opacity-20 text-red-400 rounded text-xs">
                                 ADMIN
                               </span>
                             ) : (
@@ -333,24 +254,13 @@ export default function AdminPage() {
           )}
         </div>
       </div>
-       <div className="flex-1">
-  <h4 className="font-bold text-lg mb-1">{tournament.name}</h4>
-  {/* ADD THIS */}
-  {tournament.tournament_id && (
-    <p className="text-xs font-mono text-purple-400 mb-2">
-      ID: {tournament.tournament_id}
-    </p>
-  )}
-  <div className="flex flex-wrap gap-2 md:gap-4 text-xs md:text-sm text-gray-400">
-    {/* ... existing content */}
-  </div>
-</div>
-      {/* Create Tournament Modal - Continue in next message due to length... */}
+
+      {/* CREATE MODAL */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-primary-card rounded-2xl w-full max-w-2xl p-6 md:p-8 border border-white border-opacity-10 my-8">
             <h3 className="text-2xl font-bold mb-6">Create Tournament</h3>
-            
+
             <form onSubmit={handleCreateTournament} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
@@ -359,7 +269,7 @@ export default function AdminPage() {
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="input"
+                    className="w-full px-4 py-3 bg-white bg-opacity-5 border border-white border-opacity-10 rounded-lg text-white focus:outline-none focus:border-purple-500"
                     required
                   />
                 </div>
@@ -369,7 +279,7 @@ export default function AdminPage() {
                   <select
                     value={formData.game}
                     onChange={(e) => setFormData({ ...formData, game: e.target.value })}
-                    className="input"
+                    className="w-full px-4 py-3 bg-white bg-opacity-5 border border-white border-opacity-10 rounded-lg text-white focus:outline-none focus:border-purple-500"
                     required
                   >
                     <option value="freefire">Free Fire</option>
@@ -379,26 +289,12 @@ export default function AdminPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm text-gray-400 mb-2">Status *</label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="input"
-                    required
-                  >
-                    <option value="upcoming">Upcoming</option>
-                    <option value="live">Live</option>
-                    <option value="completed">Completed</option>
-                  </select>
-                </div>
-
-                <div>
                   <label className="block text-sm text-gray-400 mb-2">Prize Pool (₹) *</label>
                   <input
                     type="number"
                     value={formData.prize_pool}
                     onChange={(e) => setFormData({ ...formData, prize_pool: e.target.value })}
-                    className="input"
+                    className="w-full px-4 py-3 bg-white bg-opacity-5 border border-white border-opacity-10 rounded-lg text-white focus:outline-none focus:border-purple-500"
                     required
                   />
                 </div>
@@ -408,7 +304,7 @@ export default function AdminPage() {
                   <select
                     value={formData.entry_fee}
                     onChange={(e) => setFormData({ ...formData, entry_fee: e.target.value })}
-                    className="input"
+                    className="w-full px-4 py-3 bg-white bg-opacity-5 border border-white border-opacity-10 rounded-lg text-white focus:outline-none focus:border-purple-500"
                     required
                   >
                     <option value="0">Free</option>
@@ -420,12 +316,12 @@ export default function AdminPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm text-gray-400 mb-2">Max Participants *</label>
+                  <label className="block text-sm text-gray-400 mb-2">Max Players *</label>
                   <input
                     type="number"
                     value={formData.max_participants}
                     onChange={(e) => setFormData({ ...formData, max_participants: e.target.value })}
-                    className="input"
+                    className="w-full px-4 py-3 bg-white bg-opacity-5 border border-white border-opacity-10 rounded-lg text-white focus:outline-none focus:border-purple-500"
                     required
                     max="50"
                   />
@@ -437,30 +333,8 @@ export default function AdminPage() {
                     type="datetime-local"
                     value={formData.tournament_date}
                     onChange={(e) => setFormData({ ...formData, tournament_date: e.target.value })}
-                    className="input"
+                    className="w-full px-4 py-3 bg-white bg-opacity-5 border border-white border-opacity-10 rounded-lg text-white focus:outline-none focus:border-purple-500"
                     required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Room ID</label>
-                  <input
-                    type="text"
-                    value={formData.room_id}
-                    onChange={(e) => setFormData({ ...formData, room_id: e.target.value })}
-                    className="input"
-                    placeholder="Upload 5 min before"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Room Password</label>
-                  <input
-                    type="text"
-                    value={formData.room_password}
-                    onChange={(e) => setFormData({ ...formData, room_password: e.target.value })}
-                    className="input"
-                    placeholder="Upload 5 min before"
                   />
                 </div>
               </div>
@@ -472,70 +346,15 @@ export default function AdminPage() {
                     setShowCreateModal(false);
                     resetForm();
                   }}
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg font-semibold transition-all"
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg font-semibold"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-semibold transition-all"
-                >
+                <button type="submit" className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-semibold">
                   Create
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Participants Modal */}
-      {selectedTournament && (
-        <div className="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-primary-card rounded-2xl w-full max-w-4xl p-6 md:p-8 border border-white border-opacity-10 my-8">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-bold">Participants - {selectedTournament.name}</h3>
-              <button
-                onClick={() => setSelectedTournament(null)}
-                className="text-gray-400 hover:text-white text-2xl"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-white border-opacity-5">
-                    <th className="text-left py-3 px-4">Seat</th>
-                    <th className="text-left py-3 px-4">Username</th>
-                    <th className="text-left py-3 px-4">IGN</th>
-                    <th className="text-left py-3 px-4">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {participants.map((p) => (
-                    <tr key={p.id} className="border-b border-white border-opacity-5">
-                      <td className="py-3 px-4">#{p.seat_number}</td>
-                      <td className="py-3 px-4">{p.user?.username}</td>
-                      <td className="py-3 px-4">{p.in_game_name}</td>
-                      <td className="py-3 px-4">
-                        {!p.win_tag_given && (
-                          <button
-                            onClick={() => handleGiveWinTag(p.user_id, selectedTournament.id)}
-                            className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
-                          >
-                            Give Win
-                          </button>
-                        )}
-                        {p.win_tag_given && (
-                          <span className="text-green-400 text-xs">✓ Winner</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
           </div>
         </div>
       )}
