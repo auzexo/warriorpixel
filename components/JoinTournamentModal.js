@@ -1,8 +1,7 @@
-// components/JoinTournamentModal.js
 'use client';
 
 import { useState } from 'react';
-import { FaTimes, FaGamepad, FaTicketAlt, FaUser } from 'react-icons/fa';
+import { FaTimes, FaGamepad, FaTicketAlt, FaUser, FaCoins } from 'react-icons/fa';
 
 const JoinTournamentModal = ({ 
   tournament, 
@@ -15,20 +14,33 @@ const JoinTournamentModal = ({
   const [selectedVoucher, setSelectedVoucher] = useState(null);
   const [error, setError] = useState('');
 
+  // Check available vouchers
   const availableVouchers = [];
-  if (userProfile?.wallet_vouchers_20 > 0 && tournament.entry_fee === 20) {
-    availableVouchers.push({ type: '20', count: userProfile.wallet_vouchers_20 });
+  
+  if (userProfile?.wallet_vouchers_20 > 0 && tournament?.entry_fee === 20) {
+    availableVouchers.push({ 
+      type: '20', 
+      count: userProfile.wallet_vouchers_20 
+    });
   }
-  if (userProfile?.wallet_vouchers_30 > 0 && tournament.entry_fee === 30) {
-    availableVouchers.push({ type: '30', count: userProfile.wallet_vouchers_30 });
+  
+  if (userProfile?.wallet_vouchers_30 > 0 && tournament?.entry_fee === 30) {
+    availableVouchers.push({ 
+      type: '30', 
+      count: userProfile.wallet_vouchers_30 
+    });
   }
-  if (userProfile?.wallet_vouchers_50 > 0 && tournament.entry_fee === 50) {
-    availableVouchers.push({ type: '50', count: userProfile.wallet_vouchers_50 });
+  
+  if (userProfile?.wallet_vouchers_50 > 0 && tournament?.entry_fee === 50) {
+    availableVouchers.push({ 
+      type: '50', 
+      count: userProfile.wallet_vouchers_50 
+    });
   }
 
-  const finalFee = selectedVoucher ? 0 : tournament.entry_fee;
+  const finalFee = selectedVoucher ? 0 : (tournament?.entry_fee || 0);
   const hasEnoughBalance = (userProfile?.wallet_real || 0) >= finalFee;
-  const seatsAvailable = tournament.max_participants - (tournament.participants_count || 0);
+  const seatsAvailable = (tournament?.max_participants || 0) - (tournament?.participants_count || 0);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -38,8 +50,18 @@ const JoinTournamentModal = ({
       return;
     }
 
+    if (inGameName.trim().length < 3) {
+      setError('In-game name must be at least 3 characters');
+      return;
+    }
+
     if (finalFee > 0 && !hasEnoughBalance) {
       setError('Insufficient balance');
+      return;
+    }
+
+    if (seatsAvailable <= 0) {
+      setError('Tournament is full');
       return;
     }
 
@@ -48,10 +70,11 @@ const JoinTournamentModal = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-primary-card rounded-2xl w-full max-w-md p-6 md:p-8 border border-white border-opacity-10 relative">
+      <div className="bg-primary-card rounded-2xl w-full max-w-md p-6 md:p-8 border border-white border-opacity-10 relative animate-scale-in">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-white"
+          className="absolute top-4 right-4 text-gray-400 hover:text-white transition-all"
+          disabled={loading}
         >
           <FaTimes className="text-xl" />
         </button>
@@ -68,6 +91,7 @@ const JoinTournamentModal = ({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* In-Game Name Input */}
           <div>
             <label className="block text-sm font-medium text-gray-400 mb-2">
               <FaUser className="inline mr-2" />
@@ -81,16 +105,18 @@ const JoinTournamentModal = ({
                 setError('');
               }}
               placeholder="Enter your in-game name"
-              className="w-full px-4 py-3 bg-white bg-opacity-5 border border-white border-opacity-10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-purple-500"
+              className="w-full px-4 py-3 bg-white bg-opacity-5 border border-white border-opacity-10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 transition-all"
               required
               maxLength={50}
+              disabled={loading}
             />
             <p className="text-xs text-gray-500 mt-1">
               This name will be used for match verification
             </p>
           </div>
 
-          {availableVouchers.length > 0 && (
+          {/* Voucher Selection */}
+          {availableVouchers.length > 0 && tournament?.entry_fee > 0 && (
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-2">
                 <FaTicketAlt className="inline mr-2" />
@@ -98,8 +124,12 @@ const JoinTournamentModal = ({
               </label>
               <select
                 value={selectedVoucher || ''}
-                onChange={(e) => setSelectedVoucher(e.target.value || null)}
-                className="w-full px-4 py-3 bg-white bg-opacity-5 border border-white border-opacity-10 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                onChange={(e) => {
+                  setSelectedVoucher(e.target.value || null);
+                  setError('');
+                }}
+                className="w-full px-4 py-3 bg-white bg-opacity-5 border border-white border-opacity-10 rounded-lg text-white focus:outline-none focus:border-purple-500 transition-all"
+                disabled={loading}
               >
                 <option value="">Pay ₹{tournament.entry_fee}</option>
                 {availableVouchers.map(v => (
@@ -111,30 +141,44 @@ const JoinTournamentModal = ({
             </div>
           )}
 
+          {/* Summary */}
           <div className="bg-white bg-opacity-5 rounded-lg p-4 space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-gray-400">Entry Fee:</span>
-              <span className={finalFee === 0 ? 'text-green-400 font-bold' : 'text-white'}>
+              <span className={finalFee === 0 ? 'text-green-400 font-bold' : 'text-white font-semibold'}>
                 {finalFee === 0 ? 'FREE (Voucher)' : `₹${finalFee}`}
               </span>
             </div>
+            
             <div className="flex justify-between text-sm">
               <span className="text-gray-400">Seats Available:</span>
-              <span className={seatsAvailable > 10 ? 'text-green-400' : 'text-orange-400'}>
-                {seatsAvailable}/{tournament.max_participants}
+              <span className={seatsAvailable > 10 ? 'text-green-400' : seatsAvailable > 0 ? 'text-orange-400' : 'text-red-400'}>
+                {seatsAvailable}/{tournament?.max_participants || 0}
               </span>
             </div>
+            
             <div className="flex justify-between text-sm">
               <span className="text-gray-400">Your Balance:</span>
-              <span className="text-white">₹{(userProfile?.wallet_real || 0).toFixed(2)}</span>
+              <span className="text-white font-semibold">₹{(userProfile?.wallet_real || 0).toFixed(2)}</span>
             </div>
+
+            {finalFee > 0 && !hasEnoughBalance && (
+              <div className="pt-2 border-t border-white border-opacity-10">
+                <p className="text-red-400 text-xs flex items-center gap-1">
+                  <FaCoins />
+                  Insufficient balance! Add ₹{(finalFee - (userProfile?.wallet_real || 0)).toFixed(2)} more
+                </p>
+              </div>
+            )}
           </div>
 
+          {/* Buttons */}
           <div className="flex gap-3 pt-4">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg font-semibold transition-all"
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg font-semibold transition-all disabled:opacity-50"
+              disabled={loading}
             >
               Cancel
             </button>
@@ -151,3 +195,5 @@ const JoinTournamentModal = ({
     </div>
   );
 };
+
+export default JoinTournamentModal;
