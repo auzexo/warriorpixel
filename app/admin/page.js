@@ -519,17 +519,20 @@ return (
             </h3>
 
             <form onSubmit={showCreateModal ? handleCreateTournament : handleEditTournament} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm text-gray-400 mb-2">Tournament Name *</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-3 bg-white bg-opacity-5 border border-white border-opacity-10 rounded-lg text-white focus:outline-none focus:border-purple-500"
-                    required
-                  />
-                </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm text-gray-400 mb-2 font-semibold">
+                  Tournament Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Enter tournament name"
+                  className="w-full px-4 py-3 bg-white bg-opacity-5 border border-white border-opacity-10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500"
+                  required
+                  autoComplete="off"
+                />
+              </div>
 
                 <div>
                   <label className="block text-sm text-gray-400 mb-2">Game *</label>
