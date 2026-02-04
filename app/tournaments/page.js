@@ -1,6 +1,7 @@
 // app/tournaments/page.js
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getTournaments, joinTournament } from '@/lib/database';
@@ -10,6 +11,7 @@ import { FaFilter, FaGamepad, FaTrophy } from 'react-icons/fa';
 
 export default function TournamentsPage() {
   const { userProfile, refreshProfile } = useAuth();
+  const router = useRouter();
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTournament, setSelectedTournament] = useState(null);
@@ -34,7 +36,6 @@ export default function TournamentsPage() {
   };
 
   const handleTournamentClick = (tournament) => {
-    // Navigate to detail page instead of opening modal
     router.push(`/tournaments/${tournament.id}`);
   };
 
