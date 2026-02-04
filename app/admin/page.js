@@ -273,21 +273,34 @@ export default function AdminPage() {
 
   const openEditModal = (tournament) => {
     setSelectedTournament(tournament);
-    setFormData({
-      name: tournament.name,
-      game: tournament.game,
-      status: tournament.status,
-      prize_pool: tournament.prize_pool.toString(),
-      entry_fee: tournament.entry_fee.toString(),
-      max_participants: tournament.max_participants.toString(),
-      tournament_date: tournament.tournament_date ? tournament.tournament_date.slice(0, 16) : '',
-      room_id: tournament.room_id || '',
-      room_password: tournament.room_password || '',
-      description: tournament.description || '',
-      rules: tournament.rules || '',
-    });
-    setShowEditModal(true);
-  };
+    
+    // Format date properly for datetime-local input
+    let formattedDate = '';
+    if (tournament.tournament_date) {
+      try {
+        const date = new Date(tournament.tournament_date);
+        formattedDate = date.toISOString().slice(0, 16); // Format: YYYY-MM-DDTHH:mm
+      } catch (e) {
+        console.error('Date formatting error:', e);
+      }
+    }
+  
+  setFormData({
+    name: tournament.name || '',
+    game: tournament.game || 'freefire',
+    status: tournament.status || 'upcoming',
+    prize_pool: tournament.prize_pool?.toString() || '',
+    entry_fee: tournament.entry_fee?.toString() || '0',
+    max_participants: tournament.max_participants?.toString() || '50',
+    tournament_date: formattedDate,
+    room_id: tournament.room_id || '',
+    room_password: tournament.room_password || '',
+    description: tournament.description || '',
+    rules: tournament.rules || '',
+  });
+  
+  setShowEditModal(true);
+};
 
   const openUserManageModal = (user) => {
     setSelectedUser(user);
