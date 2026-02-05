@@ -1,4 +1,3 @@
-// components/ClientLayout.js
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -9,34 +8,39 @@ import Topbar from './Topbar';
 import AuthModal from './AuthModal';
 import LoadingScreen from './LoadingScreen';
 
-const ClientLayout = ({ children }) => {
+export default function ClientLayout({ children }) {
   const pathname = usePathname();
   const { user, loading } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
-  const getPageTitle = () => {
-    const titles = {
-      '/': 'HOME',
-      '/freefire': 'FREE FIRE',
-      '/minecraft': 'MINECRAFT',
-      '/tournaments': 'TOURNAMENTS',
-      '/wallet': 'WALLET',
-      '/shop': 'SHOP',
-      '/admin': 'ADMIN PANEL',
-      '/info': 'INFO & HELP',
-      '/download': 'DOWNLOAD APP',
-    };
-    return titles[pathname] || 'WARRIORPIXEL';
+  // Close sidebar when route changes
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname]);
+
+  // Toggle sidebar function
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
   };
 
+  const pageTitles = {
+    '/': 'Home',
+    '/tournaments': 'Tournaments',
+    '/wallet': 'Wallet',
+    '/shop': 'Shop',
+    '/freefire': 'Free Fire',
+    '/minecraft': 'Minecraft',
+    '/info': 'Info & Help',
+    '/download': 'Download App',
+    '/admin': 'Admin Panel',
+  };
+
+  const currentTitle = pageTitles[pathname] || 'WarriorPixel';
+
   useEffect(() => {
-    if (!loading && !user) {
-      setShowAuthModal(true);
-    } else {
-      setShowAuthModal(false);
-    }
-  }, [user, loading]);
+    document.title = `${currentTitle} - WarriorPixel`;
+  }, [currentTitle]);
 
   if (loading) {
     return <LoadingScreen />;
@@ -44,28 +48,46 @@ const ClientLayout = ({ children }) => {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-main flex items-center justify-center p-4">
-        <AuthModal isOpen={showAuthModal} onClose={() => {}} />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-darker via-primary-dark to-primary-darker">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold mb-4 gradient-text">Welcome to WarriorPixel</h1>
+          <button
+            onClick={() => setShowAuthModal(true)}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-lg font-semibold"
+          >
+            Get Started
+          </button>
+        </div>
+        {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-main">
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      
-      <div className="lg:ml-64 min-h-screen flex flex-col">
-        <Topbar 
-          onMenuClick={() => setSidebarOpen(!sidebarOpen)} 
-          pageTitle={getPageTitle()}
-        />
-        
-        <main className="flex-1 p-4 md:p-6">
-          {children}
-        </main>
+    <div className="min-h-screen bg-gradient-to-br from-primary-darker via-primary-dark to-primary-darker">
+      <div className="flex">
+        {/* Sidebar */}
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+        {/* Overlay for mobile */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col min-h-screen">
+          {/* Topbar - PASS toggleSidebar function */}
+          <Topbar onMenuToggle={toggleSidebar} />
+
+          {/* Page Content */}
+          <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-auto">
+            {children}
+          </main>
+        </div>
       </div>
     </div>
   );
-};
-
-export default ClientLayout;
+}
