@@ -474,7 +474,7 @@ const handleCreateTournament = async (e) => {
                   <label className="block text-sm text-gray-400 mb-2">Rules</label>
                   <textarea value={formData.rules} onChange={(e) => setFormData({ ...formData, rules: e.target.value })} className="w-full px-4 py-3 bg-white bg-opacity-5 border border-white border-opacity-10 rounded-lg text-white focus:outline-none focus:border-purple-500" rows="3" placeholder="One rule per line" />
                 </div>
-              </div>
+              
 
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => { setShowCreateModal(false); setShowEditModal(false); setSelectedTournament(null); resetForm(); }} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg font-semibold">
