@@ -5,6 +5,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
 import { FaBars, FaBell, FaGem, FaCoins, FaTicketAlt, FaWallet } from 'react-icons/fa';
+import NotificationBell from './NotificationBell';
 
 const Topbar = ({ onMenuClick, pageTitle }) => {
   const { userProfile } = useAuth();
