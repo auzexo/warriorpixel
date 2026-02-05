@@ -411,10 +411,19 @@ const handleCreateTournament = async (e) => {
             </div>
 
             <form onSubmit={showCreateModal ? handleCreateTournament : handleEditTournament} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-semibold text-gray-300 mb-2">Tournament Name *</label>
-                  <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Enter tournament name" className="w-full px-4 py-3 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 focus:bg-opacity-15" required autoComplete="off" />
+                  <label className="block text-base font-bold text-white mb-3 px-2 py-2 bg-purple-600 bg-opacity-20 rounded-lg">
+                    🏆 Tournament Name *
+                  </label>
+                  <input 
+                    type="text" 
+                    value={formData.name} 
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })} 
+                    placeholder="e.g., Free Fire Squad Championship"
+                    className="w-full px-4 py-4 bg-primary-darker border-2 border-purple-500 rounded-lg text-white text-base font-semibold placeholder-gray-500 focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500"
+                    required 
+                    autoComplete="off"
+                  />
                 </div>
 
                 <div>
