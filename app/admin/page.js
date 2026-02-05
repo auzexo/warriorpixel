@@ -466,21 +466,6 @@ const handleCreateTournament = async (e) => {
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm text-gray-400 mb-2">Date & Time *</label>
-                  <input type="datetime-local" value={formData.tournament_date} onChange={(e) => setFormData({ ...formData, tournament_date: e.target.value })} className="w-full px-4 py-3 bg-white bg-opacity-5 border border-white border-opacity-10 rounded-lg text-white focus:outline-none focus:border-purple-500" required />
-                </div>
-
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Room ID</label>
-                  <input type="text" value={formData.room_id} onChange={(e) => setFormData({ ...formData, room_id: e.target.value })} placeholder="Upload 5 min before" className="w-full px-4 py-3 bg-white bg-opacity-5 border border-white border-opacity-10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500" />
-                </div>
-
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Room Password</label>
-                  <input type="text" value={formData.room_password} onChange={(e) => setFormData({ ...formData, room_password: e.target.value })} placeholder="Upload 5 min before" className="w-full px-4 py-3 bg-white bg-opacity-5 border border-white border-opacity-10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500" />
-                </div>
-
-                <div className="md:col-span-2">
                   <label className="block text-sm text-gray-400 mb-2">Description</label>
                   <textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full px-4 py-3 bg-white bg-opacity-5 border border-white border-opacity-10 rounded-lg text-white focus:outline-none focus:border-purple-500" rows="3" />
                 </div>
