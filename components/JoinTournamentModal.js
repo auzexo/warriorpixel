@@ -3,39 +3,23 @@
 import { useState } from 'react';
 import { FaTimes, FaGamepad, FaTicketAlt, FaUser, FaCoins } from 'react-icons/fa';
 
-const JoinTournamentModal = ({ 
-  tournament, 
-  userProfile, 
-  onJoin, 
-  onClose, 
-  loading 
-}) => {
+const JoinTournamentModal = ({ tournament, userProfile, onJoin, onClose, loading }) => {
   const [inGameName, setInGameName] = useState('');
   const [selectedVoucher, setSelectedVoucher] = useState(null);
   const [error, setError] = useState('');
 
-  // Check available vouchers
   const availableVouchers = [];
   
   if (userProfile?.wallet_vouchers_20 > 0 && tournament?.entry_fee === 20) {
-    availableVouchers.push({ 
-      type: '20', 
-      count: userProfile.wallet_vouchers_20 
-    });
+    availableVouchers.push({ type: '20', count: userProfile.wallet_vouchers_20 });
   }
   
   if (userProfile?.wallet_vouchers_30 > 0 && tournament?.entry_fee === 30) {
-    availableVouchers.push({ 
-      type: '30', 
-      count: userProfile.wallet_vouchers_30 
-    });
+    availableVouchers.push({ type: '30', count: userProfile.wallet_vouchers_30 });
   }
   
   if (userProfile?.wallet_vouchers_50 > 0 && tournament?.entry_fee === 50) {
-    availableVouchers.push({ 
-      type: '50', 
-      count: userProfile.wallet_vouchers_50 
-    });
+    availableVouchers.push({ type: '50', count: userProfile.wallet_vouchers_50 });
   }
 
   const finalFee = selectedVoucher ? 0 : (tournament?.entry_fee || 0);
@@ -70,7 +54,7 @@ const JoinTournamentModal = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-primary-card rounded-2xl w-full max-w-md p-6 md:p-8 border border-white border-opacity-10 relative animate-scale-in">
+      <div className="bg-primary-card rounded-2xl w-full max-w-md p-6 md:p-8 border border-white border-opacity-10 relative">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-400 hover:text-white transition-all"
@@ -91,7 +75,6 @@ const JoinTournamentModal = ({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* In-Game Name Input */}
           <div>
             <label className="block text-sm font-medium text-gray-400 mb-2">
               <FaUser className="inline mr-2" />
@@ -110,12 +93,8 @@ const JoinTournamentModal = ({
               maxLength={50}
               disabled={loading}
             />
-            <p className="text-xs text-gray-500 mt-1">
-              This name will be used for match verification
-            </p>
           </div>
 
-          {/* Voucher Selection */}
           {availableVouchers.length > 0 && tournament?.entry_fee > 0 && (
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-2">
@@ -141,7 +120,6 @@ const JoinTournamentModal = ({
             </div>
           )}
 
-          {/* Summary */}
           <div className="bg-white bg-opacity-5 rounded-lg p-4 space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-gray-400">Entry Fee:</span>
@@ -172,7 +150,6 @@ const JoinTournamentModal = ({
             )}
           </div>
 
-          {/* Buttons */}
           <div className="flex gap-3 pt-4">
             <button
               type="button"
