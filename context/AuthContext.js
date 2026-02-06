@@ -95,38 +95,40 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Login with Google
-  const loginWithGoogle = async () => {
+  // Google Sign In
+  const signInWithGoogle = async () => {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`
+          redirectTo: `${window.location.origin}/`,
         }
       });
-
+  
       if (error) throw error;
+  
       return { success: true, data };
     } catch (error) {
-      console.error('Google login error:', error);
+      console.error('Google sign in error:', error);
       return { success: false, error: error.message };
     }
   };
-
-  // Login with Discord
-  const loginWithDiscord = async () => {
+  
+  // Discord Sign In
+  const signInWithDiscord = async () => {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'discord',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`
+          redirectTo: `${window.location.origin}/`,
         }
       });
 
       if (error) throw error;
+  
       return { success: true, data };
     } catch (error) {
-      console.error('Discord login error:', error);
+      console.error('Discord sign in error:', error);
       return { success: false, error: error.message };
     }
   };
