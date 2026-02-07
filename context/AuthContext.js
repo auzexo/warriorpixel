@@ -18,41 +18,34 @@ export const AuthContextProvider = ({ children }) => {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Load user session on mount
   useEffect(() => {
     checkUser();
 
-    // Listen for auth changes
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event);
-      
-      if (session?.user) {
-        setUser(session.user);
-        await loadUserProfile(session.user.id);
-      } else {
-        setUser(null);
-        setUserProfile(null);
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth event:', event);
+        if (session?.user) {
+          setUser(session.user);
+          await loadUserProfile(session.user.id);
+        } else {
+          setUser(null);
+          setUserProfile(null);
+        }
+        setLoading(false);
       }
-      
-      setLoading(false);
-    });
+    );
 
     return () => {
       authListener?.subscription?.unsubscribe();
     };
   }, []);
 
-  // Check current user session
   const checkUser = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
       if (session?.user) {
         setUser(session.user);
         await loadUserProfile(session.user.id);
-      } else {
-        setUser(null);
-        setUserProfile(null);
       }
     } catch (error) {
       console.error('Error checking user:', error);
@@ -61,7 +54,6 @@ export const AuthContextProvider = ({ children }) => {
     }
   };
 
-  // Load user profile from database
   const loadUserProfile = async (userId) => {
     try {
       const { data, error } = await supabase
@@ -71,24 +63,22 @@ export const AuthContextProvider = ({ children }) => {
         .single();
 
       if (error) {
-        console.error('Error loading profile:', error);
+        console.error('Profile load error:', error);
         return;
       }
 
       setUserProfile(data);
     } catch (error) {
-      console.error('Error loading user profile:', error);
+      console.error('Error loading profile:', error);
     }
   };
 
-  // Refresh user profile
   const refreshProfile = async () => {
     if (user) {
       await loadUserProfile(user.id);
     }
   };
 
-  // Email/Password Login
   const login = async (email, password) => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -108,10 +98,8 @@ export const AuthContextProvider = ({ children }) => {
     }
   };
 
-  // Email/Password Signup
   const signup = async (email, password, username) => {
     try {
-      // Step 1: Create auth account
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -126,14 +114,13 @@ export const AuthContextProvider = ({ children }) => {
       if (error) throw error;
 
       if (!data.user) {
-        throw new Error('User creation failed');
+        throw new Error('Signup failed');
       }
 
-      // Step 2: Profile will be created automatically by database trigger
-      // Wait a moment for trigger to complete
+      // Wait for database trigger to create profile
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Step 3: Load the newly created profile
+      // Load profile
       await loadUserProfile(data.user.id);
 
       return { success: true, data };
@@ -143,7 +130,7 @@ export const AuthContextProvider = ({ children }) => {
     }
   };
 
-  // Google OAuth Login
+  // ✅ GOOGLE OAUTH - NEW
   const signInWithGoogle = async () => {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -159,8 +146,6 @@ export const AuthContextProvider = ({ children }) => {
 
       if (error) throw error;
 
-      // OAuth redirect will happen automatically
-      // User will be logged in when they return
       return { success: true, data };
     } catch (error) {
       console.error('Google sign in error:', error);
@@ -171,7 +156,7 @@ export const AuthContextProvider = ({ children }) => {
     }
   };
 
-  // Discord OAuth Login
+  // ✅ DISCORD OAUTH - NEW
   const signInWithDiscord = async () => {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -183,8 +168,6 @@ export const AuthContextProvider = ({ children }) => {
 
       if (error) throw error;
 
-      // OAuth redirect will happen automatically
-      // User will be logged in when they return
       return { success: true, data };
     } catch (error) {
       console.error('Discord sign in error:', error);
@@ -195,17 +178,14 @@ export const AuthContextProvider = ({ children }) => {
     }
   };
 
-  // Logout
   const logout = async () => {
     try {
       const { error } = await supabase.auth.signOut();
-      
       if (error) throw error;
 
       setUser(null);
       setUserProfile(null);
 
-      // Force reload to clear all state
       if (typeof window !== 'undefined') {
         window.location.href = '/';
       }
@@ -217,15 +197,14 @@ export const AuthContextProvider = ({ children }) => {
     }
   };
 
-  // Context value
   const value = {
     user,
     userProfile,
     loading,
     login,
     signup,
-    signInWithGoogle,
-    signInWithDiscord,
+    signInWithGoogle,    // ✅ ADDED
+    signInWithDiscord,   // ✅ ADDED
     logout,
     refreshProfile,
   };
