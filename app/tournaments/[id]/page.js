@@ -3,57 +3,44 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { getTournamentWithDetails, joinTournament } from '@/lib/database';
-import JoinTournamentModal from '@/components/JoinTournamentModal';
-import { FaTrophy, FaUsers, FaCalendar, FaTicketAlt, FaLock, FaGamepad, FaArrowLeft } from 'react-icons/fa';
-import { format } from 'date-fns';
+import { supabase } from '@/lib/supabase';
+import { FaTrophy, FaArrowLeft, FaUsers, FaCoins } from 'react-icons/fa';
 
 export default function TournamentDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { userProfile, refreshProfile } = useAuth();
+  const { userProfile } = useAuth();
   const [tournament, setTournament] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showJoinModal, setShowJoinModal] = useState(false);
-  const [joining, setJoining] = useState(false);
 
   useEffect(() => {
-    if (params.id && userProfile) {
-      loadTournament();
-    }
-  }, [params.id, userProfile]);
+    loadTournament();
+  }, [params.id]);
 
   const loadTournament = async () => {
-    setLoading(true);
-    const result = await getTournamentWithDetails(params.id, userProfile.id);
-    if (result.success) {
-      setTournament(result.data);
-    } else {
-      alert('Tournament not found');
-      router.push('/tournaments');
-    }
-    setLoading(false);
-  };
+    try {
+      const { data, error } = await supabase
+        .from('tournaments')
+        .select('*')
+        .eq('id', params.id)
+        .single();
 
-  const handleJoin = async (inGameName, voucherType) => {
-    setJoining(true);
-    const result = await joinTournament(params.id, userProfile.id, inGameName, voucherType);
-    
-    if (result.success) {
-      alert(`✅ Joined successfully!\n🎮 Your Seat: #${result.data.seat_number}\n🎯 IGN: ${inGameName}`);
-      setShowJoinModal(false);
-      loadTournament();
-      refreshProfile();
-    } else {
-      alert(`❌ ${result.error}`);
+      if (error) throw error;
+      setTournament(data);
+    } catch (error) {
+      console.error('Error loading tournament:', error);
+    } finally {
+      setLoading(false);
     }
-    setJoining(false);
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading tournament...</p>
+        </div>
       </div>
     );
   }
@@ -61,203 +48,85 @@ export default function TournamentDetailPage() {
   if (!tournament) {
     return (
       <div className="text-center py-12">
-        <h2 className="text-2xl font-bold mb-2">Tournament Not Found</h2>
-        <button onClick={() => router.push('/tournaments')} className="btn-primary mt-4">
+        <p className="text-gray-400">Tournament not found</p>
+        <button onClick={() => router.push('/tournaments')} className="mt-4 text-purple-400 hover:underline">
           Back to Tournaments
         </button>
       </div>
     );
   }
 
-  const getGameName = (game) => {
-    const names = { freefire: 'Free Fire', bgmi: 'BGMI', stumbleguys: 'Stumble Guys' };
-    return names[game] || game;
-  };
-
-  const getStatusColor = (status) => {
-    const colors = { live: 'bg-green-500', upcoming: 'bg-blue-500', completed: 'bg-gray-500' };
-    return colors[status] || 'bg-gray-500';
-  };
-
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      {/* Back Button */}
+    <div className="max-w-4xl mx-auto">
       <button
         onClick={() => router.push('/tournaments')}
-        className="flex items-center gap-2 text-gray-400 hover:text-white transition-all"
+        className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-all"
       >
         <FaArrowLeft />
         Back to Tournaments
       </button>
 
-{/* Header */}
-<div className={`rounded-2xl p-6 md:p-8 ${
-  tournament.game === 'freefire' ? 'bg-gradient-ff' :
-  tournament.game === 'bgmi' ? 'bg-gradient-to-br from-red-600 to-orange-600' :
-  'bg-gradient-to-br from-purple-600 to-pink-600'
-}`}>
-  <div className="flex items-start justify-between mb-4">
-    <div>
-      <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold text-white ${getStatusColor(tournament.status)} mb-3`}>
-        {tournament.status?.toUpperCase()}
-      </span>
-      {/* ADD THIS: Tournament ID Display */}
-      {tournament.tournament_id && (
-        <div className="mb-2">
-          <span className="px-3 py-1 bg-white bg-opacity-20 rounded-lg text-sm font-mono font-bold">
-            ID: {tournament.tournament_id}
-          </span>
-        </div>
-      )}
-      <h1 className="text-3xl md:text-4xl font-bold mb-2">{tournament.name}</h1>
-      <p className="text-white text-opacity-90">{getGameName(tournament.game)}</p>
-    </div>
-  </div>
-</div>
-
-      {/* Main Info */}
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="bg-primary-card rounded-xl p-6 border border-white border-opacity-5">
-          <h3 className="font-bold mb-4 flex items-center gap-2">
-            <FaTrophy className="text-yellow-500" />
-            Prize Pool
-          </h3>
-          <div className="text-4xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
-            ₹{tournament.prize_pool}
+      <div className="bg-primary-card rounded-2xl p-6 md:p-8 border border-white border-opacity-10">
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">{tournament.name}</h1>
+            <p className="text-gray-400">{tournament.game?.toUpperCase()}</p>
+          </div>
+          <div className={`px-4 py-2 rounded-lg font-semibold ${
+            tournament.status === 'live' ? 'bg-red-500 text-white' :
+            tournament.status === 'upcoming' ? 'bg-blue-500 text-white' :
+            'bg-gray-500 text-white'
+          }`}>
+            {tournament.status?.toUpperCase()}
           </div>
         </div>
 
-        <div className="bg-primary-card rounded-xl p-6 border border-white border-opacity-5">
-          <h3 className="font-bold mb-4 flex items-center gap-2">
-            <FaUsers className="text-blue-500" />
-            Participants
-          </h3>
-          <div className="text-4xl font-bold">
-            {tournament.participants_count}/{tournament.max_participants}
-          </div>
-          <div className="mt-2">
-            <div className="w-full bg-white bg-opacity-10 rounded-full h-2">
-              <div 
-                className="bg-blue-500 h-2 rounded-full transition-all"
-                style={{ width: `${(tournament.participants_count / tournament.max_participants) * 100}%` }}
-              ></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Details */}
-      <div className="bg-primary-card rounded-xl p-6 border border-white border-opacity-5">
-        <h3 className="font-bold mb-4 text-xl">Tournament Details</h3>
-        <div className="grid md:grid-cols-2 gap-4">
-          <div className="flex items-center gap-3">
-            <FaCalendar className="text-purple-400" />
-            <div>
-              <p className="text-sm text-gray-400">Date & Time</p>
-              <p className="font-semibold">
-                {tournament.tournament_date 
-                  ? format(new Date(tournament.tournament_date), 'MMM dd, yyyy - HH:mm')
-                  : 'TBA'}
-              </p>
-            </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white bg-opacity-5 rounded-lg p-4">
+            <FaTrophy className="text-yellow-400 text-2xl mb-2" />
+            <p className="text-gray-400 text-sm">Prize Pool</p>
+            <p className="text-xl font-bold">₹{tournament.prize_pool}</p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <FaTicketAlt className="text-green-400" />
-            <div>
-              <p className="text-sm text-gray-400">Entry Fee</p>
-              <p className="font-semibold">
-                {tournament.entry_fee > 0 ? `₹${tournament.entry_fee}` : 'Free'}
-              </p>
-            </div>
+          <div className="bg-white bg-opacity-5 rounded-lg p-4">
+            <FaCoins className="text-green-400 text-2xl mb-2" />
+            <p className="text-gray-400 text-sm">Entry Fee</p>
+            <p className="text-xl font-bold">₹{tournament.entry_fee}</p>
+          </div>
+
+          <div className="bg-white bg-opacity-5 rounded-lg p-4">
+            <FaUsers className="text-purple-400 text-2xl mb-2" />
+            <p className="text-gray-400 text-sm">Players</p>
+            <p className="text-xl font-bold">{tournament.participants_count}/{tournament.max_participants}</p>
+          </div>
+
+          <div className="bg-white bg-opacity-5 rounded-lg p-4">
+            <p className="text-gray-400 text-sm">Tournament ID</p>
+            <p className="text-sm font-mono text-purple-400">{tournament.tournament_id}</p>
           </div>
         </div>
 
         {tournament.description && (
-          <div className="mt-6 pt-6 border-t border-white border-opacity-5">
-            <h4 className="font-bold mb-2">Description</h4>
-            <p className="text-gray-300">{tournament.description}</p>
+          <div className="mb-6">
+            <h3 className="font-bold text-lg mb-2">Description</h3>
+            <p className="text-gray-400">{tournament.description}</p>
           </div>
         )}
 
         {tournament.rules && (
-          <div className="mt-6 pt-6 border-t border-white border-opacity-5">
-            <h4 className="font-bold mb-2">Rules</h4>
-            <p className="text-gray-300 whitespace-pre-line">{tournament.rules}</p>
+          <div className="mb-6">
+            <h3 className="font-bold text-lg mb-2">Rules</h3>
+            <div className="text-gray-400 whitespace-pre-line">{tournament.rules}</div>
           </div>
         )}
-      </div>
 
-      {/* Room Details (if joined) */}
-      {tournament.is_participant && (
-        <div className="bg-primary-card rounded-xl p-6 border border-white border-opacity-5">
-          <h3 className="font-bold mb-4 text-xl flex items-center gap-2">
-            <FaGamepad className="text-blue-400" />
-            Your Registration
-          </h3>
-          
-          <div className="grid md:grid-cols-2 gap-4 mb-4">
-            <div className="bg-white bg-opacity-5 rounded-lg p-4">
-              <p className="text-sm text-gray-400 mb-1">Your Seat Number</p>
-              <p className="text-2xl font-bold text-purple-400">#{tournament.user_seat_number}</p>
-            </div>
-
-            <div className="bg-white bg-opacity-5 rounded-lg p-4">
-              <p className="text-sm text-gray-400 mb-1">In-Game Name</p>
-              <p className="text-2xl font-bold text-cyan-400">{tournament.user_in_game_name}</p>
-            </div>
-          </div>
-
-          {tournament.can_see_room ? (
-            <div className="bg-green-500 bg-opacity-10 border border-green-500 rounded-lg p-4">
-              <h4 className="font-bold mb-3 text-green-400">🎮 Room Details (Live Now!)</h4>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-400 mb-1">Room ID</p>
-                  <p className="text-xl font-mono font-bold">{tournament.room_id}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-400 mb-1">Password</p>
-                  <p className="text-xl font-mono font-bold">{tournament.room_password}</p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-yellow-500 bg-opacity-10 border border-yellow-500 rounded-lg p-4 flex items-center gap-3">
-              <FaLock className="text-yellow-400 text-2xl" />
-              <div>
-                <p className="font-bold text-yellow-400">Room details will be available 5 minutes before tournament</p>
-                <p className="text-sm text-gray-400 mt-1">Check back closer to start time</p>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Join Button */}
-      {!tournament.is_participant && tournament.status !== 'completed' && (
         <button
-          onClick={() => setShowJoinModal(true)}
-          disabled={tournament.participants_count >= tournament.max_participants}
-          className="w-full bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-lg font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          onClick={() => alert('Join functionality coming soon!')}
+          className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-bold transition-all"
         >
-          {tournament.participants_count >= tournament.max_participants 
-            ? 'Tournament Full' 
-            : `Join Tournament ${tournament.entry_fee > 0 ? `- ₹${tournament.entry_fee}` : '- Free'}`
-          }
+          Join Tournament
         </button>
-      )}
-
-      {/* Join Modal */}
-      {showJoinModal && (
-        <JoinTournamentModal
-          tournament={tournament}
-          userProfile={userProfile}
-          onJoin={handleJoin}
-          onClose={() => setShowJoinModal(false)}
-          loading={joining}
-        />
-      )}
+      </div>
     </div>
   );
 }
