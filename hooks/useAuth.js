@@ -1,38 +1,49 @@
 'use client';
 
-import { useState, useEffect, createContext, useContext } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
-const AuthContext = createContext({});
-
-export const AuthProvider = ({ children }) => {
+export const useAuth = () => {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadProfile(session.user.id);
-      } else {
+    // Get initial session
+    const initAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          await loadProfile(session.user.id);
+        }
+      } catch (error) {
+        console.error('Auth init error:', error);
+      } finally {
         setLoading(false);
       }
-    });
+    };
+
+    initAuth();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadProfile(session.user.id);
-      } else {
-        setProfile(null);
-        setLoading(false);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth event:', event);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          await loadProfile(session.user.id);
+        } else {
+          setProfile(null);
+        }
       }
-    });
+    );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const loadProfile = async (userId) => {
@@ -43,13 +54,16 @@ export const AuthProvider = ({ children }) => {
         .eq('id', userId)
         .single();
 
+      if (error) {
+        console.error('Profile load error:', error);
+        return;
+      }
+
       if (data) {
         setProfile(data);
       }
     } catch (error) {
-      console.error('Error loading profile:', error);
-    } finally {
-      setLoading(false);
+      console.error('Profile fetch error:', error);
     }
   };
 
@@ -59,16 +73,5 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const value = {
-    user,
-    profile,
-    loading,
-    refreshProfile,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-
-export const useAuth = () => {
-  return useContext(AuthContext);
+  return { user, profile, loading, refreshProfile };
 };
