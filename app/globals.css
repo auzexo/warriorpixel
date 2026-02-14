@@ -50,3 +50,22 @@ body {
 .animate-fadeIn {
   animation: fadeIn 0.3s ease-out;
 }
+
+/* Admin Panel Mobile Responsiveness */
+@media (max-width: 768px) {
+  /* Make tables scrollable on mobile */
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Ensure table cells don't wrap */
+  table td, table th {
+    white-space: nowrap;
+  }
+  
+  /* Make admin sidebar full width on mobile when open */
+  aside {
+    width: 280px;
+    max-width: 90vw;
+  }
+}
