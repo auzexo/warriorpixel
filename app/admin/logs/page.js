@@ -12,23 +12,91 @@ export default function AdminLogsPage() {
   const [discordWebhook, setDiscordWebhook] = useState('');
   const [sendingToDiscord, setSendingToDiscord] = useState(false);
   const [loadingWebhook, setLoadingWebhook] = useState(true);
-  
+
   useEffect(() => {
     loadLogs();
     loadDefaultWebhook();
   }, [actionFilter]);
-  
-  const loadDefaultWebhook = async () => {
-    const { data } = await supabase
-      .from('admin_settings')
-      .select('setting_value')
-      .eq('setting_key', 'discord_logs_webhook_url')
-      .single();
 
-    if (data?.setting_value) {
-      setDiscordWebhook(data.setting_value);
+  const loadDefaultWebhook = async () => {
+    try {
+      const { data } = await supabase
+        .from('admin_settings')
+        .select('setting_value')
+        .eq('setting_key', 'discord_logs_webhook_url')
+        .single();
+
+      if (data?.setting_value) {
+        setDiscordWebhook(data.setting_value);
+      }
+    } catch (error) {
+      console.error('Error loading webhook:', error);
+    } finally {
+      setLoadingWebhook(false);
     }
-    setLoadingWebhook(false);
+  };
+
+  const loadLogs = async () => {
+    setLoading(true);
+
+    try {
+      let query = supabase
+        .from('admin_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (actionFilter !== 'all') {
+        query = query.eq('action_type', actionFilter);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        // Manually fetch admin info for each log
+        const logsWithAdmin = await Promise.all(
+          data.map(async (log) => {
+            if (log.admin_id) {
+              try {
+                const { data: adminData } = await supabase
+                  .from('admin_accounts')
+                  .select('admin_id, user_id')
+                  .eq('id', log.admin_id)
+                  .single();
+
+                if (adminData) {
+                  const { data: userData } = await supabase
+                    .from('users')
+                    .select('username')
+                    .eq('id', adminData.user_id)
+                    .single();
+
+                  return {
+                    ...log,
+                    admin_username: userData?.username || 'Unknown',
+                    admin_account_id: adminData.admin_id,
+                  };
+                }
+              } catch (err) {
+                console.error('Error loading admin for log:', err);
+              }
+            }
+            return { ...log, admin_username: 'Unknown', admin_account_id: 'Unknown' };
+          })
+        );
+
+        setLogs(logsWithAdmin);
+      } else {
+        setLogs([]);
+      }
+    } catch (error) {
+      console.error('Error loading logs:', error);
+      setLogs([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getActionIcon = (actionType) => {
@@ -62,7 +130,7 @@ export default function AdminLogsPage() {
       
       const fields = recentLogs.map(log => ({
         name: `${log.action_type.replace(/_/g, ' ').toUpperCase()}`,
-        value: `**Admin:** ${log.admin_accounts?.users?.username || 'Unknown'}\n` +
+        value: `**Admin:** ${log.admin_username || 'Unknown'}\n` +
                `**Time:** ${new Date(log.created_at).toLocaleString('en-IN')}\n` +
                `**Details:** ${JSON.stringify(log.details || {})}`,
         inline: false,
@@ -107,22 +175,31 @@ export default function AdminLogsPage() {
             <FaDiscord className="text-purple-400" />
             Send Logs to Discord
           </h3>
-          <div className="flex gap-3">
-            <input
-              type="url"
-              value={discordWebhook}
-              onChange={(e) => setDiscordWebhook(e.target.value)}
-              placeholder="Discord Webhook URL"
-              className="flex-1 px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
-            />
+          <div className="flex flex-col md:flex-row gap-3">
+            {loadingWebhook ? (
+              <div className="flex-1 px-4 py-3 bg-discord-input border border-gray-700 rounded-lg">
+                <span className="text-discord-text text-sm">Loading default webhook...</span>
+              </div>
+            ) : (
+              <input
+                type="url"
+                value={discordWebhook}
+                onChange={(e) => setDiscordWebhook(e.target.value)}
+                placeholder="Discord Webhook URL"
+                className="flex-1 px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+              />
+            )}
             <button
               onClick={sendLogsToDiscord}
-              disabled={sendingToDiscord || !discordWebhook}
+              disabled={sendingToDiscord || !discordWebhook || loadingWebhook}
               className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition-all disabled:opacity-50"
             >
               {sendingToDiscord ? 'Sending...' : 'Send to Discord'}
             </button>
           </div>
+          {!loadingWebhook && discordWebhook && (
+            <p className="text-xs text-green-400 mt-2">✓ Default webhook loaded</p>
+          )}
           <p className="text-xs text-discord-text mt-2">
             This will send the last 10 admin actions to your Discord channel
           </p>
@@ -173,7 +250,7 @@ export default function AdminLogsPage() {
                 return (
                   <div key={log.id} className="p-4 hover:bg-white hover:bg-opacity-5 transition-all">
                     <div className="flex items-start gap-4">
-                      <div className={`p-3 rounded-lg bg-white bg-opacity-5`}>
+                      <div className="p-3 rounded-lg bg-white bg-opacity-5">
                         <Icon className={`text-xl ${colorClass}`} />
                       </div>
                       
@@ -189,7 +266,7 @@ export default function AdminLogsPage() {
                         
                         <p className="text-sm text-discord-text mb-2">
                           Admin: <span className="text-purple-400 font-semibold">
-                            {log.admin_accounts?.users?.username || 'Unknown'}
+                            {log.admin_username || 'Unknown'}
                           </span>
                         </p>
 
@@ -225,4 +302,4 @@ export default function AdminLogsPage() {
       </div>
     </AdminLayout>
   );
-  }
+                    }
