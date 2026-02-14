@@ -63,10 +63,12 @@ export default function AdminLayout({ children }) {
 
   const canAccessItem = (item) => {
     if (!adminSession) return false;
+    
+    // For Permissions Panel - show if user has full_access
     if (item.requireSuperAdmin) {
-      // Will check super admin status later
-      return false; // Hide for now, we'll enable in Session 5
+      return hasPermission(adminSession.permissions, PERMISSIONS.FULL_ACCESS);
     }
+    
     return hasPermission(adminSession.permissions, item.permission);
   };
 
