@@ -11,37 +11,24 @@ export default function AdminLogsPage() {
   const [actionFilter, setActionFilter] = useState('all');
   const [discordWebhook, setDiscordWebhook] = useState('');
   const [sendingToDiscord, setSendingToDiscord] = useState(false);
-
+  const [loadingWebhook, setLoadingWebhook] = useState(true);
+  
   useEffect(() => {
     loadLogs();
+    loadDefaultWebhook();
   }, [actionFilter]);
+  
+  const loadDefaultWebhook = async () => {
+    const { data } = await supabase
+      .from('admin_settings')
+      .select('setting_value')
+      .eq('setting_key', 'discord_logs_webhook_url')
+      .single();
 
-  const loadLogs = async () => {
-    setLoading(true);
-
-    let query = supabase
-      .from('admin_logs')
-      .select(`
-        *,
-        admin_accounts!admin_logs_admin_id_fkey(
-          admin_id,
-          users(username)
-        )
-      `)
-      .order('created_at', { ascending: false })
-      .limit(100);
-
-    if (actionFilter !== 'all') {
-      query = query.eq('action_type', actionFilter);
+    if (data?.setting_value) {
+      setDiscordWebhook(data.setting_value);
     }
-
-    const { data, error } = await query;
-
-    if (data) {
-      setLogs(data);
-    }
-
-    setLoading(false);
+    setLoadingWebhook(false);
   };
 
   const getActionIcon = (actionType) => {
