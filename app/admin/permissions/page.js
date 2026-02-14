@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
-import { verifySuperAdminCredentials, PERMISSIONS } from '@/lib/admin';
-import { FaLock, FaCrown, FaUser, FaPlus, FaEdit, FaTrash, FaKey } from 'react-icons/fa';
+import { PERMISSIONS } from '@/lib/admin';
+import { FaLock, FaCrown, FaUser, FaPlus, FaTrash } from 'react-icons/fa';
 
 export default function PermissionsPage() {
   const router = useRouter();
@@ -23,29 +23,52 @@ export default function PermissionsPage() {
     setError('');
     setLoading(true);
 
-    const result = await verifySuperAdminCredentials(superAdminId, superAdminPassword);
+    try {
+      console.log('Attempting super admin login...', { superAdminId });
 
-    if (result.success) {
+      // Direct query to verify super admin
+      const { data: superAdmin, error: queryError } = await supabase
+        .from('super_admin_whitelist')
+        .select('*')
+        .eq('super_admin_id', superAdminId)
+        .eq('super_admin_password', superAdminPassword)
+        .single();
+
+      console.log('Super admin query result:', { superAdmin, queryError });
+
+      if (queryError || !superAdmin) {
+        setError('Invalid super admin credentials');
+        setLoading(false);
+        return;
+      }
+
       setAuthenticated(true);
       loadAdmins();
-    } else {
-      setError('Invalid super admin credentials');
+    } catch (error) {
+      console.error('Super admin login error:', error);
+      setError('Login failed: ' + error.message);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const loadAdmins = async () => {
-    const { data, error } = await supabase
-      .from('admin_accounts')
-      .select(`
-        *,
-        users(username, email, uid)
-      `)
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('admin_accounts')
+        .select(`
+          *,
+          users(username, email, uid)
+        `)
+        .order('created_at', { ascending: false });
 
-    if (data) {
-      setAdmins(data);
+      console.log('Loaded admins:', { data, error });
+
+      if (data) {
+        setAdmins(data);
+      }
+    } catch (error) {
+      console.error('Error loading admins:', error);
     }
   };
 
@@ -98,6 +121,7 @@ export default function PermissionsPage() {
                     className="w-full px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-500"
                     required
                     disabled={loading}
+                    autoComplete="off"
                   />
                 </div>
 
@@ -113,6 +137,7 @@ export default function PermissionsPage() {
                     className="w-full px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-500"
                     required
                     disabled={loading}
+                    autoComplete="off"
                   />
                 </div>
 
@@ -183,11 +208,11 @@ export default function PermissionsPage() {
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center font-bold">
-                          {admin.users.username.charAt(0).toUpperCase()}
+                          {admin.users?.username?.charAt(0).toUpperCase() || 'A'}
                         </div>
                         <div>
-                          <p className="font-semibold text-white">{admin.users.username}</p>
-                          <p className="text-xs text-discord-text">{admin.users.email}</p>
+                          <p className="font-semibold text-white">{admin.users?.username || 'Unknown'}</p>
+                          <p className="text-xs text-discord-text">{admin.users?.email || 'No email'}</p>
                         </div>
                       </div>
                     </td>
@@ -218,7 +243,7 @@ export default function PermissionsPage() {
                     <td className="p-4">
                       <div className="flex items-center justify-end gap-2">
                         <button
-                          onClick={() => handleDeleteAdmin(admin.id, admin.users.username)}
+                          onClick={() => handleDeleteAdmin(admin.id, admin.users?.username || 'this admin')}
                           className="p-2 bg-red-600 hover:bg-red-700 rounded-lg transition-all"
                           title="Remove Admin"
                         >
@@ -248,7 +273,7 @@ export default function PermissionsPage() {
   );
 }
 
-// Create Admin Modal
+// Create Admin Modal Component (same as before, keeping it here for completeness)
 function CreateAdminModal({ onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState([]);
@@ -257,7 +282,6 @@ function CreateAdminModal({ onClose, onSuccess }) {
     adminId: '',
     adminPassword: '',
     permissionType: 'full_access',
-    customPermissions: [],
   });
 
   useEffect(() => {
@@ -296,12 +320,6 @@ function CreateAdminModal({ onClose, onSuccess }) {
           PERMISSIONS.USER_EDIT_CURRENCY,
           PERMISSIONS.USER_BAN,
           PERMISSIONS.USER_SUSPEND,
-          PERMISSIONS.USER_GIVE_REWARDS,
-        ];
-      } else if (formData.permissionType === 'money_only') {
-        permissions = [
-          PERMISSIONS.USER_VIEW,
-          PERMISSIONS.USER_EDIT_CURRENCY,
           PERMISSIONS.USER_GIVE_REWARDS,
         ];
       }
@@ -392,14 +410,13 @@ function CreateAdminModal({ onClose, onSuccess }) {
               <option value="full_access">Full Access (All Permissions)</option>
               <option value="tournament_only">Tournament Management Only</option>
               <option value="user_only">User Management Only</option>
-              <option value="money_only">Money Management Only</option>
             </select>
           </div>
 
           <div className="bg-yellow-500 bg-opacity-10 border border-yellow-500 rounded-lg p-4">
             <p className="text-yellow-400 text-sm font-semibold">⚠️ Important</p>
             <p className="text-discord-text text-sm mt-1">
-              Share the Admin ID and Password securely with the person. They will need these credentials to access the admin panel.
+              Share the Admin ID and Password securely with the person.
             </p>
           </div>
 
@@ -424,4 +441,4 @@ function CreateAdminModal({ onClose, onSuccess }) {
       </div>
     </div>
   );
-            }
+                      }
