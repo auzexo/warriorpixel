@@ -15,6 +15,7 @@ export default function ClientLayout({ children }) {
   const { user, profile, loading } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [checkedAuth, setCheckedAuth] = useState(false);
 
   const isPublicRoute = publicRoutes.includes(pathname);
   const isAdminRoute = pathname?.startsWith('/admin');
@@ -22,10 +23,22 @@ export default function ClientLayout({ children }) {
   const requiresAuth = !isPublicRoute && !isAdminRoute && !isAuthCallback;
 
   useEffect(() => {
-    if (!loading && requiresAuth && !user) {
-      setShowAuthModal(true);
-    } else {
-      setShowAuthModal(false);
+    // Only show auth modal if:
+    // 1. Not loading
+    // 2. Requires auth
+    // 3. No user
+    // 4. Already checked (prevent flash)
+    if (!loading) {
+      setCheckedAuth(true);
+      if (requiresAuth && !user) {
+        // Wait a moment to ensure session is loaded
+        const timer = setTimeout(() => {
+          setShowAuthModal(true);
+        }, 500);
+        return () => clearTimeout(timer);
+      } else {
+        setShowAuthModal(false);
+      }
     }
   }, [user, loading, requiresAuth]);
 
@@ -33,11 +46,12 @@ export default function ClientLayout({ children }) {
     setSidebarOpen(false);
   }, [pathname]);
 
-  if (loading) {
+  // Show loading while checking auth
+  if (loading || !checkedAuth) {
     return <LoadingScreen />;
   }
 
-  // Admin routes use their own layout - don't wrap them
+  // Admin routes use their own layout
   if (isAdminRoute || isAuthCallback) {
     return <>{children}</>;
   }
@@ -54,7 +68,10 @@ export default function ClientLayout({ children }) {
         </main>
       </div>
 
-      {showAuthModal && <AuthModal />}
+      {/* Only show auth modal if actually needed */}
+      {showAuthModal && !user && requiresAuth && (
+        <AuthModal />
+      )}
     </div>
   );
-}
+      }
