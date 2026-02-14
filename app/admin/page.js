@@ -13,6 +13,40 @@ export default function AdminLoginPage() {
   const [adminPassword, setAdminPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  // Check for existing admin session
+  useEffect(() => {
+    const checkAdminSession = () => {
+      try {
+        const adminSession = localStorage.getItem('admin_session');
+        if (adminSession) {
+          const session = JSON.parse(adminSession);
+          // Check if session is still valid (not older than 24 hours)
+          const loginTime = new Date(session.loginTime);
+          const now = new Date();
+          const hoursSinceLogin = (now - loginTime) / (1000 * 60 * 60);
+          
+          if (hoursSinceLogin < 24) {
+            console.log('Valid admin session found, redirecting...');
+            router.push('/admin/dashboard');
+            return;
+          } else {
+            // Session expired, clear it
+            localStorage.removeItem('admin_session');
+          }
+        }
+      } catch (error) {
+        console.error('Error checking admin session:', error);
+        localStorage.removeItem('admin_session');
+      }
+      setCheckingSession(false);
+    };
+
+    if (!authLoading) {
+      checkAdminSession();
+    }
+  }, [authLoading, router]);
 
   // Check if user is admin
   useEffect(() => {
@@ -27,7 +61,7 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      console.log('Attempting admin login...', { adminId });
+      console.log('Starting admin login...', { adminId });
 
       // Direct database query to verify credentials
       const { data: adminAccount, error: queryError } = await supabase
@@ -38,21 +72,36 @@ export default function AdminLoginPage() {
         .eq('is_active', true)
         .single();
 
-      console.log('Query result:', { adminAccount, queryError });
+      console.log('Query result:', { 
+        found: !!adminAccount, 
+        error: queryError?.message,
+        adminId 
+      });
 
-      if (queryError || !adminAccount) {
+      if (queryError) {
+        console.error('Database error:', queryError);
+        setError('Database error: ' + queryError.message);
+        setLoading(false);
+        return;
+      }
+
+      if (!adminAccount) {
         setError('Invalid Admin ID or Password');
         setLoading(false);
         return;
       }
 
       // Update last login
-      await supabase
+      const { error: updateError } = await supabase
         .from('admin_accounts')
         .update({ last_login: new Date().toISOString() })
         .eq('id', adminAccount.id);
 
-      // Store admin session in localStorage
+      if (updateError) {
+        console.error('Error updating last login:', updateError);
+      }
+
+      // Create admin session
       const adminSession = {
         adminAccountId: adminAccount.id,
         permissions: adminAccount.permissions,
@@ -60,23 +109,24 @@ export default function AdminLoginPage() {
       };
 
       localStorage.setItem('admin_session', JSON.stringify(adminSession));
+      console.log('Admin session created, redirecting to dashboard...');
 
-      console.log('Admin session created:', adminSession);
-
-      // Redirect to dashboard
-      router.push('/admin/dashboard');
+      // Force redirect
+      window.location.href = '/admin/dashboard';
     } catch (error) {
       console.error('Admin login error:', error);
       setError('Login failed: ' + error.message);
-    } finally {
       setLoading(false);
     }
   };
 
-  if (authLoading) {
+  if (authLoading || checkingSession) {
     return (
       <div className="min-h-screen bg-discord-darkest flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto mb-4"></div>
+          <p className="text-discord-text">Loading...</p>
+        </div>
       </div>
     );
   }
@@ -126,7 +176,8 @@ export default function AdminLoginPage() {
           {/* Error Message */}
           {error && (
             <div className="mb-6 p-4 bg-red-500 bg-opacity-10 border border-red-500 rounded-lg">
-              <p className="text-red-500 text-sm">{error}</p>
+              <p className="text-red-500 text-sm font-semibold">Error:</p>
+              <p className="text-red-400 text-sm">{error}</p>
             </div>
           )}
 
@@ -175,6 +226,13 @@ export default function AdminLoginPage() {
             </button>
           </form>
 
+          {/* Debug Info */}
+          <div className="mt-4 p-3 bg-gray-800 rounded-lg">
+            <p className="text-xs text-gray-400 font-mono">
+              Debug: Checking credentials in database...
+            </p>
+          </div>
+
           {/* Info */}
           <div className="mt-6 p-4 bg-blue-500 bg-opacity-10 border border-blue-500 rounded-lg">
             <p className="text-blue-400 text-xs font-semibold">🔒 Secure Access</p>
@@ -186,4 +244,4 @@ export default function AdminLoginPage() {
       </div>
     </div>
   );
-      }
+        }
