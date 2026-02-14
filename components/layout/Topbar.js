@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
-import { FaBars, FaBell, FaUserCircle, FaSignOutAlt, FaWallet, FaCog } from 'react-icons/fa';
+import { FaBars, FaBell, FaUserCircle, FaSignOutAlt, FaWallet } from 'react-icons/fa';
 
 export default function Topbar({ onMenuClick }) {
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, profile } = useAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -15,6 +15,10 @@ export default function Topbar({ onMenuClick }) {
   useEffect(() => {
     if (profile) {
       loadNotifications();
+      
+      // Refresh notifications every 30 seconds
+      const interval = setInterval(loadNotifications, 30000);
+      return () => clearInterval(interval);
     }
   }, [profile]);
 
@@ -62,32 +66,32 @@ export default function Topbar({ onMenuClick }) {
 
   return (
     <div className="bg-discord-dark border-b border-gray-800 px-4 py-3 flex items-center justify-between sticky top-0 z-30">
-      {/* Left: Menu Button */}
+      {/* Left: Hamburger Menu */}
       <button
         onClick={onMenuClick}
-        className="p-2 hover:bg-white hover:bg-opacity-10 rounded-lg transition-all lg:hidden"
+        className="p-2 hover:bg-white hover:bg-opacity-10 rounded-lg transition-all"
       >
         <FaBars className="text-xl text-white" />
       </button>
 
-      {/* Center: Currencies (if logged in) */}
+      {/* Center: Currencies */}
       {profile && (
-        <div className="flex-1 flex items-center justify-center gap-2 mx-4">
-          {/* Mobile: Compact Badges */}
+        <div className="flex-1 flex items-center justify-center gap-2 mx-4 overflow-x-auto">
+          {/* Mobile: Compact */}
           <div className="flex md:hidden gap-2">
-            <div className="bg-green-600 bg-opacity-20 px-2 py-1 rounded flex items-center gap-1">
+            <div className="bg-green-600 bg-opacity-20 px-2 py-1 rounded flex items-center gap-1 flex-shrink-0">
               <span className="text-green-400 text-xs">₹</span>
               <span className="text-white text-xs font-bold">{parseFloat(profile.wallet_real || 0).toFixed(0)}</span>
             </div>
-            <div className="bg-cyan-600 bg-opacity-20 px-2 py-1 rounded flex items-center gap-1">
+            <div className="bg-cyan-600 bg-opacity-20 px-2 py-1 rounded flex items-center gap-1 flex-shrink-0">
               <span className="text-cyan-400 text-xs">💎</span>
               <span className="text-white text-xs font-bold">{profile.wallet_gems || 0}</span>
             </div>
-            <div className="bg-yellow-600 bg-opacity-20 px-2 py-1 rounded flex items-center gap-1">
+            <div className="bg-yellow-600 bg-opacity-20 px-2 py-1 rounded flex items-center gap-1 flex-shrink-0">
               <span className="text-yellow-400 text-xs">🪙</span>
               <span className="text-white text-xs font-bold">{profile.wallet_coins || 0}</span>
             </div>
-            <div className="bg-purple-600 bg-opacity-20 px-2 py-1 rounded flex items-center gap-1">
+            <div className="bg-purple-600 bg-opacity-20 px-2 py-1 rounded flex items-center gap-1 flex-shrink-0">
               <span className="text-purple-400 text-xs">🎫</span>
               <span className="text-white text-xs font-bold">
                 {(profile.wallet_vouchers_20 || 0) + (profile.wallet_vouchers_30 || 0) + (profile.wallet_vouchers_50 || 0)}
@@ -123,7 +127,7 @@ export default function Topbar({ onMenuClick }) {
       <div className="flex items-center gap-2">
         {profile && (
           <>
-            {/* Notifications Bell */}
+            {/* Notification Bell */}
             <div className="relative">
               <button
                 onClick={() => {
@@ -142,7 +146,7 @@ export default function Topbar({ onMenuClick }) {
 
               {/* Notifications Dropdown */}
               {showNotifications && (
-                <div className="absolute right-0 top-12 w-80 bg-discord-dark border border-gray-800 rounded-lg shadow-xl z-50">
+                <div className="absolute right-0 top-12 w-80 max-w-[90vw] bg-discord-dark border border-gray-800 rounded-lg shadow-xl z-50">
                   <div className="p-4 border-b border-gray-800 flex items-center justify-between">
                     <h3 className="font-bold text-white">Notifications</h3>
                     {unreadCount > 0 && (
@@ -165,10 +169,10 @@ export default function Topbar({ onMenuClick }) {
                           }`}
                         >
                           <div className="flex items-start gap-2">
-                            {!notif.read && <div className="w-2 h-2 bg-purple-500 rounded-full mt-1"></div>}
-                            <div className="flex-1">
+                            {!notif.read && <div className="w-2 h-2 bg-purple-500 rounded-full mt-1 flex-shrink-0"></div>}
+                            <div className="flex-1 min-w-0">
                               <h4 className="font-semibold text-white text-sm">{notif.title}</h4>
-                              <p className="text-discord-text text-xs mt-1">{notif.message}</p>
+                              <p className="text-discord-text text-xs mt-1 break-words">{notif.message}</p>
                               <p className="text-xs text-gray-500 mt-1">
                                 {new Date(notif.created_at).toLocaleString('en-IN')}
                               </p>
@@ -202,8 +206,8 @@ export default function Topbar({ onMenuClick }) {
               {showProfileMenu && (
                 <div className="absolute right-0 top-12 w-56 bg-discord-dark border border-gray-800 rounded-lg shadow-xl z-50">
                   <div className="p-4 border-b border-gray-800">
-                    <p className="font-bold text-white">{profile.username}</p>
-                    <p className="text-xs text-discord-text">{profile.uid}</p>
+                    <p className="font-bold text-white truncate">{profile.username}</p>
+                    <p className="text-xs text-discord-text truncate">{profile.uid}</p>
                   </div>
                   <div className="p-2">
                     <button
@@ -228,7 +232,7 @@ export default function Topbar({ onMenuClick }) {
         )}
       </div>
 
-      {/* Click outside to close */}
+      {/* Click Outside to Close */}
       {(showProfileMenu || showNotifications) && (
         <div
           className="fixed inset-0 z-40"
@@ -240,4 +244,4 @@ export default function Topbar({ onMenuClick }) {
       )}
     </div>
   );
-                  }
+          }
