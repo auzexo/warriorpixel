@@ -13,12 +13,23 @@ export async function GET(request) {
     const supabase = createRouteHandlerClient({ cookies });
     
     try {
-      await supabase.auth.exchangeCodeForSession(code);
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      
+      if (error) {
+        console.error('OAuth exchange error:', error);
+        return NextResponse.redirect(`${origin}/?error=auth_failed`);
+      }
+
+      console.log('OAuth successful:', data.user?.email);
+      
+      // Redirect to HOME page (not tournaments)
+      return NextResponse.redirect(`${origin}/`);
     } catch (error) {
       console.error('OAuth callback error:', error);
+      return NextResponse.redirect(`${origin}/?error=auth_error`);
     }
   }
 
-  // Redirect to home page, NOT tournaments
+  // No code, redirect to home
   return NextResponse.redirect(`${origin}/`);
 }
