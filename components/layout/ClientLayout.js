@@ -18,7 +18,8 @@ export default function ClientLayout({ children }) {
 
   const isPublicRoute = publicRoutes.includes(pathname);
   const isAdminRoute = pathname?.startsWith('/admin');
-  const requiresAuth = !isPublicRoute && !isAdminRoute;
+  const isAuthCallback = pathname?.startsWith('/auth/callback');
+  const requiresAuth = !isPublicRoute && !isAdminRoute && !isAuthCallback;
 
   useEffect(() => {
     if (!loading && requiresAuth && !user) {
@@ -36,8 +37,8 @@ export default function ClientLayout({ children }) {
     return <LoadingScreen />;
   }
 
-  // Admin routes don't use this layout
-  if (isAdminRoute) {
+  // Admin routes use their own layout - don't wrap them
+  if (isAdminRoute || isAuthCallback) {
     return <>{children}</>;
   }
 
