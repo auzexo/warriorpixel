@@ -207,10 +207,10 @@ function CreateAnnouncementModal({ onClose, onSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
+  
     try {
       // Create announcement
-      const { data, error } = await supabase
+      const { data: announcementData, error: announcementError } = await supabase
         .from('announcements')
         .insert([{
           title: formData.title,
@@ -221,9 +221,9 @@ function CreateAnnouncementModal({ onClose, onSuccess }) {
         }])
         .select()
         .single();
-
-      if (error) throw error;
-
+  
+      if (announcementError) throw announcementError;
+  
       // Send to Discord if enabled
       if (formData.sendToDiscord && formData.discordWebhook) {
         try {
@@ -241,38 +241,54 @@ function CreateAnnouncementModal({ onClose, onSuccess }) {
               }]
             }),
           });
-
+  
           // Mark as sent
           await supabase
             .from('announcements')
             .update({ sent_to_discord: true })
-            .eq('id', data.id);
+            .eq('id', announcementData.id);
         } catch (discordError) {
           console.error('Discord webhook error:', discordError);
         }
       }
-
-      // Create notification for all users
-      const { data: users } = await supabase.from('users').select('id');
-      if (users && users.length > 0) {
-        const notifications = users.map(user => ({
-          user_id: user.id,
-          title: formData.title,
-          message: formData.message,
-          type: 'announcement',
-        }));
-
-        await supabase.from('notifications').insert(notifications);
+  
+      // Create notifications for ALL users
+      try {
+        const { data: allUsers, error: usersError } = await supabase
+          .from('users')
+          .select('id');
+  
+        if (allUsers && allUsers.length > 0) {
+          const notifications = allUsers.map(user => ({
+            user_id: user.id,
+            title: formData.title,
+            message: formData.message,
+            type: 'announcement',
+            read: false,
+          }));
+  
+          const { error: notifError } = await supabase
+            .from('notifications')
+            .insert(notifications);
+  
+          if (notifError) {
+            console.error('Notification creation error:', notifError);
+          } else {
+            console.log(`Created ${notifications.length} notifications`);
+          }
+        }
+      } catch (notifError) {
+        console.error('Error creating notifications:', notifError);
       }
-
+  
       // Log admin action
       const adminSession = JSON.parse(localStorage.getItem('admin_session') || '{}');
       await logAdminAction(adminSession.adminAccountId, 'announcement_create', {
         title: formData.title,
         priority: formData.priority,
       });
-
-      alert('Announcement created successfully!');
+  
+      alert('Announcement created and sent to all users!');
       onSuccess();
     } catch (error) {
       console.error('Error creating announcement:', error);
