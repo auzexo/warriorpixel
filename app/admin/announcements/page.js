@@ -177,14 +177,32 @@ export default function AnnouncementsPage() {
 // Create Announcement Modal Component
 function CreateAnnouncementModal({ onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
+  const [loadingWebhook, setLoadingWebhook] = useState(true);
   const [formData, setFormData] = useState({
     title: '',
     message: '',
     type: 'general',
     priority: 'normal',
-    sendToDiscord: false,
+    sendToDiscord: true, // Default to true
     discordWebhook: '',
   });
+
+  useEffect(() => {
+    loadDefaultWebhook();
+  }, []);
+
+  const loadDefaultWebhook = async () => {
+    const { data } = await supabase
+      .from('admin_settings')
+      .select('setting_value')
+      .eq('setting_key', 'discord_webhook_url')
+      .single();
+
+    if (data?.setting_value) {
+      setFormData(prev => ({ ...prev, discordWebhook: data.setting_value }));
+    }
+    setLoadingWebhook(false);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -341,18 +359,24 @@ function CreateAnnouncementModal({ onClose, onSuccess }) {
             {formData.sendToDiscord && (
               <div>
                 <label className="block text-sm font-medium text-discord-text mb-2">
-                  Discord Webhook URL *
+                  Discord Webhook URL
                 </label>
-                <input
-                  type="url"
-                  value={formData.discordWebhook}
-                  onChange={(e) => setFormData({ ...formData, discordWebhook: e.target.value })}
-                  placeholder="https://discord.com/api/webhooks/..."
-                  className="w-full px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
-                  required={formData.sendToDiscord}
-                />
-                <p className="text-xs text-discord-text mt-1">
-                  Get webhook URL from Discord Server Settings → Integrations → Webhooks
+                {loadingWebhook ? (
+                  <div className="w-full px-4 py-3 bg-discord-input border border-gray-700 rounded-lg">
+                    <span className="text-discord-text text-sm">Loading default webhook...</span>
+                  </div>
+                ) : (
+                  <input
+                    type="url"
+                    value={formData.discordWebhook}
+                    onChange={(e) => setFormData({ ...formData, discordWebhook: e.target.value })}
+                    placeholder="https://discord.com/api/webhooks/..."
+                    className="w-full px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                    required={formData.sendToDiscord}
+                  />
+                )}
+                <p className="text-xs text-green-400 mt-1">
+                  ✓ Default webhook loaded
                 </p>
               </div>
             )}
@@ -369,7 +393,7 @@ function CreateAnnouncementModal({ onClose, onSuccess }) {
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || loadingWebhook}
               className="flex-1 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition-all disabled:opacity-50"
             >
               {loading ? 'Creating...' : 'Create Announcement'}
@@ -379,4 +403,4 @@ function CreateAnnouncementModal({ onClose, onSuccess }) {
       </div>
     </div>
   );
-  }
+              }
