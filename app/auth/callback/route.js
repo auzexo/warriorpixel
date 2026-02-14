@@ -1,17 +1,23 @@
-import { NextResponse } from 'next/server'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 
 export async function GET(request) {
-  const requestUrl = new URL(request.url)
-  const origin = requestUrl.origin
+  const requestUrl = new URL(request.url);
+  const code = requestUrl.searchParams.get('code');
+  const origin = requestUrl.origin;
 
-  // Get the code from the query params
-  const code = requestUrl.searchParams.get('code')
-  
   if (code) {
-    // OAuth succeeded - redirect to home
-    return NextResponse.redirect(`${origin}/`)
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    
+    try {
+      await supabase.auth.exchangeCodeForSession(code);
+    } catch (error) {
+      console.error('OAuth error:', error);
+    }
   }
 
-  // No code - redirect to home anyway
-  return NextResponse.redirect(`${origin}/`)
+  // Redirect to home
+  return NextResponse.redirect(`${origin}/`);
 }
