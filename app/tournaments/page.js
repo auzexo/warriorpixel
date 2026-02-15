@@ -1,99 +1,182 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { getTournaments } from '@/lib/database';
+import { supabase } from '@/lib/supabase';
 import TournamentCard from '@/components/tournament/TournamentCard';
+import JoinTournamentModal from '@/components/tournament/JoinTournamentModal';
 import { FaTrophy, FaFilter } from 'react-icons/fa';
 
 export default function TournamentsPage() {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ game: 'all', status: 'all' });
+  const [gameFilter, setGameFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedTournament, setSelectedTournament] = useState(null);
+  const [showJoinModal, setShowJoinModal] = useState(false);
 
   useEffect(() => {
     loadTournaments();
-  }, [filters]);
+
+    // Subscribe to real-time changes in tournament_participants
+    const channel = supabase
+      .channel('tournament-participants-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tournament_participants'
+        },
+        (payload) => {
+          console.log('Participant change detected:', payload);
+          // Reload tournaments to update counts
+          loadTournaments();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const loadTournaments = async () => {
     setLoading(true);
-    const result = await getTournaments(filters);
-    if (result.success) {
-      setTournaments(result.data);
+
+    try {
+      // Load tournaments with participant count
+      const { data, error } = await supabase
+        .from('tournaments')
+        .select(`
+          *,
+          tournament_participants (
+            id
+          )
+        `)
+        .order('start_time', { ascending: true });
+
+      if (error) throw error;
+
+      console.log('Loaded tournaments:', data?.length);
+
+      setTournaments(data || []);
+    } catch (error) {
+      console.error('Error loading tournaments:', error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
+  const handleJoinClick = (tournament) => {
+    setSelectedTournament(tournament);
+    setShowJoinModal(true);
+  };
+
+  const handleJoinSuccess = () => {
+    setShowJoinModal(false);
+    setSelectedTournament(null);
+    loadTournaments(); // Reload to update counts
+  };
+
+  // Filter tournaments
+  const filteredTournaments = tournaments.filter(tournament => {
+    const matchesGame = gameFilter === 'all' || tournament.game === gameFilter;
+    const matchesStatus = statusFilter === 'all' || tournament.status === statusFilter;
+    return matchesGame && matchesStatus;
+  });
+
+  // Get unique games for filter
+  const games = [...new Set(tournaments.map(t => t.game))];
+
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl p-6 md:p-8">
-        <h1 className="text-3xl md:text-4xl font-bold mb-2 flex items-center gap-3">
-          <FaTrophy />
+      <div>
+        <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
+          <FaTrophy className="text-red-500" />
           Tournaments
         </h1>
-        <p className="text-white text-opacity-90">Join competitive tournaments and win amazing prizes</p>
+        <p className="text-discord-text">
+          Join exciting tournaments and win amazing prizes!
+        </p>
       </div>
 
       {/* Filters */}
       <div className="bg-discord-dark rounded-xl p-4 border border-gray-800">
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-3">
           <FaFilter className="text-purple-400" />
           <h3 className="font-semibold text-white">Filters</h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm text-discord-text mb-2">Game</label>
-            <select
-              value={filters.game}
-              onChange={(e) => setFilters({ ...filters, game: e.target.value })}
-              className="w-full px-4 py-2 bg-discord-input border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500"
-            >
-              <option value="all">All Games</option>
-              <option value="freefire">Free Fire</option>
-              <option value="bgmi">BGMI</option>
-              <option value="stumbleguys">Stumble Guys</option>
-              <option value="minecraft">Minecraft</option>
-              <option value="valorant">Valorant</option>
-              <option value="codm">Call of Duty Mobile</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-discord-text mb-2">Status</label>
-            <select
-              value={filters.status}
-              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-              className="w-full px-4 py-2 bg-discord-input border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500"
-            >
-              <option value="all">All Status</option>
-              <option value="upcoming">Upcoming</option>
-              <option value="live">Live</option>
-              <option value="completed">Completed</option>
-            </select>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <select
+            value={gameFilter}
+            onChange={(e) => setGameFilter(e.target.value)}
+            className="px-4 py-2 bg-discord-input border border-gray-700 rounded-lg text-white focus:outline-none focus:border-red-500"
+          >
+            <option value="all">All Games</option>
+            {games.map(game => (
+              <option key={game} value={game}>{game}</option>
+            ))}
+          </select>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-4 py-2 bg-discord-input border border-gray-700 rounded-lg text-white focus:outline-none focus:border-red-500"
+          >
+            <option value="all">All Status</option>
+            <option value="upcoming">Upcoming</option>
+            <option value="live">Live Now</option>
+            <option value="completed">Completed</option>
+          </select>
         </div>
       </div>
 
-      {/* Tournament Grid */}
+      {/* Tournaments Grid */}
       {loading ? (
         <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-          <p className="text-discord-text">Loading tournaments...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
+          <p className="text-discord-text mt-4">Loading tournaments...</p>
         </div>
-      ) : tournaments.length > 0 ? (
+      ) : filteredTournaments.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {tournaments.map((tournament) => (
-            <TournamentCard key={tournament.id} tournament={tournament} />
+          {filteredTournaments.map((tournament) => (
+            <TournamentCard
+              key={tournament.id}
+              tournament={tournament}
+              onJoinClick={handleJoinClick}
+              user={user}
+              profile={profile}
+            />
           ))}
         </div>
       ) : (
         <div className="text-center py-12 bg-discord-dark rounded-xl border border-gray-800">
           <FaTrophy className="text-6xl text-gray-600 mx-auto mb-4" />
-          <p className="text-discord-text">No tournaments found</p>
-          <p className="text-sm text-gray-500 mt-2">Try adjusting your filters</p>
+          <p className="text-discord-text text-lg mb-2">No tournaments found</p>
+          <p className="text-discord-text text-sm">
+            {gameFilter !== 'all' || statusFilter !== 'all'
+              ? 'Try adjusting your filters'
+              : 'Check back later for new tournaments'}
+          </p>
         </div>
+      )}
+
+      {/* Join Modal */}
+      {showJoinModal && selectedTournament && (
+        <JoinTournamentModal
+          tournament={selectedTournament}
+          user={user}
+          profile={profile}
+          onClose={() => {
+            setShowJoinModal(false);
+            setSelectedTournament(null);
+          }}
+          onSuccess={handleJoinSuccess}
+        />
       )}
     </div>
   );
-}
+                }
