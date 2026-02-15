@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import Sidebar from './Sidebar';
@@ -15,44 +15,55 @@ export default function ClientLayout({ children }) {
   const { user, profile, loading } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isReady, setIsReady] = useState(false);
+  const authCheckCompleted = useRef(false);
 
   const isPublicRoute = publicRoutes.includes(pathname);
   const isAdminRoute = pathname?.startsWith('/admin');
   const isAuthCallback = pathname?.startsWith('/auth/callback');
   const requiresAuth = !isPublicRoute && !isAdminRoute && !isAuthCallback;
 
+  // Initial auth check
   useEffect(() => {
-    // Mark initial load as complete after auth check
     if (!loading) {
       const timer = setTimeout(() => {
-        setIsInitialLoad(false);
-      }, 100);
+        setIsReady(true);
+        authCheckCompleted.current = true;
+      }, 300);
       return () => clearTimeout(timer);
     }
   }, [loading]);
 
+  // Handle auth modal display
   useEffect(() => {
-    // Only handle auth modal after initial load is complete
-    if (!loading && !isInitialLoad) {
-      if (requiresAuth && !user) {
-        setShowAuthModal(true);
+    if (isReady && authCheckCompleted.current) {
+      // Only show modal if:
+      // 1. Route requires auth
+      // 2. No user logged in
+      // 3. Not currently in a loading state
+      if (requiresAuth && !user && !loading) {
+        // Add a small delay to prevent flash
+        const timer = setTimeout(() => {
+          setShowAuthModal(true);
+        }, 200);
+        return () => clearTimeout(timer);
       } else {
         setShowAuthModal(false);
       }
     }
-  }, [user, loading, requiresAuth, isInitialLoad]);
+  }, [requiresAuth, user, loading, isReady]);
 
+  // Close sidebar on route change
   useEffect(() => {
     setSidebarOpen(false);
   }, [pathname]);
 
-  // Show loading only during initial load or auth loading
-  if (loading || isInitialLoad) {
+  // Show loading screen while checking auth
+  if (loading || !isReady) {
     return <LoadingScreen />;
   }
 
-  // Admin routes use their own layout
+  // Admin routes and auth callback use their own layout
   if (isAdminRoute || isAuthCallback) {
     return <>{children}</>;
   }
@@ -69,10 +80,10 @@ export default function ClientLayout({ children }) {
         </main>
       </div>
 
-      {/* Only show modal when needed and ready */}
-      {showAuthModal && !user && requiresAuth && !loading && !isInitialLoad && (
+      {/* Only show auth modal when absolutely necessary */}
+      {showAuthModal && !user && requiresAuth && !loading && isReady && (
         <AuthModal />
       )}
     </div>
   );
-      }
+    }
