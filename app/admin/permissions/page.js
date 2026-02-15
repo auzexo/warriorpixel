@@ -35,18 +35,50 @@ export default function PermissionsPage() {
     setLoadingAdmins(true);
     
     try {
-      const { data, error } = await supabase
+      console.log('Loading admin accounts...');
+    
+      // First, get all admin accounts
+      const { data: adminAccounts, error: adminError } = await supabase
         .from('admin_accounts')
-        .select('*, users(username, email, uid)')
+        .select('*')
         .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error loading admins:', error);
+  
+      if (adminError) {
+        console.error('Error loading admin accounts:', adminError);
+        setLoadingAdmins(false);
+        return;
       }
 
-      if (data) {
-        setAdmins(data);
+      console.log('Admin accounts found:', adminAccounts?.length);
+
+      if (!adminAccounts || adminAccounts.length === 0) {
+        setAdmins([]);
+        setLoadingAdmins(false);
+        return;
       }
+
+      // Then, get user data for each admin
+      const userIds = adminAccounts.map(a => a.user_id);
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('id, username, email, uid')
+        .in('id', userIds);
+  
+      if (usersError) {
+        console.error('Error loading users:', usersError);
+      }
+
+      // Combine the data
+      const adminsWithUsers = adminAccounts.map(admin => {
+        const user = usersData?.find(u => u.id === admin.user_id);
+        return {
+          ...admin,
+          users: user || null
+        };
+      });
+
+      console.log('Admins with user data:', adminsWithUsers);
+      setAdmins(adminsWithUsers);
     } catch (error) {
       console.error('Error loading admins:', error);
     } finally {
