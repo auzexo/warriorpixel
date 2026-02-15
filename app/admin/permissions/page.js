@@ -24,7 +24,7 @@ export default function PermissionsPage() {
     setLoading(true);
 
     try {
-      console.log('Attempting super admin login...', { superAdminId });
+      console.log('Verifying super admin...', { superAdminId });
 
       // Direct query to verify super admin
       const { data: superAdmin, error: queryError } = await supabase
@@ -34,16 +34,32 @@ export default function PermissionsPage() {
         .eq('super_admin_password', superAdminPassword)
         .single();
 
-      console.log('Super admin query result:', { superAdmin, queryError });
+      console.log('Super admin query result:', { 
+        found: !!superAdmin, 
+        error: queryError?.message 
+      });
 
-      if (queryError || !superAdmin) {
+      if (queryError) {
+        console.error('Query error:', queryError);
+        setError('Database error: ' + queryError.message);
+        setLoading(false);
+        return;
+      }
+
+      if (!superAdmin) {
         setError('Invalid super admin credentials');
         setLoading(false);
         return;
       }
 
+      console.log('Super admin verified! Loading permissions panel...');
+      
+      // Set authenticated immediately
       setAuthenticated(true);
-      loadAdmins();
+      
+      // Load admins
+      await loadAdmins();
+      
     } catch (error) {
       console.error('Super admin login error:', error);
       setError('Login failed: ' + error.message);
@@ -54,6 +70,8 @@ export default function PermissionsPage() {
 
   const loadAdmins = async () => {
     try {
+      console.log('Loading admin accounts...');
+      
       const { data, error } = await supabase
         .from('admin_accounts')
         .select(`
@@ -62,7 +80,7 @@ export default function PermissionsPage() {
         `)
         .order('created_at', { ascending: false });
 
-      console.log('Loaded admins:', { data, error });
+      console.log('Loaded admins:', { count: data?.length, error });
 
       if (data) {
         setAdmins(data);
@@ -75,16 +93,28 @@ export default function PermissionsPage() {
   const handleDeleteAdmin = async (adminId, username) => {
     if (!confirm(`Remove admin access for ${username}?`)) return;
 
-    const { error } = await supabase
-      .from('admin_accounts')
-      .delete()
-      .eq('id', adminId);
+    try {
+      // First, remove references in admin_logs
+      await supabase
+        .from('admin_logs')
+        .update({ admin_id: null })
+        .eq('admin_id', adminId);
 
-    if (!error) {
-      alert('Admin removed successfully');
-      loadAdmins();
-    } else {
-      alert('Error: ' + error.message);
+      // Then delete admin account
+      const { error } = await supabase
+        .from('admin_accounts')
+        .delete()
+        .eq('id', adminId);
+
+      if (!error) {
+        alert('Admin removed successfully');
+        loadAdmins();
+      } else {
+        alert('Error: ' + error.message);
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('Error removing admin');
     }
   };
 
@@ -103,8 +133,9 @@ export default function PermissionsPage() {
               </div>
 
               {error && (
-                <div className="mb-6 p-4 bg-red-500 bg-opacity-10 border border-red-500 rounded-lg text-red-500 text-sm">
-                  {error}
+                <div className="mb-6 p-4 bg-red-500 bg-opacity-10 border border-red-500 rounded-lg">
+                  <p className="text-red-500 text-sm font-semibold">Error:</p>
+                  <p className="text-red-400 text-sm">{error}</p>
                 </div>
               )}
 
@@ -144,11 +175,17 @@ export default function PermissionsPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg font-bold transition-all disabled:opacity-50"
+                  className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? 'Verifying...' : 'Access Permissions Panel'}
                 </button>
               </form>
+
+              <div className="mt-4 p-3 bg-gray-800 rounded-lg">
+                <p className="text-xs text-gray-400 font-mono">
+                  Debug: Checking credentials...
+                </p>
+              </div>
 
               <div className="mt-6 p-4 bg-red-500 bg-opacity-10 border border-red-500 rounded-lg">
                 <p className="text-red-400 text-xs font-semibold">🔒 Restricted Access</p>
@@ -203,56 +240,64 @@ export default function PermissionsPage() {
                 </tr>
               </thead>
               <tbody>
-                {admins.map((admin) => (
-                  <tr key={admin.id} className="border-t border-gray-800 hover:bg-white hover:bg-opacity-5">
-                    <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center font-bold">
-                          {admin.users?.username?.charAt(0).toUpperCase() || 'A'}
+                {admins.length > 0 ? (
+                  admins.map((admin) => (
+                    <tr key={admin.id} className="border-t border-gray-800 hover:bg-white hover:bg-opacity-5">
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center font-bold">
+                            {admin.users?.username?.charAt(0).toUpperCase() || 'A'}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-white">{admin.users?.username || 'Unknown'}</p>
+                            <p className="text-xs text-discord-text">{admin.users?.email || 'No email'}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-white">{admin.users?.username || 'Unknown'}</p>
-                          <p className="text-xs text-discord-text">{admin.users?.email || 'No email'}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <span className="font-mono text-sm text-purple-400">{admin.admin_id}</span>
-                    </td>
-                    <td className="p-4">
-                      {admin.permissions.includes('full_access') ? (
-                        <span className="px-3 py-1 bg-red-500 text-white rounded-full text-xs font-bold">
-                          FULL ACCESS
+                      </td>
+                      <td className="p-4">
+                        <span className="font-mono text-sm text-purple-400">{admin.admin_id}</span>
+                      </td>
+                      <td className="p-4">
+                        {admin.permissions.includes('full_access') ? (
+                          <span className="px-3 py-1 bg-red-500 text-white rounded-full text-xs font-bold">
+                            FULL ACCESS
+                          </span>
+                        ) : (
+                          <span className="text-sm text-white">{admin.permissions.length} permissions</span>
+                        )}
+                      </td>
+                      <td className="p-4">
+                        <span className="text-sm text-discord-text">
+                          {admin.last_login ? new Date(admin.last_login).toLocaleDateString('en-IN') : 'Never'}
                         </span>
-                      ) : (
-                        <span className="text-sm text-white">{admin.permissions.length} permissions</span>
-                      )}
-                    </td>
-                    <td className="p-4">
-                      <span className="text-sm text-discord-text">
-                        {admin.last_login ? new Date(admin.last_login).toLocaleDateString('en-IN') : 'Never'}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      {admin.is_active ? (
-                        <span className="text-green-400 text-sm">✓ Active</span>
-                      ) : (
-                        <span className="text-red-400 text-sm">✗ Inactive</span>
-                      )}
-                    </td>
-                    <td className="p-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleDeleteAdmin(admin.id, admin.users?.username || 'this admin')}
-                          className="p-2 bg-red-600 hover:bg-red-700 rounded-lg transition-all"
-                          title="Remove Admin"
-                        >
-                          <FaTrash />
-                        </button>
-                      </div>
+                      </td>
+                      <td className="p-4">
+                        {admin.is_active ? (
+                          <span className="text-green-400 text-sm">✓ Active</span>
+                        ) : (
+                          <span className="text-red-400 text-sm">✗ Inactive</span>
+                        )}
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleDeleteAdmin(admin.id, admin.users?.username || 'this admin')}
+                            className="p-2 bg-red-600 hover:bg-red-700 rounded-lg transition-all"
+                            title="Remove Admin"
+                          >
+                            <FaTrash />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="6" className="text-center py-8 text-discord-text">
+                      No admin accounts found
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -273,7 +318,7 @@ export default function PermissionsPage() {
   );
 }
 
-// Create Admin Modal Component (same as before, keeping it here for completeness)
+// Create Admin Modal (keeping same as before)
 function CreateAdminModal({ onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState([]);
@@ -354,7 +399,7 @@ function CreateAdminModal({ onClose, onSuccess }) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-discord-dark rounded-xl w-full max-w-2xl p-6 border border-gray-800">
+      <div className="bg-discord-dark rounded-xl w-full max-w-2xl p-6 border border-gray-800 max-h-[90vh] overflow-y-auto">
         <h2 className="text-2xl font-bold text-white mb-6">Create Admin Account</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
