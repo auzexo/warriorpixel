@@ -24,7 +24,6 @@ export default function PermissionsPage() {
 
   useEffect(() => {
     if (!authLoading && profile) {
-      // Check if user's email is in whitelist
       if (ALLOWED_EMAILS.includes(profile.email)) {
         setHasAccess(true);
         loadAdmins();
@@ -39,9 +38,15 @@ export default function PermissionsPage() {
       const { data, error } = await supabase
         .from('admin_accounts')
         .select('*, users(username, email, uid)')
-        .order('created_at', { ascending: false});
+        .order('created_at', { ascending: false });
 
-      if (data) setAdmins(data);
+      if (error) {
+        console.error('Error loading admins:', error);
+      }
+
+      if (data) {
+        setAdmins(data);
+      }
     } catch (error) {
       console.error('Error loading admins:', error);
     } finally {
@@ -209,6 +214,7 @@ export default function PermissionsPage() {
 function CreateAdminModal({ onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
   const [formData, setFormData] = useState({
     userId: '',
     adminId: '',
@@ -217,19 +223,72 @@ function CreateAdminModal({ onClose, onSuccess }) {
   });
 
   useEffect(() => {
-    supabase.from('users').select('id, username, email').eq('is_admin', false).then(({ data }) => {
-      if (data) setUsers(data);
-    });
+    loadUsers();
   }, []);
+
+  const loadUsers = async () => {
+    setLoadingUsers(true);
+    
+    try {
+      console.log('Loading users for dropdown...');
+      
+      // Load ALL non-admin users
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, username, email, uid, is_admin')
+        .eq('is_admin', false)
+        .order('username', { ascending: true });
+
+      console.log('Loaded users:', data?.length, 'Error:', error);
+
+      if (error) {
+        console.error('Error loading users:', error);
+        alert('Error loading users: ' + error.message);
+      }
+
+      if (data && data.length > 0) {
+        setUsers(data);
+      } else {
+        console.warn('No non-admin users found');
+      }
+    } catch (error) {
+      console.error('Error in loadUsers:', error);
+      alert('Error loading users');
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      let permissions = formData.permissionType === 'full_access' ? ['full_access'] : [];
+      let permissions = [];
+      
+      if (formData.permissionType === 'full_access') {
+        permissions = ['full_access'];
+      } else if (formData.permissionType === 'tournament_only') {
+        permissions = [
+          PERMISSIONS.TOURNAMENT_CREATE,
+          PERMISSIONS.TOURNAMENT_EDIT,
+          PERMISSIONS.TOURNAMENT_DELETE,
+          PERMISSIONS.TOURNAMENT_MANAGE_PARTICIPANTS,
+        ];
+      } else if (formData.permissionType === 'user_only') {
+        permissions = [
+          PERMISSIONS.USER_VIEW,
+          PERMISSIONS.USER_EDIT_CURRENCY,
+          PERMISSIONS.USER_BAN,
+          PERMISSIONS.USER_SUSPEND,
+          PERMISSIONS.USER_GIVE_REWARDS,
+        ];
+      }
 
+      // Set user as admin
       await supabase.from('users').update({ is_admin: true }).eq('id', formData.userId);
+
+      // Create admin account
       const { error } = await supabase.from('admin_accounts').insert([{
         user_id: formData.userId,
         admin_id: formData.adminId,
@@ -238,9 +297,11 @@ function CreateAdminModal({ onClose, onSuccess }) {
       }]);
 
       if (error) throw error;
-      alert('Admin created successfully!');
+
+      alert('Admin account created successfully!');
       onSuccess();
     } catch (error) {
+      console.error('Error creating admin:', error);
       alert('Error: ' + error.message);
     } finally {
       setLoading(false);
@@ -251,61 +312,109 @@ function CreateAdminModal({ onClose, onSuccess }) {
     <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
       <div className="bg-discord-dark rounded-xl w-full max-w-2xl p-6 border border-gray-800 max-h-[90vh] overflow-y-auto">
         <h2 className="text-2xl font-bold text-white mb-6">Create Admin Account</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <select
-            value={formData.userId}
-            onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
-            className="w-full px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white"
-            required
-          >
-            <option value="">Select user...</option>
-            {users.map(u => (
-              <option key={u.id} value={u.id}>{u.username} ({u.email})</option>
-            ))}
-          </select>
-          <input
-            type="text"
-            value={formData.adminId}
-            onChange={(e) => setFormData({ ...formData, adminId: e.target.value })}
-            placeholder="Admin ID (e.g., ADMIN002)"
-            className="w-full px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white"
-            required
-          />
-          <input
-            type="text"
-            value={formData.adminPassword}
-            onChange={(e) => setFormData({ ...formData, adminPassword: e.target.value })}
-            placeholder="Password"
-            className="w-full px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white"
-            required
-          />
-          <select
-            value={formData.permissionType}
-            onChange={(e) => setFormData({ ...formData, permissionType: e.target.value })}
-            className="w-full px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white"
-          >
-            <option value="full_access">Full Access</option>
-            <option value="tournament_only">Tournament Only</option>
-            <option value="user_only">User Management Only</option>
-          </select>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-6 py-3 bg-gray-700 text-white rounded-lg"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg disabled:opacity-50"
-            >
-              {loading ? 'Creating...' : 'Create Admin'}
-            </button>
+        
+        {loadingUsers ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500 mx-auto"></div>
+            <p className="text-discord-text mt-2">Loading users...</p>
           </div>
-        </form>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-discord-text mb-2">
+                Select User *
+              </label>
+              {users.length > 0 ? (
+                <select
+                  value={formData.userId}
+                  onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
+                  className="w-full px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white"
+                  required
+                >
+                  <option value="">Choose a user...</option>
+                  {users.map(u => (
+                    <option key={u.id} value={u.id}>
+                      {u.username} ({u.email}) - {u.uid}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="p-4 bg-yellow-500 bg-opacity-10 border border-yellow-500 rounded-lg">
+                  <p className="text-yellow-400 text-sm">
+                    No non-admin users found. All users are already admins or no users exist.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {users.length > 0 && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-discord-text mb-2">
+                    Admin ID *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.adminId}
+                    onChange={(e) => setFormData({ ...formData, adminId: e.target.value })}
+                    placeholder="e.g., ADMIN002"
+                    className="w-full px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-discord-text mb-2">
+                    Admin Password *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.adminPassword}
+                    onChange={(e) => setFormData({ ...formData, adminPassword: e.target.value })}
+                    placeholder="Create a strong password"
+                    className="w-full px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-discord-text mb-2">
+                    Permission Level *
+                  </label>
+                  <select
+                    value={formData.permissionType}
+                    onChange={(e) => setFormData({ ...formData, permissionType: e.target.value })}
+                    className="w-full px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white"
+                  >
+                    <option value="full_access">Full Access (All Permissions)</option>
+                    <option value="tournament_only">Tournament Management Only</option>
+                    <option value="user_only">User Management Only</option>
+                  </select>
+                </div>
+              </>
+            )}
+
+            <div className="flex gap-3 pt-4">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 px-6 py-3 bg-gray-700 text-white rounded-lg font-bold"
+              >
+                Cancel
+              </button>
+              {users.length > 0 && (
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg font-bold disabled:opacity-50"
+                >
+                  {loading ? 'Creating...' : 'Create Admin'}
+                </button>
+              )}
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
-    }
+      }
