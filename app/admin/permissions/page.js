@@ -23,49 +23,68 @@ export default function PermissionsPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
-
+  
     try {
-      console.log('Starting super admin verification...', { superAdminId });
-
+      console.log('🔍 Starting super admin verification...');
+      console.log('Input ID:', superAdminId);
+      console.log('Input ID length:', superAdminId.length);
+      console.log('Input Password length:', superAdminPassword.length);
+  
+      // Trim any whitespace
+      const trimmedId = superAdminId.trim();
+      const trimmedPassword = superAdminPassword.trim();
+  
+      console.log('Trimmed ID:', trimmedId);
+      console.log('Trimmed ID length:', trimmedId.length);
+  
       // Direct query to verify super admin
       const { data: superAdmin, error: queryError } = await supabase
         .from('super_admin_whitelist')
         .select('*')
-        .eq('super_admin_id', superAdminId)
-        .eq('super_admin_password', superAdminPassword)
+        .eq('super_admin_id', trimmedId)
+        .eq('super_admin_password', trimmedPassword)
         .single();
-
-      console.log('Super admin query result:', { 
+  
+      console.log('📊 Query result:', { 
         found: !!superAdmin, 
         error: queryError?.message,
+        errorCode: queryError?.code,
         data: superAdmin 
       });
-
+  
       if (queryError) {
-        console.error('Database error:', queryError);
+        console.error('❌ Database error:', queryError);
         setError('Database error: ' + queryError.message);
         setLoading(false);
         return;
       }
 
       if (!superAdmin) {
-        console.error('No matching super admin found');
-        setError('Invalid super admin credentials');
+        console.error('❌ No matching super admin found');
+        
+        // Check if ANY super admin exists
+        const { data: allSuperAdmins, error: checkError } = await supabase
+          .from('super_admin_whitelist')
+          .select('super_admin_id');
+        
+        console.log('All super admins in database:', allSuperAdmins);
+        
+        setError('Invalid super admin credentials. Please check your ID and password.');
         setLoading(false);
         return;
       }
-
-      console.log('Super admin verified successfully!');
+  
+      console.log('✅ Super admin verified successfully!');
       
-      // IMPORTANT: Set authenticated FIRST
+      // Set authenticated FIRST
       setAuthenticated(true);
       setLoading(false);
       
-      // THEN load admins (don't wait for it)
+      // Load admins
       loadAdmins();
       
     } catch (error) {
-      console.error('Super admin login error:', error);
+      console.error('❌ Super admin login error:', error);
       setError('Login failed: ' + error.message);
       setLoading(false);
     }
