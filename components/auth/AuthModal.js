@@ -19,23 +19,46 @@ export default function AuthModal() {
     e.preventDefault();
     setError('');
     setLoading(true);
-  
+
     try {
       if (isLogin) {
         // Login
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
-  
+
         if (error) throw error;
         
-        console.log('Login successful:', data);
-        
-        // Force close modal and reload
+        // Stay on current page - just reload
         window.location.reload();
       } else {
-        // ... existing signup code
+        // Signup
+        if (!agreeToTerms) {
+          setError('Please accept the Terms & Conditions');
+          setLoading(false);
+          return;
+        }
+
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              name: `${firstName} ${lastName}`,
+              first_name: firstName,
+              last_name: lastName,
+            },
+          },
+        });
+
+        if (error) throw error;
+
+        if (data.user && !data.session) {
+          setError('Please check your email to confirm your account');
+        } else {
+          window.location.reload();
+        }
       }
     } catch (error) {
       console.error('Auth error:', error);
@@ -50,7 +73,7 @@ export default function AuthModal() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: provider,
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
@@ -72,7 +95,6 @@ export default function AuthModal() {
           {isLogin ? 'Welcome Back!' : 'Create Account'}
         </h2>
 
-        {/* Error Message */}
         {error && (
           <div className="mb-4 p-3 bg-red-500 bg-opacity-10 border border-red-500 rounded-lg">
             <p className="text-red-500 text-sm">{error}</p>
@@ -197,4 +219,4 @@ export default function AuthModal() {
       </div>
     </div>
   );
-          }
+            }
