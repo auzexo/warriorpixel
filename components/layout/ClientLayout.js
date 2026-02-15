@@ -15,43 +15,39 @@ export default function ClientLayout({ children }) {
   const { user, profile, loading } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
   const isPublicRoute = publicRoutes.includes(pathname);
   const isAdminRoute = pathname?.startsWith('/admin');
   const isAuthCallback = pathname?.startsWith('/auth/callback');
-  const requiresAuth = !isPublicRoute && !isAdminRoute && !isAuthCallback;
+  const shouldShowModal = !isPublicRoute && !isAdminRoute && !isAuthCallback && !user;
 
-  // Single auth check on mount and when auth state changes
+  // Wait for auth to load, then mark ready
   useEffect(() => {
     if (!loading) {
-      // Mark that we've checked auth
-      setHasCheckedAuth(true);
-      
-      // Only show modal if route requires auth AND no user
-      if (requiresAuth && !user) {
-        // Wait a moment to ensure session is fully loaded
-        const timer = setTimeout(() => {
-          setShowAuthModal(true);
-        }, 100);
-        return () => clearTimeout(timer);
-      } else {
-        setShowAuthModal(false);
-      }
+      const timer = setTimeout(() => setIsReady(true), 200);
+      return () => clearTimeout(timer);
     }
-  }, [loading, requiresAuth, user]);
+  }, [loading]);
+
+  // Show modal only when ready and needed
+  useEffect(() => {
+    if (isReady && shouldShowModal) {
+      setShowAuthModal(true);
+    } else {
+      setShowAuthModal(false);
+    }
+  }, [isReady, shouldShowModal]);
 
   // Close sidebar on route change
   useEffect(() => {
     setSidebarOpen(false);
   }, [pathname]);
 
-  // Show loading only while auth is loading
-  if (loading || !hasCheckedAuth) {
+  if (loading || !isReady) {
     return <LoadingScreen />;
   }
 
-  // Admin routes use their own layout
   if (isAdminRoute || isAuthCallback) {
     return <>{children}</>;
   }
@@ -62,16 +58,10 @@ export default function ClientLayout({ children }) {
       
       <div className="flex">
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        
-        <main className="flex-1 p-4 md:p-6 lg:p-8">
-          {children}
-        </main>
+        <main className="flex-1 p-4 md:p-6 lg:p-8">{children}</main>
       </div>
 
-      {/* CRITICAL: Only show once, with all conditions met */}
-      {showAuthModal && !user && requiresAuth && hasCheckedAuth && !loading && (
-        <AuthModal />
-      )}
+      {showAuthModal && <AuthModal />}
     </div>
   );
-        }
+}
