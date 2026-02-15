@@ -296,8 +296,10 @@ function CreateAdminModal({ onClose, onSuccess }) {
     setLoading(true);
 
     try {
+      console.log('Creating admin for user:', formData.userId);
+
       let permissions = [];
-      
+    
       if (formData.permissionType === 'full_access') {
         permissions = ['full_access'];
       } else if (formData.permissionType === 'tournament_only') {
@@ -317,18 +319,39 @@ function CreateAdminModal({ onClose, onSuccess }) {
         ];
       }
 
-      // Set user as admin
-      await supabase.from('users').update({ is_admin: true }).eq('id', formData.userId);
+      console.log('Permissions to assign:', permissions);
 
-      // Create admin account
-      const { error } = await supabase.from('admin_accounts').insert([{
-        user_id: formData.userId,
-        admin_id: formData.adminId,
-        admin_password: formData.adminPassword,
-        permissions,
-      }]);
+      // Step 1: Update user to mark as admin
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ is_admin: true })
+        .eq('id', formData.userId);
 
-      if (error) throw error;
+      if (updateError) {
+        console.error('Error updating user:', updateError);
+        throw updateError;
+      }
+
+      console.log('User marked as admin');
+
+      // Step 2: Create admin account
+      const { data: adminData, error: insertError } = await supabase
+        .from('admin_accounts')
+        .insert([{
+          user_id: formData.userId,
+          admin_id: formData.adminId,
+          admin_password: formData.adminPassword,
+          permissions,
+          is_active: true,
+        }])
+        .select();
+
+      if (insertError) {
+        console.error('Error creating admin account:', insertError);
+        throw insertError;
+      }
+
+      console.log('Admin account created:', adminData);
 
       alert('Admin account created successfully!');
       onSuccess();
