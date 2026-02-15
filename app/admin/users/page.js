@@ -27,17 +27,23 @@ export default function UsersManagementPage() {
 
   const loadUsers = async () => {
     setLoading(true);
-
+  
     try {
-      // Load ALL users from database (no filters)
+      console.log('Loading all users...');
+      
+      // Load ALL users from database
       const { data, error } = await supabase
         .from('users')
         .select('*')
         .order('created_at', { ascending: false });
-
-      if (error) throw error;
+  
+      if (error) {
+        console.error('Error loading users:', error);
+        throw error;
+      }
 
       console.log('Loaded users:', data?.length);
+      console.log('Users data:', data);
 
       setUsers(data || []);
 
@@ -47,6 +53,8 @@ export default function UsersManagementPage() {
       const suspended = (data || []).filter(u => u.status === 'suspended').length;
       const banned = (data || []).filter(u => u.status === 'banned').length;
       const admins = (data || []).filter(u => u.is_admin === true).length;
+  
+      console.log('Stats:', { total, active, suspended, banned, admins });
 
       setStats({ total, active, suspended, banned, admins });
     } catch (error) {
