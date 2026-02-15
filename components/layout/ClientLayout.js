@@ -15,7 +15,7 @@ export default function ClientLayout({ children }) {
   const { user, profile, loading } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [checkedAuth, setCheckedAuth] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const isPublicRoute = publicRoutes.includes(pathname);
   const isAdminRoute = pathname?.startsWith('/admin');
@@ -23,31 +23,32 @@ export default function ClientLayout({ children }) {
   const requiresAuth = !isPublicRoute && !isAdminRoute && !isAuthCallback;
 
   useEffect(() => {
-    // Only show auth modal if:
-    // 1. Not loading
-    // 2. Requires auth
-    // 3. No user
-    // 4. Already checked (prevent flash)
+    // Mark initial load as complete after auth check
     if (!loading) {
-      setCheckedAuth(true);
+      const timer = setTimeout(() => {
+        setIsInitialLoad(false);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [loading]);
+
+  useEffect(() => {
+    // Only handle auth modal after initial load is complete
+    if (!loading && !isInitialLoad) {
       if (requiresAuth && !user) {
-        // Wait a moment to ensure session is loaded
-        const timer = setTimeout(() => {
-          setShowAuthModal(true);
-        }, 500);
-        return () => clearTimeout(timer);
+        setShowAuthModal(true);
       } else {
         setShowAuthModal(false);
       }
     }
-  }, [user, loading, requiresAuth]);
+  }, [user, loading, requiresAuth, isInitialLoad]);
 
   useEffect(() => {
     setSidebarOpen(false);
   }, [pathname]);
 
-  // Show loading while checking auth
-  if (loading || !checkedAuth) {
+  // Show loading only during initial load or auth loading
+  if (loading || isInitialLoad) {
     return <LoadingScreen />;
   }
 
@@ -68,8 +69,8 @@ export default function ClientLayout({ children }) {
         </main>
       </div>
 
-      {/* Only show auth modal if actually needed */}
-      {showAuthModal && !user && requiresAuth && (
+      {/* Only show modal when needed and ready */}
+      {showAuthModal && !user && requiresAuth && !loading && !isInitialLoad && (
         <AuthModal />
       )}
     </div>
