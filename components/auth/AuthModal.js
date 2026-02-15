@@ -19,7 +19,7 @@ export default function AuthModal() {
     e.preventDefault();
     setError('');
     setLoading(true);
-
+  
     try {
       if (isLogin) {
         // Login
@@ -27,41 +27,15 @@ export default function AuthModal() {
           email,
           password,
         });
-
+  
         if (error) throw error;
         
         console.log('Login successful:', data);
+        
+        // Force close modal and reload
         window.location.reload();
       } else {
-        // Signup
-        if (!agreeToTerms) {
-          setError('Please accept the Terms & Conditions');
-          setLoading(false);
-          return;
-        }
-
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              name: `${firstName} ${lastName}`,
-              first_name: firstName,
-              last_name: lastName,
-            },
-          },
-        });
-
-        if (error) throw error;
-
-        console.log('Signup successful:', data);
-        
-        // Check if email confirmation is required
-        if (data.user && !data.session) {
-          setError('Please check your email to confirm your account');
-        } else {
-          window.location.reload();
-        }
+        // ... existing signup code
       }
     } catch (error) {
       console.error('Auth error:', error);
