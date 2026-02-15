@@ -15,5 +15,5 @@ export async function GET(request) {
   }
 
   // Always redirect to home
-  return NextResponse.redirect(`${}/`);
+  return NextResponse.redirect(`${origin}/`);
 }
