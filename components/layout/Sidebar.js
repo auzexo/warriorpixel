@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/lib/supabase';
 import {
   FaHome,
   FaTrophy,
@@ -21,7 +22,7 @@ import {
 export default function Sidebar({ isOpen, onClose }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { profile, logout } = useAuth();
+  const { profile } = useAuth();
 
   const menuItems = [
     { icon: FaHome, label: 'Home', path: '/' },
@@ -42,9 +43,30 @@ export default function Sidebar({ isOpen, onClose }) {
   };
 
   const handleLogout = async () => {
-    await logout();
-    router.push('/');
-    if (onClose) onClose();
+    if (!confirm('Are you sure you want to logout?')) return;
+
+    try {
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Logout error:', error);
+        alert('Error logging out. Please try again.');
+        return;
+      }
+
+      // Clear local storage (admin sessions, etc.)
+      localStorage.clear();
+      
+      // Close sidebar if mobile
+      if (onClose) onClose();
+      
+      // Force reload to home page
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Logout error:', error);
+      alert('Error logging out. Please try again.');
+    }
   };
 
   return (
@@ -58,7 +80,7 @@ export default function Sidebar({ isOpen, onClose }) {
         onClick={onClose}
         className="lg:hidden absolute top-4 right-4 p-2 hover:bg-white hover:bg-opacity-10 rounded-lg transition-all z-50"
       >
-        <FaTimes className="text-xl" />
+        <FaTimes className="text-xl text-white" />
       </button>
 
       {/* Logo */}
@@ -149,4 +171,4 @@ export default function Sidebar({ isOpen, onClose }) {
       )}
     </aside>
   );
-}
+              }
