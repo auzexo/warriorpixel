@@ -5,223 +5,186 @@ import { useParams, useRouter } from 'next/navigation';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { logAdminAction } from '@/lib/admin';
-import { FaArrowLeft, FaUsers, FaCoins, FaMoneyBillWave, FaUndo, FaTrophy, FaEdit } from 'react-icons/fa';
+import { FaTrophy, FaUsers, FaMoneyBillWave, FaArrowLeft } from 'react-icons/fa';
 
 export default function TournamentParticipantsPage() {
   const params = useParams();
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
+  const tournamentId = params.id;
+
   const [tournament, setTournament] = useState(null);
   const [participants, setParticipants] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalCollected: 0,
     totalPaid: 0,
     balance: 0,
   });
-  const [sendingMoney, setSendingMoney] = useState({});
 
   useEffect(() => {
-    loadData();
-  }, [params.id]);
+    if (tournamentId) {
+      loadTournamentData();
+    }
+  }, [tournamentId]);
 
-  const loadData = async () => {
+  const loadTournamentData = async () => {
     setLoading(true);
 
-    // Load tournament
-    const { data: tournamentData } = await supabase
-      .from('tournaments')
-      .select('*')
-      .eq('id', params.id)
-      .single();
+    try {
+      // Load tournament
+      const { data: tournamentData, error: tournamentError } = await supabase
+        .from('tournaments')
+        .select('*')
+        .eq('id', tournamentId)
+        .single();
 
-    // Load participants
-    const { data: participantsData } = await supabase
-      .from('tournament_participants')
-      .select('*, users(username, email, uid)')
-      .eq('tournament_id', params.id)
-      .order('seat_number', { ascending: true });
-
-    if (tournamentData) {
+      if (tournamentError) throw tournamentError;
       setTournament(tournamentData);
-    }
 
-    if (participantsData) {
-      setParticipants(participantsData);
+      // Load participants with user data
+      const { data: participantsData, error: participantsError } = await supabase
+        .from('tournament_participants')
+        .select(`
+          *,
+          users (
+            username,
+            email,
+            uid
+          )
+        `)
+        .eq('tournament_id', tournamentId)
+        .order('seat_number', { ascending: true });
+
+      if (participantsError) throw participantsError;
+
+      setParticipants(participantsData || []);
 
       // Calculate stats
-      const totalCollected = participantsData.reduce((sum, p) => sum + parseFloat(p.payment_amount), 0);
-      const totalPaid = participantsData.reduce((sum, p) => sum + parseFloat(p.prize_won || 0), 0);
+      const collected = (participantsData || []).reduce((sum, p) => sum + (parseFloat(p.entry_fee_paid) || 0), 0);
+      const paid = (participantsData || []).reduce((sum, p) => sum + (parseFloat(p.money_received) || 0), 0);
       
       setStats({
-        totalCollected,
-        totalPaid,
-        balance: totalCollected - totalPaid,
+        totalCollected: collected,
+        totalPaid: paid,
+        balance: collected - paid,
       });
+    } catch (error) {
+      console.error('Error loading tournament data:', error);
+      alert('Error loading tournament data: ' + error.message);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
-  const handleSendMoney = async (participantId, userId, currentPrize) => {
-    const amount = prompt('Enter amount to send (₹):', '0');
-    if (!amount || isNaN(amount) || parseFloat(amount) <= 0) return;
+  const handleSendMoney = async (participantId, username) => {
+    const amount = prompt(`Enter amount to send to ${username}:`);
+    if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
+      alert('Please enter a valid amount');
+      return;
+    }
 
-    const amountNum = parseFloat(amount);
-    const confirmation = confirm(`Send ₹${amountNum} to this participant?`);
-    if (!confirmation) return;
-
-    setSendingMoney({ ...sendingMoney, [participantId]: true });
+    const adminSession = JSON.parse(localStorage.getItem('admin_session') || '{}');
 
     try {
-      // Get user's current balance
-      const { data: userData } = await supabase
-        .from('users')
-        .select('wallet_real')
-        .eq('id', userId)
-        .single();
-
-      if (!userData) throw new Error('User not found');
-
-      // Update user's wallet
-      const newBalance = parseFloat(userData.wallet_real) + amountNum;
-      const { error: walletError } = await supabase
-        .from('users')
-        .update({ wallet_real: newBalance })
-        .eq('id', userId);
-
-      if (walletError) throw walletError;
-
-      // Update participant's prize_won
-      const newPrizeWon = parseFloat(currentPrize || 0) + amountNum;
-      const { error: participantError } = await supabase
+      const participant = participants.find(p => p.id === participantId);
+      
+      // Update participant money received
+      const newAmount = (parseFloat(participant.money_received) || 0) + parseFloat(amount);
+      await supabase
         .from('tournament_participants')
-        .update({ 
-          prize_won: newPrizeWon,
-          win_tag_given: true 
-        })
+        .update({ money_received: newAmount })
         .eq('id', participantId);
 
-      if (participantError) throw participantError;
+      // Update user wallet
+      await supabase
+        .from('users')
+        .update({ 
+          wallet_real: supabase.raw(`wallet_real + ${parseFloat(amount)}`)
+        })
+        .eq('id', participant.user_id);
 
-      // Create transaction record
-      await supabase.from('transactions').insert({
-        user_id: userId,
-        type: 'tournament_win',
-        amount: amountNum,
-        currency: 'real',
-        status: 'completed',
-        description: `Prize from tournament: ${tournament.name}`,
-        reference_id: params.id,
-      });
+      // Create transaction
+      await supabase
+        .from('transactions')
+        .insert([{
+          user_id: participant.user_id,
+          type: 'tournament_reward',
+          amount: parseFloat(amount),
+          currency: 'real',
+          description: `Prize from tournament: ${tournament.title}`,
+        }]);
 
-      // Log admin action
-      const adminSession = JSON.parse(localStorage.getItem('admin_session') || '{}');
+      // Log action
       await logAdminAction(adminSession.adminAccountId, 'money_sent', {
-        targetUserId: userId,
-        targetTournamentId: params.id,
-        amount: amountNum,
-        tournamentName: tournament.name,
+        targetUserId: participant.user_id,
+        targetTournamentId: tournamentId,
+        amount: parseFloat(amount),
+        username: username,
       });
 
-      alert(`Successfully sent ₹${amountNum} to participant!`);
-      loadData();
+      alert('Money sent successfully!');
+      loadTournamentData();
     } catch (error) {
       console.error('Error sending money:', error);
-      alert('Error sending money: ' + error.message);
-    } finally {
-      setSendingMoney({ ...sendingMoney, [participantId]: false });
+      alert('Error: ' + error.message);
     }
   };
 
-  const handleTakeMoney = async (participantId, userId, currentPrize) => {
-    if (!currentPrize || parseFloat(currentPrize) <= 0) {
-      alert('No prize amount to take back');
+  const handleTakeMoney = async (participantId, username) => {
+    const amount = prompt(`Enter amount to take back from ${username}:`);
+    if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
+      alert('Please enter a valid amount');
       return;
     }
 
-    const amount = prompt('Enter amount to take back (₹):', currentPrize.toString());
-    if (!amount || isNaN(amount) || parseFloat(amount) <= 0) return;
-
-    const amountNum = parseFloat(amount);
-    
-    if (amountNum > parseFloat(currentPrize)) {
-      alert('Cannot take back more than the prize amount');
-      return;
-    }
-
-    const confirmation = confirm(`Take back ₹${amountNum} from this participant?`);
-    if (!confirmation) return;
-
-    setSendingMoney({ ...sendingMoney, [participantId]: true });
+    const adminSession = JSON.parse(localStorage.getItem('admin_session') || '{}');
 
     try {
-      // Get user's current balance
-      const { data: userData } = await supabase
-        .from('users')
-        .select('wallet_real')
-        .eq('id', userId)
-        .single();
-
-      if (!userData) throw new Error('User not found');
-
-      // Check if user has enough balance
-      if (parseFloat(userData.wallet_real) < amountNum) {
-        throw new Error('User does not have enough balance');
+      const participant = participants.find(p => p.id === participantId);
+      
+      // Check if enough money to take back
+      if ((parseFloat(participant.money_received) || 0) < parseFloat(amount)) {
+        alert('Cannot take back more than what was received');
+        return;
       }
 
-      // Update user's wallet (deduct)
-      const newBalance = parseFloat(userData.wallet_real) - amountNum;
-      const { error: walletError } = await supabase
-        .from('users')
-        .update({ wallet_real: newBalance })
-        .eq('id', userId);
-
-      if (walletError) throw walletError;
-
-      // Update participant's prize_won
-      const newPrizeWon = parseFloat(currentPrize) - amountNum;
-      const { error: participantError } = await supabase
+      // Update participant money received
+      const newAmount = (parseFloat(participant.money_received) || 0) - parseFloat(amount);
+      await supabase
         .from('tournament_participants')
-        .update({ prize_won: newPrizeWon })
+        .update({ money_received: newAmount })
         .eq('id', participantId);
 
-      if (participantError) throw participantError;
+      // Update user wallet
+      await supabase
+        .from('users')
+        .update({ 
+          wallet_real: supabase.raw(`wallet_real - ${parseFloat(amount)}`)
+        })
+        .eq('id', participant.user_id);
 
-      // Create transaction record
-      await supabase.from('transactions').insert({
-        user_id: userId,
-        type: 'admin_debit',
-        amount: -amountNum,
-        currency: 'real',
-        status: 'completed',
-        description: `Money taken back from tournament: ${tournament.name}`,
-        reference_id: params.id,
-      });
-
-      // Log admin action
-      const adminSession = JSON.parse(localStorage.getItem('admin_session') || '{}');
+      // Log action
       await logAdminAction(adminSession.adminAccountId, 'money_taken', {
-        targetUserId: userId,
-        targetTournamentId: params.id,
-        amount: amountNum,
-        tournamentName: tournament.name,
+        targetUserId: participant.user_id,
+        targetTournamentId: tournamentId,
+        amount: parseFloat(amount),
+        username: username,
       });
 
-      alert(`Successfully took back ₹${amountNum} from participant!`);
-      loadData();
+      alert('Money taken back successfully!');
+      loadTournamentData();
     } catch (error) {
       console.error('Error taking money:', error);
-      alert('Error taking money: ' + error.message);
-    } finally {
-      setSendingMoney({ ...sendingMoney, [participantId]: false });
+      alert('Error: ' + error.message);
     }
   };
 
   if (loading) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500"></div>
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
+          <p className="text-discord-text mt-4">Loading...</p>
         </div>
       </AdminLayout>
     );
@@ -231,7 +194,7 @@ export default function TournamentParticipantsPage() {
     return (
       <AdminLayout>
         <div className="text-center py-12">
-          <p className="text-discord-text">Tournament not found</p>
+          <p className="text-red-500">Tournament not found</p>
         </div>
       </AdminLayout>
     );
@@ -241,102 +204,71 @@ export default function TournamentParticipantsPage() {
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.push('/admin/dashboard')}
-              className="p-2 hover:bg-white hover:bg-opacity-10 rounded-lg transition-all"
-            >
-              <FaArrowLeft className="text-white" />
-            </button>
-            <div>
-              <h1 className="text-3xl font-bold text-white mb-1">{tournament.name}</h1>
-              <p className="text-discord-text">Manage tournament participants</p>
-            </div>
-          </div>
+        <div>
           <button
-            onClick={() => router.push(`/admin/tournaments/edit/${params.id}`)}
-            className="flex items-center gap-2 bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-semibold transition-all"
+            onClick={() => router.push('/admin/dashboard')}
+            className="flex items-center gap-2 text-discord-text hover:text-white mb-4 transition-all"
           >
-            <FaEdit />
-            Edit Tournament
+            <FaArrowLeft />
+            Back to Dashboard
           </button>
+          <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-2">
+            <FaTrophy className="text-red-500" />
+            {tournament.title}
+          </h1>
+          <p className="text-discord-text">Participant Management</p>
         </div>
 
-        {/* Tournament Info */}
+        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-discord-dark rounded-xl p-4 border border-gray-800">
-            <p className="text-discord-text text-sm mb-1">Prize Pool</p>
-            <p className="text-2xl font-bold text-yellow-400">₹{tournament.prize_pool}</p>
+          <div className="bg-discord-dark rounded-xl p-6 border border-gray-800">
+            <div className="flex items-center gap-3 mb-2">
+              <FaUsers className="text-2xl text-purple-400" />
+              <p className="text-sm text-discord-text">Total Participants</p>
+            </div>
+            <p className="text-3xl font-bold text-white">{participants.length}</p>
           </div>
-          <div className="bg-discord-dark rounded-xl p-4 border border-gray-800">
-            <p className="text-discord-text text-sm mb-1">Entry Fee</p>
-            <p className="text-2xl font-bold text-white">
-              {tournament.entry_fee === 0 ? 'FREE' : `₹${tournament.entry_fee}`}
-            </p>
-          </div>
-          <div className="bg-discord-dark rounded-xl p-4 border border-gray-800">
-            <p className="text-discord-text text-sm mb-1">Participants</p>
-            <p className="text-2xl font-bold text-white">
-              {tournament.participants_count}/{tournament.max_participants}
-            </p>
-          </div>
-          <div className="bg-discord-dark rounded-xl p-4 border border-gray-800">
-            <p className="text-discord-text text-sm mb-1">Status</p>
-            <p className={`text-xl font-bold ${
-              tournament.status === 'live' ? 'text-red-400' :
-              tournament.status === 'upcoming' ? 'text-blue-400' : 'text-gray-400'
-            }`}>
-              {tournament.status.toUpperCase()}
-            </p>
-          </div>
-        </div>
 
-        {/* Money Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-discord-dark rounded-xl p-6 border border-green-500">
+          <div className="bg-discord-dark rounded-xl p-6 border border-gray-800">
             <div className="flex items-center gap-3 mb-2">
-              <FaCoins className="text-green-400 text-2xl" />
-              <p className="text-discord-text">Total Collected</p>
+              <FaMoneyBillWave className="text-2xl text-green-400" />
+              <p className="text-sm text-discord-text">Total Collected</p>
             </div>
-            <p className="text-3xl font-bold text-green-400">₹{stats.totalCollected.toFixed(2)}</p>
+            <p className="text-3xl font-bold text-white">₹{stats.totalCollected.toFixed(2)}</p>
           </div>
-          <div className="bg-discord-dark rounded-xl p-6 border border-red-500">
+
+          <div className="bg-discord-dark rounded-xl p-6 border border-gray-800">
             <div className="flex items-center gap-3 mb-2">
-              <FaMoneyBillWave className="text-red-400 text-2xl" />
-              <p className="text-discord-text">Total Paid</p>
+              <FaMoneyBillWave className="text-2xl text-blue-400" />
+              <p className="text-sm text-discord-text">Total Paid</p>
             </div>
-            <p className="text-3xl font-bold text-red-400">₹{stats.totalPaid.toFixed(2)}</p>
+            <p className="text-3xl font-bold text-white">₹{stats.totalPaid.toFixed(2)}</p>
           </div>
-          <div className="bg-discord-dark rounded-xl p-6 border border-blue-500">
+
+          <div className="bg-discord-dark rounded-xl p-6 border border-gray-800">
             <div className="flex items-center gap-3 mb-2">
-              <FaTrophy className="text-blue-400 text-2xl" />
-              <p className="text-discord-text">Balance</p>
+              <FaMoneyBillWave className="text-2xl text-yellow-400" />
+              <p className="text-sm text-discord-text">Balance</p>
             </div>
-            <p className="text-3xl font-bold text-blue-400">₹{stats.balance.toFixed(2)}</p>
+            <p className="text-3xl font-bold text-white">₹{stats.balance.toFixed(2)}</p>
           </div>
         </div>
 
         {/* Participants Table */}
-        <div className="bg-discord-dark rounded-xl border border-gray-800 overflow-hidden">
+        <div className="bg-discord-dark rounded-xl border border-gray-800">
           <div className="p-4 border-b border-gray-800">
-            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              <FaUsers />
-              Participants ({participants.length})
-            </h2>
+            <h2 className="text-xl font-bold text-white">Participants</h2>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-white bg-opacity-5">
                 <tr>
-                  <th className="text-left p-4 text-discord-text font-semibold">Seat #</th>
-                  <th className="text-left p-4 text-discord-text font-semibold">Player</th>
+                  <th className="text-left p-4 text-discord-text font-semibold">Seat</th>
+                  <th className="text-left p-4 text-discord-text font-semibold">User</th>
                   <th className="text-left p-4 text-discord-text font-semibold">In-Game Name</th>
-                  <th className="text-left p-4 text-discord-text font-semibold">Entry Paid</th>
-                  <th className="text-left p-4 text-discord-text font-semibold">Prize Won</th>
-                  <th className="text-left p-4 text-discord-text font-semibold">Payment</th>
-                  <th className="text-left p-4 text-discord-text font-semibold">Joined At</th>
+                  <th className="text-left p-4 text-discord-text font-semibold">Entry Fee</th>
+                  <th className="text-left p-4 text-discord-text font-semibold">Money Received</th>
                   <th className="text-right p-4 text-discord-text font-semibold">Actions</th>
                 </tr>
               </thead>
@@ -345,67 +277,44 @@ export default function TournamentParticipantsPage() {
                   participants.map((participant) => (
                     <tr key={participant.id} className="border-t border-gray-800 hover:bg-white hover:bg-opacity-5">
                       <td className="p-4">
-                        <span className="text-white font-bold text-lg">#{participant.seat_number}</span>
+                        <span className="font-bold text-purple-400">#{participant.seat_number}</span>
                       </td>
                       <td className="p-4">
                         <div>
-                          <p className="font-semibold text-white">{participant.users.username}</p>
-                          <p className="text-xs text-discord-text">{participant.users.uid}</p>
+                          <p className="font-semibold text-white">
+                            {participant.users?.username || 'Unknown'}
+                          </p>
+                          <p className="text-xs text-discord-text">
+                            {participant.users?.uid || 'No UID'}
+                          </p>
                         </div>
                       </td>
                       <td className="p-4">
-                        <span className="text-white font-mono">{participant.in_game_name}</span>
+                        <span className="text-white">{participant.in_game_name || 'Not set'}</span>
                       </td>
                       <td className="p-4">
                         <span className="text-green-400 font-semibold">
-                          {participant.payment_amount === 0 ? 'FREE' : `₹${participant.payment_amount}`}
-                        </span>
-                        {participant.voucher_used && (
-                          <span className="ml-2 text-xs text-purple-400">(Voucher)</span>
-                        )}
-                      </td>
-                      <td className="p-4">
-                        <span className="text-yellow-400 font-bold">
-                          ₹{parseFloat(participant.prize_won || 0).toFixed(2)}
+                          ₹{parseFloat(participant.entry_fee_paid || 0).toFixed(2)}
                         </span>
                       </td>
                       <td className="p-4">
-                        {participant.payment_verified ? (
-                          <span className="text-green-400 text-sm">✓ Verified</span>
-                        ) : (
-                          <span className="text-red-400 text-sm">✗ Pending</span>
-                        )}
-                      </td>
-                      <td className="p-4">
-                        <span className="text-sm text-discord-text">
-                          {new Date(participant.joined_at).toLocaleDateString('en-IN')}
+                        <span className="text-blue-400 font-semibold">
+                          ₹{parseFloat(participant.money_received || 0).toFixed(2)}
                         </span>
                       </td>
                       <td className="p-4">
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => handleSendMoney(
-                              participant.id,
-                              participant.user_id,
-                              participant.prize_won
-                            )}
-                            disabled={sendingMoney[participant.id]}
-                            className="p-2 bg-green-600 hover:bg-green-700 rounded-lg transition-all disabled:opacity-50"
-                            title="Send Money"
+                            onClick={() => handleSendMoney(participant.id, participant.users?.username || 'user')}
+                            className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-all"
                           >
-                            <FaMoneyBillWave />
+                            Send Money
                           </button>
                           <button
-                            onClick={() => handleTakeMoney(
-                              participant.id,
-                              participant.user_id,
-                              participant.prize_won
-                            )}
-                            disabled={sendingMoney[participant.id] || !participant.prize_won || parseFloat(participant.prize_won) <= 0}
-                            className="p-2 bg-orange-600 hover:bg-orange-700 rounded-lg transition-all disabled:opacity-50"
-                            title="Take Back Money"
+                            onClick={() => handleTakeMoney(participant.id, participant.users?.username || 'user')}
+                            className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition-all"
                           >
-                            <FaUndo />
+                            Take Back
                           </button>
                         </div>
                       </td>
@@ -413,7 +322,7 @@ export default function TournamentParticipantsPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="8" className="text-center py-8 text-discord-text">
+                    <td colSpan="6" className="text-center py-12 text-discord-text">
                       No participants yet
                     </td>
                   </tr>
@@ -425,4 +334,4 @@ export default function TournamentParticipantsPage() {
       </div>
     </AdminLayout>
   );
-        }
+                 }
