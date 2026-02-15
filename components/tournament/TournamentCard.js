@@ -1,128 +1,165 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { FaTrophy, FaUsers, FaCoins, FaClock, FaFire } from 'react-icons/fa';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+import { FaTrophy, FaUsers, FaClock, FaMoneyBillWave } from 'react-icons/fa';
 
-export default function TournamentCard({ tournament }) {
-  const router = useRouter();
+export default function TournamentCard({ tournament, onJoinClick, user, profile }) {
+  const [participantCount, setParticipantCount] = useState(0);
+  const [isJoined, setIsJoined] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'live':
-        return 'bg-red-500';
-      case 'upcoming':
-        return 'bg-blue-500';
-      case 'completed':
-        return 'bg-gray-500';
-      default:
-        return 'bg-gray-500';
+  useEffect(() => {
+    loadParticipantData();
+  }, [tournament.id, user]);
+
+  const loadParticipantData = async () => {
+    try {
+      // Count participants directly
+      const { count, error } = await supabase
+        .from('tournament_participants')
+        .select('*', { count: 'exact', head: true })
+        .eq('tournament_id', tournament.id);
+
+      if (error) throw error;
+
+      console.log(`Tournament ${tournament.title}: ${count} participants`);
+      setParticipantCount(count || 0);
+
+      // Check if current user has joined
+      if (user) {
+        const { data: userParticipation } = await supabase
+          .from('tournament_participants')
+          .select('id')
+          .eq('tournament_id', tournament.id)
+          .eq('user_id', user.id)
+          .single();
+
+        setIsJoined(!!userParticipation);
+      }
+    } catch (error) {
+      console.error('Error loading participant data:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getGameIcon = (game) => {
-    switch (game) {
-      case 'freefire':
-        return '🔥';
-      case 'bgmi':
-        return '🎮';
-      case 'stumbleguys':
-        return '🏃';
-      case 'minecraft':
-        return '⛏️';
-      default:
-        return '🎮';
-    }
-  };
-
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const spotsLeft = tournament.max_participants - tournament.participants_count;
-  const isFull = spotsLeft === 0;
+  const isFull = participantCount >= tournament.max_participants;
+  const canJoin = user && !isJoined && !isFull && tournament.status === 'upcoming';
 
   return (
-    <div
-      onClick={() => router.push(`/tournaments/${tournament.id}`)}
-      className="bg-discord-dark hover:bg-discord-darker rounded-xl p-6 border border-gray-800 hover:border-purple-500 transition-all cursor-pointer group"
-    >
-      {/* Header */}
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="text-4xl">{getGameIcon(tournament.game)}</div>
-          <div>
-            <h3 className="font-bold text-white text-lg group-hover:text-purple-400 transition-colors">
-              {tournament.name}
-            </h3>
-            <p className="text-xs text-discord-text uppercase">{tournament.game}</p>
-          </div>
-        </div>
-        <div className={`${getStatusColor(tournament.status)} px-3 py-1 rounded-full text-white text-xs font-bold uppercase`}>
-          {tournament.status}
-        </div>
+    <div className="bg-discord-dark rounded-xl p-6 border border-gray-800 hover:border-red-500 transition-all">
+      {/* Status Badge */}
+      <div className="flex items-center justify-between mb-4">
+        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+          tournament.status === 'upcoming' ? 'bg-blue-500 text-white' :
+          tournament.status === 'live' ? 'bg-green-500 text-white animate-pulse' :
+          'bg-gray-500 text-white'
+        }`}>
+          {tournament.status === 'upcoming' ? '🕒 UPCOMING' :
+           tournament.status === 'live' ? '🔴 LIVE NOW' :
+           '✓ COMPLETED'}
+        </span>
+        {isJoined && (
+          <span className="px-3 py-1 bg-green-500 text-white rounded-full text-xs font-bold">
+            ✓ JOINED
+          </span>
+        )}
       </div>
+
+      {/* Tournament Title */}
+      <h3 className="text-2xl font-bold text-white mb-2">{tournament.title}</h3>
+      <p className="text-discord-text mb-4">{tournament.game}</p>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-3 mb-4">
         <div className="bg-white bg-opacity-5 rounded-lg p-3">
           <div className="flex items-center gap-2 mb-1">
-            <FaTrophy className="text-yellow-400 text-sm" />
-            <p className="text-xs text-discord-text">Prize Pool</p>
+            <FaUsers className="text-purple-400" />
+            <p className="text-xs text-discord-text">Players</p>
           </div>
-          <p className="font-bold text-white">₹{tournament.prize_pool}</p>
+          <p className="text-white font-bold">
+            {loading ? '...' : `${participantCount}/${tournament.max_participants}`}
+          </p>
+          {isFull && <p className="text-red-400 text-xs mt-1">FULL</p>}
         </div>
 
         <div className="bg-white bg-opacity-5 rounded-lg p-3">
           <div className="flex items-center gap-2 mb-1">
-            <FaCoins className="text-green-400 text-sm" />
+            <FaTrophy className="text-yellow-400" />
+            <p className="text-xs text-discord-text">Prize Pool</p>
+          </div>
+          <p className="text-white font-bold">₹{parseFloat(tournament.prize_pool || 0).toFixed(0)}</p>
+        </div>
+
+        <div className="bg-white bg-opacity-5 rounded-lg p-3">
+          <div className="flex items-center gap-2 mb-1">
+            <FaMoneyBillWave className="text-green-400" />
             <p className="text-xs text-discord-text">Entry Fee</p>
           </div>
-          <p className="font-bold text-white">
-            {tournament.entry_fee === 0 ? 'FREE' : `₹${tournament.entry_fee}`}
-          </p>
+          <p className="text-white font-bold">₹{parseFloat(tournament.entry_fee || 0).toFixed(0)}</p>
         </div>
-      </div>
 
-      {/* Participants */}
-      <div className="mb-4">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <FaUsers className="text-purple-400 text-sm" />
-            <span className="text-xs text-discord-text">Participants</span>
+        <div className="bg-white bg-opacity-5 rounded-lg p-3">
+          <div className="flex items-center gap-2 mb-1">
+            <FaClock className="text-blue-400" />
+            <p className="text-xs text-discord-text">Starts</p>
           </div>
-          <span className={`text-sm font-bold ${isFull ? 'text-red-400' : 'text-white'}`}>
-            {tournament.participants_count}/{tournament.max_participants}
-          </span>
-        </div>
-        <div className="w-full bg-white bg-opacity-10 rounded-full h-2">
-          <div
-            className={`h-2 rounded-full transition-all ${
-              isFull ? 'bg-red-500' : spotsLeft <= 5 ? 'bg-orange-500' : 'bg-purple-500'
-            }`}
-            style={{
-              width: `${(tournament.participants_count / tournament.max_participants) * 100}%`,
-            }}
-          ></div>
-        </div>
-        {spotsLeft <= 5 && spotsLeft > 0 && (
-          <p className="text-xs text-orange-400 mt-1 flex items-center gap-1">
-            <FaFire />
-            Only {spotsLeft} spots left!
+          <p className="text-white font-bold text-xs">
+            {new Date(tournament.start_time).toLocaleString('en-IN', {
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
           </p>
-        )}
+        </div>
       </div>
 
-      {/* Start Time */}
-      <div className="flex items-center gap-2 text-sm text-discord-text">
-        <FaClock className="text-cyan-400" />
-        <span>{formatDate(tournament.start_time)}</span>
-      </div>
+      {/* Description */}
+      {tournament.description && (
+        <p className="text-discord-text text-sm mb-4 line-clamp-2">
+          {tournament.description}
+        </p>
+      )}
+
+      {/* Join Button */}
+      {canJoin ? (
+        <button
+          onClick={() => onJoinClick(tournament)}
+          className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg font-bold transition-all"
+        >
+          Join Tournament
+        </button>
+      ) : isFull ? (
+        <button
+          disabled
+          className="w-full bg-gray-600 text-gray-400 py-3 rounded-lg font-bold cursor-not-allowed"
+        >
+          Tournament Full
+        </button>
+      ) : isJoined ? (
+        <button
+          disabled
+          className="w-full bg-green-600 text-white py-3 rounded-lg font-bold cursor-default"
+        >
+          Already Joined
+        </button>
+      ) : !user ? (
+        <button
+          disabled
+          className="w-full bg-gray-600 text-gray-400 py-3 rounded-lg font-bold cursor-not-allowed"
+        >
+          Login to Join
+        </button>
+      ) : (
+        <button
+          disabled
+          className="w-full bg-gray-600 text-gray-400 py-3 rounded-lg font-bold cursor-not-allowed"
+        >
+          {tournament.status === 'completed' ? 'Tournament Ended' : 'Cannot Join'}
+        </button>
+      )}
     </div>
   );
-}
+            }
