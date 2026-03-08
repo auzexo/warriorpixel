@@ -1,181 +1,289 @@
 'use client';
 
-import { FaDiscord, FaYoutube, FaInstagram, FaInfoCircle, FaUsers, FaEnvelope, FaQuestionCircle, FaExternalLinkAlt } from 'react-icons/fa';
+import { useState } from 'react';
+import { FaInfoCircle, FaQuestionCircle, FaDiscord, FaInstagram, FaEnvelope, FaTrophy, FaWallet, FaUsers, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 
 export default function InfoPage() {
-  const credits = [
-    { name: 'Ninja Hazuto', role: 'Developer', color: 'from-red-500 to-orange-500' },
-    { name: 'Phoenix', role: 'Community Manager', color: 'from-orange-500 to-yellow-500' },
-    { name: 'Suraj', role: 'Tournament Coordinator', color: 'from-purple-500 to-pink-500' },
-    { name: 'RDX Warrior', role: 'Moderator', color: 'from-blue-500 to-cyan-500' },
-    { name: 'Prime', role: 'Supporter', color: 'from-green-500 to-emerald-500' },
-    { name: 'Devourer', role: 'Technical Support', color: 'from-pink-500 to-purple-500' },
-    { name: 'Innocent', role: 'Marketing Lead', color: 'from-cyan-500 to-blue-500' },
-  ];
+  const [openFaq, setOpenFaq] = useState(null);
 
-  const socialLinks = [
-    {
-      name: 'Discord Server',
-      icon: FaDiscord,
-      url: 'https://discord.gg/warriorpixel',
-      color: 'bg-discord-purple',
-      description: 'Join our community, get support, and participate in events',
-    },
-    {
-      name: 'YouTube Channel',
-      icon: FaYoutube,
-      url: 'https://youtube.com/@warriorpixel',
-      color: 'bg-red-600',
-      description: 'Watch tournament highlights, tutorials, and gameplay',
-    },
-    {
-      name: 'Instagram',
-      icon: FaInstagram,
-      url: 'https://instagram.com/warriorpixel',
-      color: 'bg-gradient-to-r from-purple-600 to-pink-600',
-      description: 'Follow for updates, clips, and behind-the-scenes content',
-    },
-  ];
+  const toggleFaq = (id) => {
+    setOpenFaq(openFaq === id ? null : id);
+  };
 
   const faqs = [
     {
+      id: 1,
+      category: 'Getting Started',
+      question: 'How do I create an account?',
+      answer: 'Click the "Login" button in the top right corner, then choose to sign up with Email, Google, or Discord. Fill in your details and you\'re ready to go!'
+    },
+    {
+      id: 2,
+      category: 'Getting Started',
+      question: 'What is WarriorPixel?',
+      answer: 'WarriorPixel is a gaming platform where you can join tournaments, compete with other players, join guilds, and earn rewards. We focus on Free Fire, but more games are coming soon!'
+    },
+    {
+      id: 3,
+      category: 'Tournaments',
       question: 'How do I join a tournament?',
-      answer: 'Browse tournaments, click on one you like, and click "Join Tournament". Make sure you have enough balance or vouchers to pay the entry fee.',
+      answer: 'Go to the Tournaments page, browse available tournaments, and click "Join Tournament" on any upcoming event. Fill in your in-game details and you\'re registered!'
     },
     {
-      question: 'How do I add money to my wallet?',
-      answer: 'Go to the Wallet page and click "Add Money". You can use various payment methods including UPI, cards, and net banking.',
+      id: 4,
+      category: 'Tournaments',
+      question: 'What happens if a tournament is full?',
+      answer: 'If a tournament reaches maximum capacity, you won\'t be able to join. Keep an eye out for new tournaments posted regularly!'
     },
     {
-      question: 'What are vouchers and how do I use them?',
-      answer: 'Vouchers are special tickets that let you join tournaments for free. When joining a tournament, you can select a voucher instead of paying with real money.',
+      id: 5,
+      category: 'Tournaments',
+      question: 'How do I receive my tournament winnings?',
+      answer: 'Tournament prizes are automatically credited to your wallet within 24-48 hours after the tournament ends. Check your Wallet page to view your balance.'
     },
     {
-      question: 'How do I see tournament room details?',
-      answer: 'Room ID and password become visible 5 minutes before the tournament starts. Make sure you\'re registered for the tournament to see them.',
+      id: 6,
+      category: 'Wallet & Payments',
+      question: 'What currencies does WarriorPixel use?',
+      answer: 'We have 4 currencies: Real Money (₹), Gems, Coins, and Vouchers (₹20, ₹30, ₹50). Each can be used for different purposes on the platform.'
     },
     {
-      question: 'Can I get a refund if I can\'t play?',
-      answer: 'Refunds are only available if the tournament is cancelled by admins. Contact support on Discord for special cases.',
+      id: 7,
+      category: 'Wallet & Payments',
+      question: 'How do I withdraw my winnings?',
+      answer: 'Go to your Wallet page, click "Withdraw", enter the amount and your payment details (UPI/Bank). Withdrawals are processed within 3-5 business days.'
     },
     {
-      question: 'How do achievements work?',
-      answer: 'Complete specific tasks (like playing games or winning tournaments) to unlock achievements and earn points and coins.',
+      id: 8,
+      category: 'Wallet & Payments',
+      question: 'Are there any withdrawal fees?',
+      answer: 'Minimum withdrawal is ₹100. No fees for withdrawals above ₹500. Below ₹500, a small processing fee may apply.'
     },
     {
-      question: 'How do I link my Discord account?',
-      answer: 'Go to your profile settings and click "Link Discord". This allows you to get tournament updates directly on Discord.',
+      id: 9,
+      category: 'Guilds',
+      question: 'How do I join a Free Fire guild?',
+      answer: 'Visit the Free Fire Guilds page, browse available guilds, and click "Join Guild". Fill out the application form and join our Discord. Guild leaders will review your application within 24 hours.'
     },
     {
-      question: 'What games are supported?',
-      answer: 'We currently support Free Fire, BGMI, Stumble Guys, Minecraft, Valorant, and CODM. More games coming soon!',
+      id: 10,
+      category: 'Guilds',
+      question: 'Can I be in multiple guilds?',
+      answer: 'No, you can only be a member of one guild at a time. You can leave your current guild and join another if desired.'
     },
+    {
+      id: 11,
+      category: 'Account & Security',
+      question: 'How do I change my password?',
+      answer: 'If you signed up with email, go to your profile settings and click "Change Password". For Google/Discord login, manage your password through those platforms.'
+    },
+    {
+      id: 12,
+      category: 'Account & Security',
+      question: 'I forgot my password, what should I do?',
+      answer: 'Click "Forgot Password" on the login page, enter your email, and we\'ll send you a reset link. Check your spam folder if you don\'t see it.'
+    },
+    {
+      id: 13,
+      category: 'Support',
+      question: 'How do I contact support?',
+      answer: 'Join our Discord server for fastest support, DM us on Instagram, or email support@warriorpixel.in. We typically respond within 24 hours.'
+    },
+    {
+      id: 14,
+      category: 'Support',
+      question: 'How do I report a bug or issue?',
+      answer: 'Report bugs on our Discord server in the #bug-reports channel, or email us at support@warriorpixel.in with detailed information about the issue.'
+    }
+  ];
+
+  const categories = [...new Set(faqs.map(faq => faq.category))];
+
+  const quickLinks = [
+    {
+      title: 'Join Tournaments',
+      description: 'Browse and join upcoming gaming tournaments',
+      icon: FaTrophy,
+      link: '/tournaments',
+      color: 'from-purple-600 to-purple-800'
+    },
+    {
+      title: 'Manage Wallet',
+      description: 'View balance, withdraw winnings, and transaction history',
+      icon: FaWallet,
+      link: '/wallet',
+      color: 'from-green-600 to-green-800'
+    },
+    {
+      title: 'Free Fire Guilds',
+      description: 'Join official WarriorPixel Free Fire guilds',
+      icon: FaUsers,
+      link: '/freefire',
+      color: 'from-blue-600 to-blue-800'
+    }
   ];
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-discord-darkest">
       {/* Header */}
-      <div className="bg-gradient-to-r from-cyan-600 to-blue-600 rounded-xl p-6 md:p-8">
-        <h1 className="text-3xl md:text-4xl font-bold mb-2 flex items-center gap-3">
-          <FaInfoCircle />
-          Info & Help
-        </h1>
-        <p className="text-white text-opacity-90">Everything you need to know about WarriorPixel</p>
+      <div className="bg-gradient-to-r from-purple-600 via-purple-700 to-purple-800 p-8 md:p-12 rounded-2xl mb-8 border border-purple-500">
+        <div className="flex items-center gap-4 mb-4">
+          <div className="w-16 h-16 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
+            <FaInfoCircle className="text-4xl text-white" />
+          </div>
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
+              Info & Help Center
+            </h1>
+            <p className="text-purple-100">
+              Everything you need to know about using WarriorPixel
+            </p>
+          </div>
+        </div>
       </div>
 
-      {/* Social Links */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {socialLinks.map((link) => {
+      {/* Quick Links */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {quickLinks.map((link, index) => {
           const Icon = link.icon;
           return (
             <a
-              key={link.name}
-              href={link.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-discord-dark rounded-xl p-6 border border-gray-800 hover:border-cyan-500 transition-all group"
+              key={index}
+              href={link.link}
+              className="bg-discord-dark border border-gray-800 rounded-xl p-6 hover:border-purple-600 transition-all group"
             >
-              <div className={`w-16 h-16 ${link.color} rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                <Icon className="text-white text-3xl" />
+              <div className={`w-12 h-12 bg-gradient-to-br ${link.color} rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-all`}>
+                <Icon className="text-2xl text-white" />
               </div>
-              <h3 className="font-bold text-white text-lg mb-2 flex items-center gap-2">
-                {link.name}
-                <FaExternalLinkAlt className="text-sm text-discord-text" />
-              </h3>
-              <p className="text-discord-text text-sm">{link.description}</p>
+              <h3 className="font-bold text-white mb-2">{link.title}</h3>
+              <p className="text-sm text-discord-text">{link.description}</p>
             </a>
           );
         })}
       </div>
 
-      {/* About Section */}
-      <div className="bg-discord-dark rounded-xl p-6 border border-gray-800">
-        <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-          <FaUsers />
-          About WarriorPixel
-        </h2>
-        <div className="space-y-4 text-discord-text">
-          <p>
-            WarriorPixel is India's premier gaming tournament platform, bringing together gamers from across the country to compete, connect, and win amazing prizes.
-          </p>
-          <p>
-            Founded in 2024, we've hosted hundreds of tournaments with thousands of players, distributing over ₹10 lakhs in prizes. Our platform supports multiple games and offers a seamless experience for both casual and competitive gamers.
-          </p>
-          <p>
-            We believe in fair play, transparency, and building a strong gaming community. Join us and become part of the WarriorPixel family!
-          </p>
+      {/* FAQs */}
+      <div className="bg-discord-dark border border-gray-800 rounded-2xl p-6 md:p-8 mb-8">
+        <div className="flex items-center gap-3 mb-6">
+          <FaQuestionCircle className="text-3xl text-purple-400" />
+          <h2 className="text-2xl font-bold text-white">Frequently Asked Questions</h2>
         </div>
-      </div>
 
-      {/* Credits */}
-      <div className="bg-discord-dark rounded-xl p-6 border border-gray-800">
-        <h2 className="text-2xl font-bold text-white mb-6">Credits & Team</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-          {credits.map((member) => (
-            <div key={member.name} className="text-center group">
-              <div className={`w-20 h-20 bg-gradient-to-br ${member.color} rounded-xl mx-auto mb-3 flex items-center justify-center text-2xl font-bold text-white group-hover:scale-110 transition-transform`}>
-                {member.name.charAt(0)}
-              </div>
-              <p className="font-semibold text-white text-sm mb-1">{member.name}</p>
-              <p className="text-xs text-discord-text">{member.role}</p>
-            </div>
+        {/* Categories */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          {categories.map((category, index) => (
+            <span
+              key={index}
+              className="px-3 py-1 bg-purple-600 bg-opacity-20 text-purple-400 rounded-full text-sm font-semibold border border-purple-600 border-opacity-30"
+            >
+              {category}
+            </span>
           ))}
         </div>
-      </div>
 
-      {/* FAQ */}
-      <div className="bg-discord-dark rounded-xl p-6 border border-gray-800">
-        <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-          <FaQuestionCircle />
-          Frequently Asked Questions
-        </h2>
-        <div className="space-y-4">
-          {faqs.map((faq, index) => (
-            <div key={index} className="bg-white bg-opacity-5 rounded-lg p-4">
-              <h3 className="font-bold text-white mb-2">{faq.question}</h3>
-              <p className="text-discord-text text-sm">{faq.answer}</p>
+        {/* FAQ List */}
+        <div className="space-y-3">
+          {faqs.map((faq) => (
+            <div
+              key={faq.id}
+              className="bg-discord-darkest border border-gray-700 rounded-xl overflow-hidden"
+            >
+              <button
+                onClick={() => toggleFaq(faq.id)}
+                className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-800 transition-all text-left"
+              >
+                <div className="flex-1">
+                  <span className="text-xs text-purple-400 font-semibold mb-1 block">
+                    {faq.category}
+                  </span>
+                  <h3 className="font-semibold text-white">{faq.question}</h3>
+                </div>
+                {openFaq === faq.id ? (
+                  <FaChevronUp className="text-purple-400 flex-shrink-0 ml-4" />
+                ) : (
+                  <FaChevronDown className="text-gray-500 flex-shrink-0 ml-4" />
+                )}
+              </button>
+              {openFaq === faq.id && (
+                <div className="px-6 py-4 border-t border-gray-700 bg-discord-dark">
+                  <p className="text-discord-text">{faq.answer}</p>
+                </div>
+              )}
             </div>
           ))}
         </div>
       </div>
 
       {/* Contact Support */}
-      <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl p-6 text-center">
-        <FaEnvelope className="text-5xl text-white mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-white mb-2">Need More Help?</h2>
-        <p className="text-white text-opacity-90 mb-4">
-          Join our Discord server for instant support from our team and community
+      <div className="bg-discord-dark border border-gray-800 rounded-2xl p-6 md:p-8">
+        <h2 className="text-2xl font-bold text-white mb-6">Need More Help?</h2>
+        <p className="text-discord-text mb-6">
+          Can't find what you're looking for? Reach out to our support team and we'll help you out!
         </p>
-        <a
-          href="https://discord.gg/warriorpixel"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 bg-white text-purple-600 px-6 py-3 rounded-lg font-bold hover:bg-gray-100 transition-all"
-        >
-          <FaDiscord />
-          Join Discord Server
-          <FaExternalLinkAlt className="text-sm" />
-        </a>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Discord */}
+          <a
+            href="https://discord.gg/EQGZs8xRPE"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-discord-blurple hover:bg-opacity-80 rounded-xl p-6 transition-all group text-center"
+          >
+            <FaDiscord className="text-5xl text-white mx-auto mb-4 group-hover:scale-110 transition-all" />
+            <h3 className="font-bold text-white mb-2">Discord Server</h3>
+            <p className="text-sm text-blue-100 mb-3">Fastest support & community help</p>
+            <span className="text-white font-semibold">Join Server →</span>
+          </a>
+
+          {/* Instagram */}
+          <a
+            href="https://www.instagram.com/warriorpixelofficial"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-gradient-to-br from-purple-600 to-pink-600 hover:opacity-80 rounded-xl p-6 transition-all group text-center"
+          >
+            <FaInstagram className="text-5xl text-white mx-auto mb-4 group-hover:scale-110 transition-all" />
+            <h3 className="font-bold text-white mb-2">Instagram</h3>
+            <p className="text-sm text-purple-100 mb-3">DM us for quick responses</p>
+            <span className="text-white font-semibold">Follow Us →</span>
+          </a>
+
+          {/* Email */}
+          <a
+            href="mailto:wpgames.moderator@gmail.com"
+            className="bg-gray-700 hover:bg-gray-600 rounded-xl p-6 transition-all group text-center"
+          >
+            <FaEnvelope className="text-5xl text-white mx-auto mb-4 group-hover:scale-110 transition-all" />
+            <h3 className="font-bold text-white mb-2">Email Support</h3>
+            <p className="text-sm text-gray-300 mb-3">Response within 24 hours</p>
+            <span className="text-white font-semibold">Send Email →</span>
+          </a>
+        </div>
+
+        <div className="mt-6 p-4 bg-purple-600 bg-opacity-10 border border-purple-600 border-opacity-30 rounded-lg">
+          <p className="text-sm text-discord-text text-center">
+            <strong className="text-white">Support Hours:</strong> Monday - Saturday, 10 AM - 8 PM IST
+          </p>
+        </div>
+      </div>
+
+      {/* Platform Rules */}
+      <div className="mt-8 bg-discord-dark border border-gray-800 rounded-2xl p-6 md:p-8">
+        <h2 className="text-2xl font-bold text-white mb-4">Platform Rules</h2>
+        <div className="space-y-3 text-discord-text">
+          <p>✅ Be respectful to all players and staff</p>
+          <p>✅ No cheating, hacking, or use of third-party tools</p>
+          <p>✅ One account per person</p>
+          <p>✅ Provide accurate in-game information</p>
+          <p>❌ No spam, harassment, or abusive language</p>
+          <p>❌ No sharing accounts or selling services</p>
+          <p>❌ No fraudulent transactions or chargebacks</p>
+        </div>
+        <div className="mt-6">
+          <a href="/terms" className="text-purple-400 hover:text-purple-300 font-semibold">
+            Read Full Terms & Conditions →
+          </a>
+        </div>
       </div>
     </div>
   );
