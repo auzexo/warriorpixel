@@ -3,7 +3,20 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
-import { FaBell, FaBars, FaTimes, FaCoins, FaGem, FaMoneyBillWave, FaTicketAlt, FaUser, FaSignOutAlt } from 'react-icons/fa';
+import { 
+  FaBell, 
+  FaBars, 
+  FaCoins, 
+  FaGem, 
+  FaMoneyBillWave, 
+  FaTicketAlt, 
+  FaUser, 
+  FaSignOutAlt,
+  FaTrophy,
+  FaChartLine,
+  FaGamepad,
+  FaWallet
+} from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 
 export default function Topbar({ onMenuClick }) {
@@ -76,49 +89,51 @@ export default function Topbar({ onMenuClick }) {
 
   return (
     <header className="sticky top-0 z-30 bg-discord-dark border-b border-gray-800">
-      <div className="flex items-center justify-between px-4 md:px-6 py-3">
+      <div className="flex items-center justify-between px-3 md:px-6 py-3">
         {/* Left: Menu Button + Logo */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 md:gap-4">
           <button
             onClick={onMenuClick}
             className="lg:hidden p-2 hover:bg-purple-600 hover:bg-opacity-20 rounded-lg transition-all"
           >
-            <FaBars className="text-xl text-white" />
+            <FaBars className="text-lg md:text-xl text-white" />
           </button>
 
-          <div className="flex items-center gap-2 lg:hidden">
-            <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">WP</span>
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 md:w-8 md:h-8 bg-purple-600 rounded-lg flex items-center justify-center">
+              <FaTrophy className="text-white text-sm md:text-base" />
             </div>
-            <h1 className="text-lg font-bold text-white">WarriorPixel</h1>
+            <div className="hidden sm:block">
+              <h1 className="text-base md:text-lg font-bold text-white">WarriorPixel</h1>
+            </div>
           </div>
         </div>
 
         {/* Right: Currencies, Notifications, Profile */}
-        <div className="flex items-center gap-2 md:gap-3">
-          {/* Currencies - Show if user logged in */}
-          {profile && (
-            <div className="hidden md:flex items-center gap-2">
+        {profile ? (
+          <div className="flex items-center gap-1 md:gap-2">
+            {/* Currencies - Compact for mobile, full for desktop */}
+            <div className="flex items-center gap-1 md:gap-2">
               {/* Real Money */}
-              <div className="flex items-center gap-2 bg-discord-darkest px-3 py-2 rounded-lg border border-gray-700">
-                <FaMoneyBillWave className="text-green-400 text-sm" />
-                <span className="text-white font-semibold text-sm">
-                  ₹{parseFloat(profile.wallet_real || 0).toFixed(0)}
+              <div className="flex items-center gap-1 md:gap-2 bg-discord-darkest px-2 md:px-3 py-1.5 md:py-2 rounded-lg border border-gray-700">
+                <FaMoneyBillWave className="text-green-400 text-xs md:text-sm" />
+                <span className="text-white font-semibold text-xs md:text-sm">
+                  {parseFloat(profile.wallet_real || 0).toFixed(0)}
                 </span>
               </div>
 
               {/* Gems */}
-              <div className="flex items-center gap-2 bg-discord-darkest px-3 py-2 rounded-lg border border-gray-700">
-                <FaGem className="text-purple-400 text-sm" />
-                <span className="text-white font-semibold text-sm">
+              <div className="flex items-center gap-1 md:gap-2 bg-discord-darkest px-2 md:px-3 py-1.5 md:py-2 rounded-lg border border-gray-700">
+                <FaGem className="text-purple-400 text-xs md:text-sm" />
+                <span className="text-white font-semibold text-xs md:text-sm">
                   {parseInt(profile.wallet_gems || 0)}
                 </span>
               </div>
 
               {/* Coins */}
-              <div className="flex items-center gap-2 bg-discord-darkest px-3 py-2 rounded-lg border border-gray-700">
-                <FaCoins className="text-yellow-400 text-sm" />
-                <span className="text-white font-semibold text-sm">
+              <div className="flex items-center gap-1 md:gap-2 bg-discord-darkest px-2 md:px-3 py-1.5 md:py-2 rounded-lg border border-gray-700">
+                <FaCoins className="text-yellow-400 text-xs md:text-sm" />
+                <span className="text-white font-semibold text-xs md:text-sm">
                   {parseInt(profile.wallet_coins || 0)}
                 </span>
               </div>
@@ -127,10 +142,10 @@ export default function Topbar({ onMenuClick }) {
               <div className="relative">
                 <button
                   onClick={() => setShowVouchers(!showVouchers)}
-                  className="flex items-center gap-2 bg-discord-darkest px-3 py-2 rounded-lg border border-gray-700 hover:bg-gray-800 transition-all"
+                  className="flex items-center gap-1 md:gap-2 bg-discord-darkest px-2 md:px-3 py-1.5 md:py-2 rounded-lg border border-gray-700 hover:bg-gray-800 transition-all"
                 >
-                  <FaTicketAlt className="text-orange-400 text-sm" />
-                  <span className="text-white font-semibold text-sm">
+                  <FaTicketAlt className="text-orange-400 text-xs md:text-sm" />
+                  <span className="text-white font-semibold text-xs md:text-sm">
                     {(parseInt(profile.wallet_vouchers_20 || 0) + 
                       parseInt(profile.wallet_vouchers_30 || 0) + 
                       parseInt(profile.wallet_vouchers_50 || 0))}
@@ -145,18 +160,30 @@ export default function Topbar({ onMenuClick }) {
                       onClick={() => setShowVouchers(false)}
                     ></div>
                     <div className="absolute right-0 mt-2 w-64 bg-discord-dark border border-gray-800 rounded-xl shadow-2xl z-50 p-4">
-                      <h3 className="font-bold text-white mb-3">Vouchers</h3>
+                      <div className="flex items-center gap-2 mb-3">
+                        <FaTicketAlt className="text-orange-400" />
+                        <h3 className="font-bold text-white">Vouchers</h3>
+                      </div>
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between p-3 bg-discord-darkest rounded-lg">
-                          <span className="text-discord-text text-sm">₹20 Vouchers</span>
+                        <div className="flex items-center justify-between p-3 bg-discord-darkest rounded-lg border border-gray-700">
+                          <div className="flex items-center gap-2">
+                            <FaMoneyBillWave className="text-green-400 text-sm" />
+                            <span className="text-discord-text text-sm">₹20 Vouchers</span>
+                          </div>
                           <span className="text-white font-bold">{parseInt(profile.wallet_vouchers_20 || 0)}</span>
                         </div>
-                        <div className="flex items-center justify-between p-3 bg-discord-darkest rounded-lg">
-                          <span className="text-discord-text text-sm">₹30 Vouchers</span>
+                        <div className="flex items-center justify-between p-3 bg-discord-darkest rounded-lg border border-gray-700">
+                          <div className="flex items-center gap-2">
+                            <FaMoneyBillWave className="text-yellow-400 text-sm" />
+                            <span className="text-discord-text text-sm">₹30 Vouchers</span>
+                          </div>
                           <span className="text-white font-bold">{parseInt(profile.wallet_vouchers_30 || 0)}</span>
                         </div>
-                        <div className="flex items-center justify-between p-3 bg-discord-darkest rounded-lg">
-                          <span className="text-discord-text text-sm">₹50 Vouchers</span>
+                        <div className="flex items-center justify-between p-3 bg-discord-darkest rounded-lg border border-gray-700">
+                          <div className="flex items-center gap-2">
+                            <FaMoneyBillWave className="text-orange-400 text-sm" />
+                            <span className="text-discord-text text-sm">₹50 Vouchers</span>
+                          </div>
                           <span className="text-white font-bold">{parseInt(profile.wallet_vouchers_50 || 0)}</span>
                         </div>
                       </div>
@@ -165,18 +192,16 @@ export default function Topbar({ onMenuClick }) {
                 )}
               </div>
             </div>
-          )}
 
-          {/* Notifications */}
-          {user && (
+            {/* Notifications */}
             <div className="relative">
               <button
                 onClick={() => setShowNotifications(!showNotifications)}
                 className="relative p-2 hover:bg-purple-600 hover:bg-opacity-20 rounded-lg transition-all"
               >
-                <FaBell className="text-xl text-white" />
+                <FaBell className="text-lg md:text-xl text-white" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                  <span className="absolute -top-1 -right-1 w-4 h-4 md:w-5 md:h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
@@ -191,7 +216,10 @@ export default function Topbar({ onMenuClick }) {
                   ></div>
                   <div className="absolute right-0 mt-2 w-80 bg-discord-dark border border-gray-800 rounded-xl shadow-2xl z-50 max-h-96 overflow-hidden">
                     <div className="p-4 border-b border-gray-800 flex items-center justify-between">
-                      <h3 className="font-bold text-white">Notifications</h3>
+                      <div className="flex items-center gap-2">
+                        <FaBell className="text-purple-400" />
+                        <h3 className="font-bold text-white">Notifications</h3>
+                      </div>
                       {unreadCount > 0 && (
                         <button
                           onClick={markAllAsRead}
@@ -218,7 +246,7 @@ export default function Topbar({ onMenuClick }) {
                           >
                             <div className="flex items-start gap-3">
                               {!notification.read && (
-                                <div className="w-2 h-2 bg-purple-500 rounded-full mt-2"></div>
+                                <div className="w-2 h-2 bg-purple-500 rounded-full mt-2 flex-shrink-0"></div>
                               )}
                               <div className="flex-1">
                                 <p className="font-semibold text-white text-sm mb-1">
@@ -240,21 +268,21 @@ export default function Topbar({ onMenuClick }) {
                 </>
               )}
             </div>
-          )}
 
-          {/* Profile - Clickable */}
-          {profile && (
+            {/* Profile - Clickable */}
             <div className="relative">
               <button
                 onClick={() => setShowProfile(!showProfile)}
-                className="flex items-center gap-2 bg-discord-darkest px-3 py-2 rounded-lg border border-gray-700 hover:bg-gray-800 transition-all"
+                className="flex items-center gap-2 bg-discord-darkest px-2 md:px-3 py-1.5 md:py-2 rounded-lg border border-gray-700 hover:bg-gray-800 transition-all"
               >
-                <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-purple-800 rounded-full flex items-center justify-center font-bold text-white text-sm">
+                <div className="w-7 h-7 md:w-8 md:h-8 bg-gradient-to-br from-purple-600 to-purple-800 rounded-full flex items-center justify-center font-bold text-white text-xs md:text-sm">
                   {profile.username?.charAt(0).toUpperCase() || 'U'}
                 </div>
-                <div className="hidden md:block">
-                  <p className="text-sm font-semibold text-white">{profile.username}</p>
-                  <p className="text-xs text-discord-text">Level {profile.level || 1}</p>
+                <div className="hidden lg:block">
+                  <p className="text-xs md:text-sm font-semibold text-white truncate max-w-[100px]">
+                    {profile.username}
+                  </p>
+                  <p className="text-xs text-discord-text">Lv {profile.level || 1}</p>
                 </div>
               </button>
 
@@ -273,26 +301,41 @@ export default function Topbar({ onMenuClick }) {
                       </div>
                       <div className="flex-1">
                         <p className="font-bold text-white text-lg">{profile.username}</p>
-                        <p className="text-xs text-discord-text">UID: {profile.uid}</p>
+                        <p className="text-xs text-discord-text flex items-center gap-1">
+                          <FaUser className="text-purple-400" />
+                          UID: {profile.uid}
+                        </p>
                       </div>
                     </div>
 
                     {/* Profile Stats */}
                     <div className="space-y-2 mb-4">
-                      <div className="flex items-center justify-between p-3 bg-discord-darkest rounded-lg">
-                        <span className="text-discord-text text-sm">Level</span>
+                      <div className="flex items-center justify-between p-3 bg-discord-darkest rounded-lg border border-gray-700">
+                        <div className="flex items-center gap-2">
+                          <FaChartLine className="text-blue-400" />
+                          <span className="text-discord-text text-sm">Level</span>
+                        </div>
                         <span className="text-white font-bold">{profile.level || 1}</span>
                       </div>
-                      <div className="flex items-center justify-between p-3 bg-discord-darkest rounded-lg">
-                        <span className="text-discord-text text-sm">Achievement Points</span>
+                      <div className="flex items-center justify-between p-3 bg-discord-darkest rounded-lg border border-gray-700">
+                        <div className="flex items-center gap-2">
+                          <FaTrophy className="text-purple-400" />
+                          <span className="text-discord-text text-sm">Achievement Pts</span>
+                        </div>
                         <span className="text-purple-400 font-bold">{profile.achievement_points || 0}</span>
                       </div>
-                      <div className="flex items-center justify-between p-3 bg-discord-darkest rounded-lg">
-                        <span className="text-discord-text text-sm">Total Wins</span>
+                      <div className="flex items-center justify-between p-3 bg-discord-darkest rounded-lg border border-gray-700">
+                        <div className="flex items-center gap-2">
+                          <FaTrophy className="text-green-400" />
+                          <span className="text-discord-text text-sm">Total Wins</span>
+                        </div>
                         <span className="text-green-400 font-bold">{profile.total_wins || 0}</span>
                       </div>
-                      <div className="flex items-center justify-between p-3 bg-discord-darkest rounded-lg">
-                        <span className="text-discord-text text-sm">Total Games</span>
+                      <div className="flex items-center justify-between p-3 bg-discord-darkest rounded-lg border border-gray-700">
+                        <div className="flex items-center gap-2">
+                          <FaGamepad className="text-blue-400" />
+                          <span className="text-discord-text text-sm">Total Games</span>
+                        </div>
                         <span className="text-blue-400 font-bold">{profile.total_games || 0}</span>
                       </div>
                     </div>
@@ -304,8 +347,9 @@ export default function Topbar({ onMenuClick }) {
                           setShowProfile(false);
                           router.push('/wallet');
                         }}
-                        className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-all"
+                        className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
                       >
+                        <FaWallet />
                         View Wallet
                       </button>
                       <button
@@ -320,8 +364,12 @@ export default function Topbar({ onMenuClick }) {
                 </>
               )}
             </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="text-discord-text text-sm">
+            <FaUser className="text-gray-400" />
+          </div>
+        )}
       </div>
     </header>
   );
