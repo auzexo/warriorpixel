@@ -2,221 +2,227 @@
 
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { FaGoogle, FaDiscord, FaTimes, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaTimes, FaGoogle, FaDiscord, FaEnvelope, FaLock, FaUser } from 'react-icons/fa';
 
 export default function AuthModal() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [agreeToTerms, setAgreeToTerms] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleEmailAuth = async (e) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
+    setError('');
 
     try {
       if (isLogin) {
-        // Login
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
         if (error) throw error;
-        
-        // Stay on current page - just reload
+
         window.location.reload();
       } else {
-        // Signup
-        if (!agreeToTerms) {
-          setError('Please accept the Terms & Conditions');
-          setLoading(false);
-          return;
-        }
-
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: {
-              name: `${firstName} ${lastName}`,
-              first_name: firstName,
-              last_name: lastName,
+              username: username || email.split('@')[0],
             },
           },
         });
 
         if (error) throw error;
 
-        if (data.user && !data.session) {
-          setError('Please check your email to confirm your account');
-        } else {
-          window.location.reload();
-        }
+        alert('Account created! Please check your email to verify your account.');
+        setIsLogin(true);
       }
     } catch (error) {
       console.error('Auth error:', error);
-      setError(error.message || 'Authentication failed');
+      setError(error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOAuthLogin = async (provider) => {
-    setError('');
+  const handleGoogleLogin = async () => {
     setLoading(true);
+    setError('');
 
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: provider,
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: window.location.origin + '/auth/callback',
         },
       });
 
       if (error) throw error;
     } catch (error) {
-      console.error('OAuth error:', error);
-      setError(error.message || 'OAuth login failed');
+      console.error('Google auth error:', error);
+      setError(error.message);
+      setLoading(false);
+    }
+  };
+
+  const handleDiscordLogin = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'discord',
+        options: {
+          redirectTo: window.location.origin + '/auth/callback',
+        },
+      });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Discord auth error:', error);
+      setError(error.message);
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-discord-dark rounded-xl w-full max-w-md p-8 relative">
-        <h2 className="text-2xl font-bold mb-6 text-white text-center">
-          {isLogin ? 'Welcome Back!' : 'Create Account'}
-        </h2>
+    <div className="fixed inset-0 bg-black bg-opacity-75 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+      <div className="glass-card rounded-2xl p-8 max-w-md w-full shadow-2xl animate-scale-in">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-red-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <FaUser className="text-3xl text-white" />
+          </div>
+          <h2 className="text-3xl font-bold text-white mb-2">
+            {isLogin ? 'Welcome Back!' : 'Join WarriorPixel'}
+          </h2>
+          <p className="text-discord-text">
+            {isLogin ? 'Login to continue your gaming journey' : 'Create an account to get started'}
+          </p>
+        </div>
 
+        {/* Error Message */}
         {error && (
-          <div className="mb-4 p-3 bg-red-500 bg-opacity-10 border border-red-500 rounded-lg">
-            <p className="text-red-500 text-sm">{error}</p>
+          <div className="bg-red-500 bg-opacity-20 border border-red-500 rounded-lg p-3 mb-6">
+            <p className="text-red-400 text-sm">{error}</p>
           </div>
         )}
 
-        {/* OAuth Buttons */}
+        {/* Social Login Buttons */}
         <div className="space-y-3 mb-6">
           <button
-            onClick={() => handleOAuthLogin('google')}
+            onClick={handleGoogleLogin}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-100 text-gray-800 py-3 px-4 rounded-lg font-semibold transition-all disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white hover:bg-gray-100 text-gray-800 rounded-lg font-semibold transition-smooth shadow-lg disabled:opacity-50"
           >
-            <FaGoogle className="text-xl" />
+            <FaGoogle className="text-xl text-red-500" />
             Continue with Google
           </button>
 
           <button
-            onClick={() => handleOAuthLogin('discord')}
+            onClick={handleDiscordLogin}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-3 bg-discord-purple hover:bg-discord-purple-dark text-white py-3 px-4 rounded-lg font-semibold transition-all disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded-lg font-semibold transition-smooth shadow-lg disabled:opacity-50"
           >
             <FaDiscord className="text-xl" />
             Continue with Discord
           </button>
         </div>
 
-        <div className="relative mb-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-700"></div>
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-discord-dark text-gray-400">OR</span>
-          </div>
+        {/* Divider */}
+        <div className="flex items-center gap-4 mb-6">
+          <div className="flex-1 h-px bg-gray-600"></div>
+          <span className="text-discord-text text-sm">OR</span>
+          <div className="flex-1 h-px bg-gray-600"></div>
         </div>
 
-        {/* Email Form */}
+        {/* Email/Password Form */}
         <form onSubmit={handleEmailAuth} className="space-y-4">
           {!isLogin && (
-            <div className="grid grid-cols-2 gap-3">
-              <input
-                type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                placeholder="First Name"
-                className="px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-discord-purple"
-                required={!isLogin}
-              />
-              <input
-                type="text"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                placeholder="Last Name"
-                className="px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-discord-purple"
-                required={!isLogin}
-              />
+            <div>
+              <label className="block text-sm font-medium text-discord-text mb-2">
+                Username
+              </label>
+              <div className="relative">
+                <FaUser className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Choose a username"
+                  className="w-full pl-10 pr-4 py-3 bg-discord-dark border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-smooth"
+                  required={!isLogin}
+                />
+              </div>
             </div>
           )}
 
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
-            className="w-full px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-discord-purple"
-            required
-          />
-
-          <div className="relative">
-            <input
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              className="w-full px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-discord-purple"
-              required
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
-            >
-              {showPassword ? <FaEyeSlash /> : <FaEye />}
-            </button>
+          <div>
+            <label className="block text-sm font-medium text-discord-text mb-2">
+              Email
+            </label>
+            <div className="relative">
+              <FaEnvelope className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your@email.com"
+                className="w-full pl-10 pr-4 py-3 bg-discord-dark border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-smooth"
+                required
+              />
+            </div>
           </div>
 
-          {!isLogin && (
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={agreeToTerms}
-                onChange={(e) => setAgreeToTerms(e.target.checked)}
-                className="w-4 h-4"
-              />
-              <span className="text-sm text-gray-400">
-                I agree to the Terms & Conditions
-              </span>
+          <div>
+            <label className="block text-sm font-medium text-discord-text mb-2">
+              Password
             </label>
-          )}
+            <div className="relative">
+              <FaLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full pl-10 pr-4 py-3 bg-discord-dark border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-smooth"
+                required
+                minLength={6}
+              />
+            </div>
+          </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-discord-purple hover:bg-discord-purple-dark text-white py-3 rounded-lg font-bold transition-all disabled:opacity-50"
+            className="w-full py-3 bg-gradient-to-r from-purple-600 to-red-600 hover:from-purple-700 hover:to-red-700 text-white rounded-lg font-bold transition-smooth shadow-lg btn-glow disabled:opacity-50"
           >
-            {loading ? 'Please wait...' : isLogin ? 'Login' : 'Sign Up'}
+            {loading ? 'Please wait...' : isLogin ? 'Login' : 'Create Account'}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-gray-400">
-          {isLogin ? "Don't have an account? " : 'Already have an account? '}
-          <button
-            onClick={() => {
-              setIsLogin(!isLogin);
-              setError('');
-            }}
-            className="text-discord-purple hover:underline font-semibold"
-          >
-            {isLogin ? 'Sign Up' : 'Login'}
-          </button>
-        </p>
+        {/* Toggle Login/Signup */}
+        <div className="mt-6 text-center">
+          <p className="text-discord-text text-sm">
+            {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
+            <button
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setError('');
+              }}
+              className="text-purple-400 hover:text-purple-300 font-semibold transition-smooth"
+            >
+              {isLogin ? 'Sign Up' : 'Login'}
+            </button>
+          </p>
+        </div>
       </div>
     </div>
   );
-            }
+}
