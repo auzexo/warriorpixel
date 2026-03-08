@@ -15,7 +15,6 @@ export default function TournamentCard({ tournament, onJoinClick, user, profile 
 
   const loadParticipantData = async () => {
     try {
-      // Count participants directly
       const { count, error } = await supabase
         .from('tournament_participants')
         .select('*', { count: 'exact', head: true })
@@ -23,10 +22,8 @@ export default function TournamentCard({ tournament, onJoinClick, user, profile 
 
       if (error) throw error;
 
-      console.log(`Tournament ${tournament.title}: ${count} participants`);
       setParticipantCount(count || 0);
 
-      // Check if current user has joined
       if (user) {
         const { data: userParticipation } = await supabase
           .from('tournament_participants')
@@ -48,7 +45,7 @@ export default function TournamentCard({ tournament, onJoinClick, user, profile 
   const canJoin = user && !isJoined && !isFull && tournament.status === 'upcoming';
 
   return (
-    <div className="bg-discord-dark rounded-xl p-6 border border-gray-800 hover:border-red-500 transition-all">
+    <div className="glass-card rounded-xl p-6 hover:glass-strong transition-smooth card-hover">
       {/* Status Badge */}
       <div className="flex items-center justify-between mb-4">
         <span className={`px-3 py-1 rounded-full text-xs font-bold ${
@@ -73,7 +70,7 @@ export default function TournamentCard({ tournament, onJoinClick, user, profile 
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="bg-white bg-opacity-5 rounded-lg p-3">
+        <div className="glass rounded-lg p-3">
           <div className="flex items-center gap-2 mb-1">
             <FaUsers className="text-purple-400" />
             <p className="text-xs text-discord-text">Players</p>
@@ -84,7 +81,7 @@ export default function TournamentCard({ tournament, onJoinClick, user, profile 
           {isFull && <p className="text-red-400 text-xs mt-1">FULL</p>}
         </div>
 
-        <div className="bg-white bg-opacity-5 rounded-lg p-3">
+        <div className="glass rounded-lg p-3">
           <div className="flex items-center gap-2 mb-1">
             <FaTrophy className="text-yellow-400" />
             <p className="text-xs text-discord-text">Prize Pool</p>
@@ -92,7 +89,7 @@ export default function TournamentCard({ tournament, onJoinClick, user, profile 
           <p className="text-white font-bold">₹{parseFloat(tournament.prize_pool || 0).toFixed(0)}</p>
         </div>
 
-        <div className="bg-white bg-opacity-5 rounded-lg p-3">
+        <div className="glass rounded-lg p-3">
           <div className="flex items-center gap-2 mb-1">
             <FaMoneyBillWave className="text-green-400" />
             <p className="text-xs text-discord-text">Entry Fee</p>
@@ -100,7 +97,7 @@ export default function TournamentCard({ tournament, onJoinClick, user, profile 
           <p className="text-white font-bold">₹{parseFloat(tournament.entry_fee || 0).toFixed(0)}</p>
         </div>
 
-        <div className="bg-white bg-opacity-5 rounded-lg p-3">
+        <div className="glass rounded-lg p-3">
           <div className="flex items-center gap-2 mb-1">
             <FaClock className="text-blue-400" />
             <p className="text-xs text-discord-text">Starts</p>
@@ -127,14 +124,14 @@ export default function TournamentCard({ tournament, onJoinClick, user, profile 
       {canJoin ? (
         <button
           onClick={() => onJoinClick(tournament)}
-          className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg font-bold transition-all"
+          className="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white py-3 rounded-lg font-bold transition-smooth shadow-lg btn-glow"
         >
           Join Tournament
         </button>
       ) : isFull ? (
         <button
           disabled
-          className="w-full bg-gray-600 text-gray-400 py-3 rounded-lg font-bold cursor-not-allowed"
+          className="w-full glass text-gray-400 py-3 rounded-lg font-bold cursor-not-allowed"
         >
           Tournament Full
         </button>
@@ -148,18 +145,18 @@ export default function TournamentCard({ tournament, onJoinClick, user, profile 
       ) : !user ? (
         <button
           disabled
-          className="w-full bg-gray-600 text-gray-400 py-3 rounded-lg font-bold cursor-not-allowed"
+          className="w-full glass text-gray-400 py-3 rounded-lg font-bold cursor-not-allowed"
         >
           Login to Join
         </button>
       ) : (
         <button
           disabled
-          className="w-full bg-gray-600 text-gray-400 py-3 rounded-lg font-bold cursor-not-allowed"
+          className="w-full glass text-gray-400 py-3 rounded-lg font-bold cursor-not-allowed"
         >
           {tournament.status === 'completed' ? 'Tournament Ended' : 'Cannot Join'}
         </button>
       )}
     </div>
   );
-            }
+}
