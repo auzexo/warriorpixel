@@ -46,17 +46,12 @@ export default function Sidebar({ isOpen, onClose }) {
     if (!confirm('Are you sure you want to logout?')) return;
 
     try {
-      // Sign out from Supabase
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        console.error('Logout error:', error);
-        alert('Error logging out. Please try again.');
-        return;
-      }
-
-      // Clear local storage (admin sessions, etc.)
+      // Clear all storage first
       localStorage.clear();
+      sessionStorage.clear();
+      
+      // Sign out from Supabase
+      await supabase.auth.signOut();
       
       // Close sidebar if mobile
       if (onClose) onClose();
@@ -65,13 +60,14 @@ export default function Sidebar({ isOpen, onClose }) {
       window.location.href = '/';
     } catch (error) {
       console.error('Logout error:', error);
-      alert('Error logging out. Please try again.');
+      // Force reload anyway to clear state
+      window.location.href = '/';
     }
   };
 
   return (
     <aside
-      className={`fixed lg:sticky top-0 left-0 h-screen bg-discord-dark border-r border-gray-800 w-64 flex flex-col z-40 transition-transform duration-300 ${
+      className={`fixed lg:sticky top-0 left-0 h-screen glass-card border-r border-glass-border w-64 flex flex-col z-40 transition-transform duration-300 ${
         isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       }`}
     >
@@ -84,9 +80,9 @@ export default function Sidebar({ isOpen, onClose }) {
       </button>
 
       {/* Logo */}
-      <div className="p-6 border-b border-gray-800">
+      <div className="p-6 border-b border-glass-border">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center shadow-lg">
             <FaTrophy className="text-white text-xl" />
           </div>
           <div>
@@ -107,10 +103,10 @@ export default function Sidebar({ isOpen, onClose }) {
               <button
                 key={item.path}
                 onClick={() => handleNavigation(item.path)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-smooth ${
                   isActive
-                    ? 'bg-discord-purple text-white'
-                    : 'hover:bg-white hover:bg-opacity-5 text-gray-300'
+                    ? 'glass-strong text-white shadow-lg'
+                    : 'hover:glass text-gray-300'
                 }`}
               >
                 <Icon className="text-lg" />
@@ -128,9 +124,9 @@ export default function Sidebar({ isOpen, onClose }) {
           {profile?.is_admin && (
             <button
               onClick={() => handleNavigation('/admin')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-smooth ${
                 pathname === '/admin'
-                  ? 'bg-red-600 text-white'
+                  ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-lg'
                   : 'hover:bg-red-600 hover:bg-opacity-20 text-red-400'
               }`}
             >
@@ -143,10 +139,10 @@ export default function Sidebar({ isOpen, onClose }) {
 
       {/* User Info & Logout */}
       {profile && (
-        <div className="p-4 border-t border-gray-800">
-          <div className="bg-white bg-opacity-5 rounded-lg p-3 mb-3">
+        <div className="p-4 border-t border-glass-border">
+          <div className="glass rounded-lg p-3 mb-3">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center font-bold">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center font-bold text-white shadow-lg">
                 {profile.username?.charAt(0).toUpperCase() || 'U'}
               </div>
               <div className="flex-1 min-w-0">
@@ -162,7 +158,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-all font-medium"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white rounded-lg transition-smooth font-medium shadow-lg btn-glow"
           >
             <FaSignOutAlt />
             Logout
@@ -171,4 +167,4 @@ export default function Sidebar({ isOpen, onClose }) {
       )}
     </aside>
   );
-              }
+}
