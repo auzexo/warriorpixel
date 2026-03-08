@@ -10,8 +10,17 @@ export async function GET(request) {
   const origin = requestUrl.origin;
 
   if (code) {
-    const supabase = createRouteHandlerClient({ cookies });
-    await supabase.auth.exchangeCodeForSession(code);
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    
+    try {
+      // Exchange code for session
+      await supabase.auth.exchangeCodeForSession(code);
+    } catch (error) {
+      console.error('Auth callback error:', error);
+      // Clear any stale cookies on error
+      return NextResponse.redirect(`${origin}/?error=auth_failed`);
+    }
   }
 
   // Always redirect to home
