@@ -3,16 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
-import { FaBell, FaBars, FaTimes } from 'react-icons/fa';
-import { useRouter } from 'next/navigation';
+import { FaBell, FaBars, FaTimes, FaCoins, FaGem, FaMoneyBillWave, FaTicketAlt } from 'react-icons/fa';
 
-export default function Topbar({ onMenuClick }) {
+export default function Topbar({ onMenuClick, sidebarOpen }) {
   const { user, profile } = useAuth();
-  const router = useRouter();
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -67,53 +64,82 @@ export default function Topbar({ onMenuClick }) {
     }
   };
 
-  const handleMenuToggle = () => {
-    setMenuOpen(!menuOpen);
-    if (onMenuClick) {
-      onMenuClick();
-    }
-  };
-
   return (
-    <header className="sticky top-0 z-30 glass-card border-b border-glass-border">
-      <div className="flex items-center justify-between px-4 md:px-6 py-4">
-        {/* Left: Menu Button (Mobile) */}
-        <button
-          onClick={handleMenuToggle}
-          className="lg:hidden p-2 hover:bg-white hover:bg-opacity-10 rounded-lg transition-smooth"
-        >
-          {menuOpen ? (
-            <FaTimes className="text-xl text-white" />
-          ) : (
-            <FaBars className="text-xl text-white" />
-          )}
-        </button>
-
-        {/* Center: Logo (Mobile) / Title (Desktop) */}
-        <div className="flex items-center gap-3 lg:hidden">
-          <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-red-500 rounded-lg flex items-center justify-center shadow-lg">
-            <span className="text-white font-bold text-sm">WP</span>
-          </div>
-          <h1 className="text-lg font-bold text-white">WarriorPixel</h1>
-        </div>
-
-        {/* Desktop Title */}
-        <div className="hidden lg:flex items-center gap-3">
-          <h1 className="text-xl font-bold text-white">Dashboard</h1>
-        </div>
-
-        {/* Right: Notifications + Profile */}
+    <header className="sticky top-0 z-30 bg-discord-dark border-b border-gray-800">
+      <div className="flex items-center justify-between px-4 md:px-6 py-3">
+        {/* Left: Menu Button */}
         <div className="flex items-center gap-4">
+          <button
+            onClick={onMenuClick}
+            className="lg:hidden p-2 hover:bg-purple-600 hover:bg-opacity-20 rounded-lg transition-all"
+          >
+            {sidebarOpen ? (
+              <FaTimes className="text-xl text-white" />
+            ) : (
+              <FaBars className="text-xl text-white" />
+            )}
+          </button>
+
+          {/* Logo (Mobile) */}
+          <div className="flex items-center gap-2 lg:hidden">
+            <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">WP</span>
+            </div>
+            <h1 className="text-lg font-bold text-white">WarriorPixel</h1>
+          </div>
+        </div>
+
+        {/* Right: Currencies, Notifications, Profile */}
+        <div className="flex items-center gap-2 md:gap-4">
+          {/* Currencies - Show if user logged in */}
+          {profile && (
+            <div className="hidden md:flex items-center gap-3">
+              {/* Real Money */}
+              <div className="flex items-center gap-2 bg-discord-darkest px-3 py-2 rounded-lg border border-gray-700">
+                <FaMoneyBillWave className="text-green-400 text-sm" />
+                <span className="text-white font-semibold text-sm">
+                  ₹{parseFloat(profile.wallet_real || 0).toFixed(0)}
+                </span>
+              </div>
+
+              {/* Gems */}
+              <div className="flex items-center gap-2 bg-discord-darkest px-3 py-2 rounded-lg border border-gray-700">
+                <FaGem className="text-purple-400 text-sm" />
+                <span className="text-white font-semibold text-sm">
+                  {parseInt(profile.wallet_gems || 0)}
+                </span>
+              </div>
+
+              {/* Coins */}
+              <div className="flex items-center gap-2 bg-discord-darkest px-3 py-2 rounded-lg border border-gray-700">
+                <FaCoins className="text-yellow-400 text-sm" />
+                <span className="text-white font-semibold text-sm">
+                  {parseInt(profile.wallet_coins || 0)}
+                </span>
+              </div>
+
+              {/* Vouchers */}
+              <div className="flex items-center gap-2 bg-discord-darkest px-3 py-2 rounded-lg border border-gray-700">
+                <FaTicketAlt className="text-orange-400 text-sm" />
+                <span className="text-white font-semibold text-sm">
+                  {(parseInt(profile.wallet_vouchers_20 || 0) + 
+                    parseInt(profile.wallet_vouchers_30 || 0) + 
+                    parseInt(profile.wallet_vouchers_50 || 0))}
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Notifications */}
           {user && (
             <div className="relative">
               <button
                 onClick={() => setShowNotifications(!showNotifications)}
-                className="relative p-2 hover:bg-white hover:bg-opacity-10 rounded-lg transition-smooth"
+                className="relative p-2 hover:bg-purple-600 hover:bg-opacity-20 rounded-lg transition-all"
               >
                 <FaBell className="text-xl text-white" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold animate-pulse">
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
@@ -126,8 +152,8 @@ export default function Topbar({ onMenuClick }) {
                     className="fixed inset-0 z-40"
                     onClick={() => setShowNotifications(false)}
                   ></div>
-                  <div className="absolute right-0 mt-2 w-80 glass-card rounded-xl shadow-2xl z-50 max-h-96 overflow-hidden animate-slide-down">
-                    <div className="p-4 border-b border-glass-border flex items-center justify-between">
+                  <div className="absolute right-0 mt-2 w-80 bg-discord-dark border border-gray-800 rounded-xl shadow-2xl z-50 max-h-96 overflow-hidden animate-slide-down">
+                    <div className="p-4 border-b border-gray-800 flex items-center justify-between">
                       <h3 className="font-bold text-white">Notifications</h3>
                       {unreadCount > 0 && (
                         <button
@@ -149,8 +175,8 @@ export default function Topbar({ onMenuClick }) {
                           <div
                             key={notification.id}
                             onClick={() => markAsRead(notification.id)}
-                            className={`p-4 border-b border-glass-border cursor-pointer transition-smooth hover:bg-white hover:bg-opacity-5 ${
-                              !notification.read ? 'bg-purple-500 bg-opacity-10' : ''
+                            className={`p-4 border-b border-gray-800 cursor-pointer hover:bg-purple-600 hover:bg-opacity-10 transition-all ${
+                              !notification.read ? 'bg-purple-600 bg-opacity-5' : ''
                             }`}
                           >
                             <div className="flex items-start gap-3">
@@ -179,10 +205,10 @@ export default function Topbar({ onMenuClick }) {
             </div>
           )}
 
-          {/* User Avatar */}
+          {/* User Profile */}
           {profile && (
-            <div className="flex items-center gap-3 glass rounded-lg px-3 py-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-red-500 rounded-full flex items-center justify-center font-bold text-white text-sm shadow-lg">
+            <div className="flex items-center gap-2 bg-discord-darkest px-3 py-2 rounded-lg border border-gray-700">
+              <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-purple-800 rounded-full flex items-center justify-center font-bold text-white text-sm">
                 {profile.username?.charAt(0).toUpperCase() || 'U'}
               </div>
               <div className="hidden md:block">
