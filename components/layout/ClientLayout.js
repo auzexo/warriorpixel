@@ -9,7 +9,7 @@ import AuthModal from '../auth/AuthModal';
 import LoadingScreen from './LoadingScreen';
 import CookieConsent from '../legal/CookieConsent';
 
-const publicRoutes = ['/', '/videos', '/info', '/download', '/home', '/terms', '/privacy', '/about'];
+const publicRoutes = ['/', '/videos', '/info', '/download', '/home', '/terms', '/privacy'];
 
 export default function ClientLayout({ children }) {
   const pathname = usePathname();
@@ -49,7 +49,7 @@ export default function ClientLayout({ children }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-discord-darkest via-discord-dark to-discord-darker">
-      {/* Animated Background */}
+      {/* Animated Background Blobs */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse"></div>
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-red-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse" style={{ animationDelay: '2s' }}></div>
@@ -72,36 +72,4 @@ export default function ClientLayout({ children }) {
       <CookieConsent />
     </div>
   );
-}  }, [loading, requiresAuth, user]);
-
-  // Close sidebar on route change
-  useEffect(() => {
-    setSidebarOpen(false);
-  }, [pathname]);
-
-  // Show loading only while auth is loading (not checked yet)
-  if (loading || !authChecked) {
-    return <LoadingScreen />;
-  }
-
-  // Admin routes use their own layout
-  if (isAdminRoute || isAuthCallback) {
-    return <>{children}</>;
-  }
-
-  return (
-    <div className="min-h-screen bg-discord-darkest text-white">
-      <Topbar onMenuClick={() => setSidebarOpen(true)} />
-      
-      <div className="flex">
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <main className="flex-1 p-4 md:p-6 lg:p-8">{children}</main>
-      </div>
-
-      {/* Show modal only when needed and auth is checked */}
-      {showAuthModal && !user && requiresAuth && authChecked && (
-        <AuthModal />
-      )}
-    </div>
-  );
-      }
+}
