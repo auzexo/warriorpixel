@@ -1,199 +1,256 @@
 'use client';
 
-import { FaDownload, FaAndroid, FaMobileAlt, FaCheckCircle, FaShieldAlt, FaBolt, FaTrophy } from 'react-icons/fa';
+import { useState } from 'react';
+import { FaDownload, FaAndroid, FaApple, FaGlobe, FaBell, FaCheckCircle, FaMobileAlt, FaTrophy, FaWallet, FaFire } from 'react-icons/fa';
 
 export default function DownloadPage() {
+  const [email, setEmail] = useState('');
+  const [subscribed, setSubscribed] = useState(false);
+
+  const handleNotifyMe = (e) => {
+    e.preventDefault();
+    if (!email) {
+      alert('Please enter your email address');
+      return;
+    }
+    setSubscribed(true);
+    setEmail('');
+    setTimeout(() => setSubscribed(false), 5000);
+  };
+
   const features = [
     {
-      icon: FaBolt,
-      title: 'Lightning Fast',
-      description: 'Optimized performance for smooth gameplay tracking',
-    },
-    {
-      icon: FaShieldAlt,
-      title: 'Secure & Safe',
-      description: 'Your data is encrypted and protected',
-    },
-    {
       icon: FaTrophy,
-      title: 'Instant Notifications',
-      description: 'Get tournament updates directly on your phone',
+      title: 'Join Tournaments',
+      description: 'Access and join tournaments on the go, anytime, anywhere'
+    },
+    {
+      icon: FaWallet,
+      title: 'Manage Wallet',
+      description: 'Check balance, withdraw winnings, and track transactions'
+    },
+    {
+      icon: FaFire,
+      title: 'Guild Management',
+      description: 'Join guilds, chat with members, and coordinate matches'
+    },
+    {
+      icon: FaBell,
+      title: 'Push Notifications',
+      description: 'Get instant alerts for tournaments, results, and updates'
     },
     {
       icon: FaMobileAlt,
-      title: 'Easy to Use',
-      description: 'Simple interface designed for gamers',
+      title: 'Optimized Performance',
+      description: 'Smooth, fast experience designed specifically for mobile'
     },
+    {
+      icon: FaCheckCircle,
+      title: 'Offline Access',
+      description: 'View your stats and tournament history even offline'
+    }
   ];
-
-  const steps = [
-    {
-      number: 1,
-      title: 'Download APK',
-      description: 'Click the download button below to get the latest version',
-    },
-    {
-      number: 2,
-      title: 'Enable Unknown Sources',
-      description: 'Go to Settings > Security > Enable "Unknown Sources"',
-    },
-    {
-      number: 3,
-      title: 'Install App',
-      description: 'Open the downloaded APK file and tap Install',
-    },
-    {
-      number: 4,
-      title: 'Login & Play',
-      description: 'Open the app, login with your account, and start gaming!',
-    },
-  ];
-
-  // In production, replace this with actual APK download link
-  const handleDownload = () => {
-    alert('APK download will be available soon! Stay tuned on Discord for updates.');
-    // window.location.href = '/downloads/warriorpixel-v1.0.0.apk';
-  };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-discord-darkest">
       {/* Header */}
-      <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl p-6 md:p-8 text-center">
-        <FaAndroid className="text-6xl text-white mx-auto mb-4" />
-        <h1 className="text-3xl md:text-4xl font-bold mb-2">
-          Download WarriorPixel App
+      <div className="bg-gradient-to-r from-green-600 via-green-700 to-green-800 p-8 md:p-12 rounded-2xl mb-8 border border-green-500 text-center">
+        <div className="w-20 h-20 mx-auto bg-white bg-opacity-20 rounded-2xl flex items-center justify-center mb-6">
+          <FaDownload className="text-5xl text-white" />
+        </div>
+        <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+          Download WarriorPixel
         </h1>
-        <p className="text-white text-opacity-90 mb-6">
-          Get the official Android app for the best gaming experience
-        </p>
-        <button
-          onClick={handleDownload}
-          className="inline-flex items-center gap-3 bg-white text-green-600 px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all shadow-lg"
-        >
-          <FaDownload className="text-2xl" />
-          Download APK (v1.0.0)
-        </button>
-        <p className="text-white text-opacity-75 text-sm mt-4">
-          Latest version • 25 MB • Android 7.0+
+        <p className="text-xl text-green-100 mb-6">
+          Take the gaming platform with you, wherever you go
         </p>
       </div>
 
-      {/* Features */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {features.map((feature, index) => {
-          const Icon = feature.icon;
-          return (
-            <div
-              key={index}
-              className="bg-discord-dark rounded-xl p-6 border border-gray-800 text-center"
+      {/* Current Status */}
+      <div className="bg-discord-dark border border-gray-800 rounded-2xl p-8 mb-8 text-center">
+        <h2 className="text-2xl font-bold text-white mb-4">Mobile Apps Coming Soon!</h2>
+        <p className="text-discord-text mb-6 max-w-2xl mx-auto">
+          We're hard at work building native Android and iOS apps to give you the best mobile gaming experience. In the meantime, you can access WarriorPixel through your mobile browser!
+        </p>
+
+        {/* App Store Buttons (Coming Soon) */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+          <div className="relative">
+            <button
+              disabled
+              className="flex items-center gap-3 px-6 py-4 bg-gray-800 text-gray-500 rounded-xl cursor-not-allowed opacity-50"
             >
-              <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Icon className="text-white text-2xl" />
+              <FaAndroid className="text-3xl" />
+              <div className="text-left">
+                <p className="text-xs">Coming Soon</p>
+                <p className="font-bold">Google Play</p>
               </div>
-              <h3 className="font-bold text-white mb-2">{feature.title}</h3>
-              <p className="text-discord-text text-sm">{feature.description}</p>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Installation Steps */}
-      <div className="bg-discord-dark rounded-xl p-6 md:p-8 border border-gray-800">
-        <h2 className="text-2xl font-bold text-white mb-6 text-center">How to Install</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {steps.map((step) => (
-            <div key={step.number} className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4">
-                {step.number}
-              </div>
-              <h3 className="font-bold text-white mb-2">{step.title}</h3>
-              <p className="text-discord-text text-sm">{step.description}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Screenshots Preview */}
-      <div className="bg-discord-dark rounded-xl p-6 md:p-8 border border-gray-800">
-        <h2 className="text-2xl font-bold text-white mb-6">App Screenshots</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className="aspect-[9/16] bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl flex items-center justify-center border border-gray-700"
+            </button>
+          </div>
+          <div className="relative">
+            <button
+              disabled
+              className="flex items-center gap-3 px-6 py-4 bg-gray-800 text-gray-500 rounded-xl cursor-not-allowed opacity-50"
             >
-              <FaMobileAlt className="text-gray-600 text-5xl" />
-            </div>
-          ))}
+              <FaApple className="text-3xl" />
+              <div className="text-left">
+                <p className="text-xs">Coming Soon</p>
+                <p className="font-bold">App Store</p>
+              </div>
+            </button>
+          </div>
         </div>
-        <p className="text-center text-discord-text text-sm mt-4">
-          Screenshots coming soon!
+
+        {/* Email Notification */}
+        <div className="bg-discord-darkest border border-gray-700 rounded-xl p-6 max-w-lg mx-auto">
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <FaBell className="text-xl text-yellow-400" />
+            <h3 className="font-bold text-white">Get Notified on Launch</h3>
+          </div>
+          
+          {subscribed ? (
+            <div className="bg-green-600 bg-opacity-20 border border-green-600 rounded-lg p-4">
+              <div className="flex items-center justify-center gap-2">
+                <FaCheckCircle className="text-green-400 text-xl" />
+                <p className="text-green-400 font-semibold">
+                  You're on the list! We'll notify you when apps launch.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleNotifyMe} className="flex flex-col sm:flex-row gap-3">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email address"
+                className="flex-1 px-4 py-3 bg-discord-dark border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-green-600"
+                required
+              />
+              <button
+                type="submit"
+                className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-800 text-white rounded-lg font-bold hover:opacity-90 transition-all shadow-lg whitespace-nowrap"
+              >
+                Notify Me
+              </button>
+            </form>
+          )}
+          <p className="text-xs text-discord-text mt-3">
+            Be the first to know when our mobile apps are ready!
+          </p>
+        </div>
+      </div>
+
+      {/* Web App Access */}
+      <div className="bg-gradient-to-br from-purple-600 to-purple-800 rounded-2xl p-8 mb-8 border border-purple-500">
+        <div className="flex flex-col md:flex-row items-center gap-6">
+          <div className="w-16 h-16 bg-white bg-opacity-20 rounded-xl flex items-center justify-center flex-shrink-0">
+            <FaGlobe className="text-4xl text-white" />
+          </div>
+          <div className="flex-1 text-center md:text-left">
+            <h3 className="text-2xl font-bold text-white mb-2">Use Web App Now!</h3>
+            <p className="text-purple-100 mb-4">
+              Access WarriorPixel directly from your mobile browser. Works on any device, no download required!
+            </p>
+            <div className="bg-white bg-opacity-10 rounded-lg p-4 border border-white border-opacity-20">
+              <p className="text-white font-mono text-sm md:text-base break-all">
+                warriorpixel.in
+              </p>
+            </div>
+          </div>
+          <div className="flex-shrink-0">
+            <a
+              href="/"
+              className="px-6 py-3 bg-white text-purple-700 rounded-lg font-bold hover:bg-gray-100 transition-all inline-block"
+            >
+              Open Web App
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* App Features */}
+      <div className="bg-discord-dark border border-gray-800 rounded-2xl p-8 mb-8">
+        <h2 className="text-2xl font-bold text-white mb-2 text-center">
+          What to Expect in Mobile Apps
+        </h2>
+        <p className="text-discord-text text-center mb-8">
+          Our mobile apps will bring the complete WarriorPixel experience to your pocket
         </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {features.map((feature, index) => {
+            const Icon = feature.icon;
+            return (
+              <div
+                key={index}
+                className="bg-discord-darkest border border-gray-700 rounded-xl p-6"
+              >
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-purple-800 rounded-lg flex items-center justify-center mb-4">
+                  <Icon className="text-2xl text-white" />
+                </div>
+                <h3 className="font-bold text-white mb-2">{feature.title}</h3>
+                <p className="text-sm text-discord-text">{feature.description}</p>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {/* What's New */}
-      <div className="bg-discord-dark rounded-xl p-6 border border-gray-800">
-        <h2 className="text-2xl font-bold text-white mb-4">What's New in v1.0.0</h2>
-        <div className="space-y-3">
-          {[
-            'Initial release of WarriorPixel mobile app',
-            'Browse and join tournaments on the go',
-            'Real-time notifications for tournament updates',
-            'View wallet balance and transaction history',
-            'Track your achievements and progress',
-            'Optimized for low-end devices',
-          ].map((item, index) => (
-            <div key={index} className="flex items-start gap-3">
-              <FaCheckCircle className="text-green-400 flex-shrink-0 mt-1" />
-              <p className="text-discord-text">{item}</p>
+      {/* PWA Instructions */}
+      <div className="bg-discord-dark border border-gray-800 rounded-2xl p-8">
+        <h2 className="text-2xl font-bold text-white mb-6">Add to Home Screen</h2>
+        <p className="text-discord-text mb-6">
+          Get app-like experience right now! Add WarriorPixel to your home screen for quick access.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Android Instructions */}
+          <div className="bg-discord-darkest border border-gray-700 rounded-xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <FaAndroid className="text-3xl text-green-400" />
+              <h3 className="font-bold text-white">Android / Chrome</h3>
             </div>
-          ))}
+            <ol className="space-y-2 text-sm text-discord-text list-decimal list-inside">
+              <li>Open warriorpixel.in in Chrome</li>
+              <li>Tap the menu (⋮) in top right</li>
+              <li>Tap "Add to Home screen"</li>
+              <li>Tap "Add" to confirm</li>
+              <li>Open from your home screen!</li>
+            </ol>
+          </div>
+
+          {/* iOS Instructions */}
+          <div className="bg-discord-darkest border border-gray-700 rounded-xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <FaApple className="text-3xl text-gray-300" />
+              <h3 className="font-bold text-white">iPhone / Safari</h3>
+            </div>
+            <ol className="space-y-2 text-sm text-discord-text list-decimal list-inside">
+              <li>Open warriorpixel.in in Safari</li>
+              <li>Tap the Share button (⬆)</li>
+              <li>Scroll and tap "Add to Home Screen"</li>
+              <li>Tap "Add" to confirm</li>
+              <li>Open from your home screen!</li>
+            </ol>
+          </div>
+        </div>
+
+        <div className="mt-6 p-4 bg-blue-600 bg-opacity-10 border border-blue-600 border-opacity-30 rounded-lg">
+          <p className="text-sm text-discord-text text-center">
+            💡 <strong className="text-white">Pro Tip:</strong> Once added to home screen, it works just like a native app!
+          </p>
         </div>
       </div>
 
-      {/* System Requirements */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-discord-dark rounded-xl p-6 border border-gray-800">
-          <h3 className="font-bold text-white mb-4">Minimum Requirements</h3>
-          <ul className="space-y-2 text-discord-text text-sm">
-            <li>• Android 7.0 (Nougat) or higher</li>
-            <li>• 2 GB RAM</li>
-            <li>• 50 MB free storage</li>
-            <li>• Internet connection required</li>
-          </ul>
-        </div>
-        <div className="bg-discord-dark rounded-xl p-6 border border-gray-800">
-          <h3 className="font-bold text-white mb-4">Recommended</h3>
-          <ul className="space-y-2 text-discord-text text-sm">
-            <li>• Android 10 or higher</li>
-            <li>• 4 GB RAM or more</li>
-            <li>• 100 MB free storage</li>
-            <li>• Wi-Fi or 4G connection</li>
-          </ul>
-        </div>
-      </div>
-
-      {/* FAQ */}
-      <div className="bg-discord-dark rounded-xl p-6 border border-gray-800">
-        <h2 className="text-xl font-bold text-white mb-4">Common Questions</h2>
-        <div className="space-y-4">
-          <div>
-            <h3 className="font-semibold text-white mb-1">Is the app free?</h3>
-            <p className="text-discord-text text-sm">Yes! The app is completely free to download and use.</p>
-          </div>
-          <div>
-            <h3 className="font-semibold text-white mb-1">Is it safe to install?</h3>
-            <p className="text-discord-text text-sm">Absolutely! The APK is verified and scanned for malware. Always download from our official website.</p>
-          </div>
-          <div>
-            <h3 className="font-semibold text-white mb-1">When is iOS version coming?</h3>
-            <p className="text-discord-text text-sm">iOS version is in development. Follow us on Discord for updates!</p>
-          </div>
-          <div>
-            <h3 className="font-semibold text-white mb-1">How do I update the app?</h3>
-            <p className="text-discord-text text-sm">We'll notify you in-app when updates are available. Download the new APK and install over the existing app.</p>
-          </div>
-        </div>
+      {/* Expected Launch */}
+      <div className="mt-8 bg-gradient-to-r from-purple-600 to-purple-800 rounded-2xl p-8 text-center border border-purple-500">
+        <FaMobileAlt className="text-6xl text-white mx-auto mb-4" />
+        <h3 className="text-2xl font-bold text-white mb-2">Mobile Apps Expected</h3>
+        <p className="text-3xl font-bold text-purple-100 mb-2">Q2-Q3 2026</p>
+        <p className="text-purple-100">
+          Follow us on Discord and Instagram for updates and sneak peeks!
+        </p>
       </div>
     </div>
   );
