@@ -9,7 +9,7 @@ export default function CookieConsent() {
   useEffect(() => {
     const consent = localStorage.getItem('cookie_consent');
     if (!consent) {
-      setShowBanner(true);
+      setTimeout(() => setShowBanner(true), 1000);
     }
   }, []);
 
@@ -41,29 +41,27 @@ export default function CookieConsent() {
             </h3>
             <p className="text-sm text-discord-text">
               We use cookies to enhance your experience, analyze site traffic, and for marketing purposes. 
-              By clicking "Accept", you consent to our use of cookies. 
-              Read our{' '}
+              By clicking "Accept", you consent to our use of cookies.{' '}
               <a href="/privacy" className="text-purple-400 hover:text-purple-300 underline">
                 Privacy Policy
               </a>
-              {' '}and{' '}
+              {' '}·{' '}
               <a href="/terms" className="text-purple-400 hover:text-purple-300 underline">
-                Terms of Service
+                Terms
               </a>
-              .
             </p>
           </div>
 
           <div className="flex gap-3 w-full md:w-auto">
             <button
               onClick={declineCookies}
-              className="flex-1 md:flex-none px-6 py-2.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-semibold transition-all"
+              className="flex-1 md:flex-none px-6 py-2.5 glass hover:glass-strong text-white rounded-lg font-semibold transition-smooth"
             >
               Decline
             </button>
             <button
               onClick={acceptCookies}
-              className="flex-1 md:flex-none px-6 py-2.5 bg-gradient-to-r from-purple-600 to-red-600 hover:from-purple-700 hover:to-red-700 text-white rounded-lg font-semibold transition-all btn-glow"
+              className="flex-1 md:flex-none px-6 py-2.5 bg-gradient-to-r from-purple-600 to-red-600 hover:from-purple-700 hover:to-red-700 text-white rounded-lg font-semibold transition-smooth btn-glow shadow-lg"
             >
               Accept All
             </button>
