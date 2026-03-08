@@ -1,32 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { FaTimes, FaUser, FaTicketAlt, FaExclamationTriangle } from 'react-icons/fa';
+import { supabase } from '@/lib/supabase';
+import { FaTimes, FaTrophy, FaMoneyBillWave, FaGamepad } from 'react-icons/fa';
 
-export default function JoinTournamentModal({ tournament, userProfile, onJoin, onClose, loading }) {
+export default function JoinTournamentModal({ tournament, user, profile, onClose, onSuccess }) {
   const [inGameName, setInGameName] = useState('');
-  const [selectedVoucher, setSelectedVoucher] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const availableVouchers = [];
-  
-  if (userProfile?.wallet_vouchers_20 > 0 && tournament?.entry_fee === 20) {
-    availableVouchers.push({ type: '20', count: userProfile.wallet_vouchers_20 });
-  }
-  
-  if (userProfile?.wallet_vouchers_30 > 0 && tournament?.entry_fee === 30) {
-    availableVouchers.push({ type: '30', count: userProfile.wallet_vouchers_30 });
-  }
-  
-  if (userProfile?.wallet_vouchers_50 > 0 && tournament?.entry_fee === 50) {
-    availableVouchers.push({ type: '50', count: userProfile.wallet_vouchers_50 });
-  }
-
-  const finalFee = selectedVoucher ? 0 : (tournament?.entry_fee || 0);
-  const hasEnoughBalance = (userProfile?.wallet_real || 0) >= finalFee;
-  const seatsAvailable = (tournament?.max_participants || 0) - (tournament?.participants_count || 0);
-
-  const handleSubmit = (e) => {
+  const handleJoin = async (e) => {
     e.preventDefault();
     
     if (!inGameName.trim()) {
@@ -34,139 +17,165 @@ export default function JoinTournamentModal({ tournament, userProfile, onJoin, o
       return;
     }
 
-    if (inGameName.trim().length < 3) {
-      setError('In-game name must be at least 3 characters');
+    if (profile.wallet_real < tournament.entry_fee) {
+      setError(`Insufficient balance. You need ₹${tournament.entry_fee} to join.`);
       return;
     }
 
-    if (finalFee > 0 && !hasEnoughBalance) {
-      setError('Insufficient balance');
-      return;
-    }
+    setLoading(true);
+    setError('');
 
-    if (seatsAvailable <= 0) {
-      setError('Tournament is full');
-      return;
-    }
+    try {
+      const { count: currentCount } = await supabase
+        .from('tournament_participants')
+        .select('*', { count: 'exact', head: true })
+        .eq('tournament_id', tournament.id);
 
-    onJoin(inGameName.trim(), selectedVoucher);
+      if (currentCount >= tournament.max_participants) {
+        throw new Error('Tournament is now full');
+      }
+
+      const { data: participant, error: joinError } = await supabase
+        .from('tournament_participants')
+        .insert([{
+          tournament_id: tournament.id,
+          user_id: user.id,
+          in_game_name: inGameName.trim(),
+          seat_number: currentCount + 1,
+          entry_fee_paid: tournament.entry_fee,
+        }])
+        .select()
+        .single();
+
+      if (joinError) throw joinError;
+
+      const newBalance = parseFloat(profile.wallet_real) - parseFloat(tournament.entry_fee);
+      
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ wallet_real: newBalance })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      const { error: transactionError } = await supabase
+        .from('transactions')
+        .insert([{
+          user_id: user.id,
+          type: 'tournament_entry',
+          amount: -parseFloat(tournament.entry_fee),
+          currency: 'real',
+          description: `Entry fee for ${tournament.title}`,
+        }]);
+
+      if (transactionError) throw transactionError;
+
+      alert('Successfully joined tournament!');
+      onSuccess();
+    } catch (error) {
+      console.error('Error joining tournament:', error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-discord-dark rounded-xl w-full max-w-md p-6 border border-gray-800 relative animate-fadeIn">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-discord-text hover:text-white transition-colors"
-          disabled={loading}
-        >
-          <FaTimes className="text-xl" />
-        </button>
+    <div className="fixed inset-0 bg-black bg-opacity-75 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+      <div className="glass-card rounded-2xl p-8 max-w-md w-full shadow-2xl animate-scale-in">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-white">Join Tournament</h2>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-white hover:bg-opacity-10 rounded-lg transition-smooth"
+          >
+            <FaTimes className="text-xl text-white" />
+          </button>
+        </div>
 
-        <h2 className="text-2xl font-bold mb-2 text-white">Join Tournament</h2>
-        <p className="text-discord-text text-sm mb-6">{tournament?.name}</p>
+        {/* Tournament Info */}
+        <div className="glass rounded-xl p-4 mb-6">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-red-500 rounded-lg flex items-center justify-center shadow-lg">
+              <FaTrophy className="text-2xl text-white" />
+            </div>
+            <div>
+              <h3 className="font-bold text-white">{tournament.title}</h3>
+              <p className="text-sm text-discord-text">{tournament.game}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 mt-3">
+            <div className="flex items-center gap-2">
+              <FaMoneyBillWave className="text-green-400" />
+              <div>
+                <p className="text-xs text-discord-text">Entry Fee</p>
+                <p className="font-bold text-white">₹{tournament.entry_fee}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <FaTrophy className="text-yellow-400" />
+              <div>
+                <p className="text-xs text-discord-text">Prize Pool</p>
+                <p className="font-bold text-white">₹{tournament.prize_pool}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Wallet Balance */}
+        <div className="glass rounded-lg p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <span className="text-discord-text">Your Balance</span>
+            <span className={`font-bold ${
+              profile.wallet_real >= tournament.entry_fee ? 'text-green-400' : 'text-red-400'
+            }`}>
+              ₹{parseFloat(profile.wallet_real || 0).toFixed(2)}
+            </span>
+          </div>
+        </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-500 bg-opacity-10 border border-red-500 rounded-lg text-red-500 text-sm flex items-center gap-2">
-            <FaExclamationTriangle />
-            {error}
+          <div className="bg-red-500 bg-opacity-20 border border-red-500 rounded-lg p-3 mb-6">
+            <p className="text-red-400 text-sm">{error}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Form */}
+        <form onSubmit={handleJoin} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-discord-text mb-2">
-              <FaUser className="inline mr-2" />
-              In-Game Name (IGN) *
+              In-Game Name *
             </label>
-            <input
-              type="text"
-              value={inGameName}
-              onChange={(e) => {
-                setInGameName(e.target.value);
-                setError('');
-              }}
-              placeholder="Enter your in-game name"
-              className="w-full px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-all"
-              required
-              maxLength={50}
-              disabled={loading}
-            />
+            <div className="relative">
+              <FaGamepad className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={inGameName}
+                onChange={(e) => setInGameName(e.target.value)}
+                placeholder="Enter your in-game name"
+                className="w-full pl-10 pr-4 py-3 bg-discord-dark border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-smooth"
+                required
+                maxLength={50}
+              />
+            </div>
+            <p className="text-xs text-discord-text mt-1">
+              This will be visible to other players
+            </p>
           </div>
 
-          {availableVouchers.length > 0 && tournament?.entry_fee > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-discord-text mb-2">
-                <FaTicketAlt className="inline mr-2" />
-                Use Voucher (Optional)
-              </label>
-              <select
-                value={selectedVoucher || ''}
-                onChange={(e) => {
-                  setSelectedVoucher(e.target.value || null);
-                  setError('');
-                }}
-                className="w-full px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500 transition-all"
-                disabled={loading}
-              >
-                <option value="">Pay ₹{tournament.entry_fee}</option>
-                {availableVouchers.map(v => (
-                  <option key={v.type} value={v.type}>
-                    Use ₹{v.type} Voucher (FREE) - {v.count} available
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div className="bg-white bg-opacity-5 rounded-lg p-4 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-discord-text">Entry Fee:</span>
-              <span className={finalFee === 0 ? 'text-green-400 font-bold' : 'text-white font-semibold'}>
-                {finalFee === 0 ? 'FREE (Voucher)' : `₹${finalFee}`}
-              </span>
-            </div>
-            
-            <div className="flex justify-between text-sm">
-              <span className="text-discord-text">Seats Available:</span>
-              <span className={seatsAvailable > 10 ? 'text-green-400' : seatsAvailable > 0 ? 'text-orange-400' : 'text-red-400'}>
-                {seatsAvailable}/{tournament?.max_participants || 0}
-              </span>
-            </div>
-            
-            <div className="flex justify-between text-sm">
-              <span className="text-discord-text">Your Balance:</span>
-              <span className="text-white font-semibold">₹{(userProfile?.wallet_real || 0).toFixed(2)}</span>
-            </div>
-
-            {finalFee > 0 && !hasEnoughBalance && (
-              <div className="pt-2 border-t border-gray-700">
-                <p className="text-red-400 text-xs flex items-center gap-1">
-                  <FaExclamationTriangle />
-                  Insufficient balance! Add ₹{(finalFee - (userProfile?.wallet_real || 0)).toFixed(2)} more
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold transition-all disabled:opacity-50"
-              disabled={loading}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading || (finalFee > 0 && !hasEnoughBalance) || seatsAvailable === 0}
-              className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Joining...' : 'Join Now'}
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 bg-gradient-to-r from-purple-600 to-red-600 hover:from-purple-700 hover:to-red-700 text-white rounded-lg font-bold transition-smooth shadow-lg btn-glow disabled:opacity-50"
+          >
+            {loading ? 'Joining...' : `Pay ₹${tournament.entry_fee} & Join`}
+          </button>
         </form>
+
+        <p className="text-xs text-center text-discord-text mt-4">
+          By joining, you agree to the tournament rules and entry fee payment
+        </p>
       </div>
     </div>
   );
