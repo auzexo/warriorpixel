@@ -48,6 +48,43 @@ export default function ClientLayout({ children }) {
   }
 
   return (
+    <div className="min-h-screen bg-discord-darkest">
+      <Topbar 
+        onMenuClick={() => setSidebarOpen(true)} 
+        sidebarOpen={sidebarOpen}
+      />
+      
+      <div className="flex">
+        <Sidebar 
+          isOpen={sidebarOpen} 
+          onClose={() => setSidebarOpen(false)} 
+        />
+        <main className="flex-1 p-4 md:p-6 lg:p-8">
+          {children}
+        </main>
+      </div>
+
+      {showAuthModal && !user && requiresAuth && authChecked && (
+        <AuthModal />
+      )}
+
+      <CookieConsent />
+    </div>
+  );
+}
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname]);
+
+  if (loading || !authChecked) {
+    return <LoadingScreen />;
+  }
+
+  if (isAdminRoute || isAuthCallback) {
+    return <>{children}</>;
+  }
+
+  return (
     <div className="min-h-screen bg-gradient-to-br from-discord-darkest via-discord-dark to-discord-darker">
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse"></div>
