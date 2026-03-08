@@ -3,12 +3,16 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
-import { FaBell, FaBars, FaTimes, FaCoins, FaGem, FaMoneyBillWave, FaTicketAlt } from 'react-icons/fa';
+import { FaBell, FaBars, FaTimes, FaCoins, FaGem, FaMoneyBillWave, FaTicketAlt, FaUser, FaSignOutAlt } from 'react-icons/fa';
+import { useRouter } from 'next/navigation';
 
-export default function Topbar({ onMenuClick, sidebarOpen }) {
-  const { user, profile } = useAuth();
+export default function Topbar({ onMenuClick }) {
+  const { user, profile, logout } = useAuth();
+  const router = useRouter();
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showVouchers, setShowVouchers] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
@@ -64,23 +68,24 @@ export default function Topbar({ onMenuClick, sidebarOpen }) {
     }
   };
 
+  const handleLogout = async () => {
+    if (confirm('Are you sure you want to logout?')) {
+      await logout();
+    }
+  };
+
   return (
     <header className="sticky top-0 z-30 bg-discord-dark border-b border-gray-800">
       <div className="flex items-center justify-between px-4 md:px-6 py-3">
-        {/* Left: Menu Button */}
+        {/* Left: Menu Button + Logo */}
         <div className="flex items-center gap-4">
           <button
             onClick={onMenuClick}
             className="lg:hidden p-2 hover:bg-purple-600 hover:bg-opacity-20 rounded-lg transition-all"
           >
-            {sidebarOpen ? (
-              <FaTimes className="text-xl text-white" />
-            ) : (
-              <FaBars className="text-xl text-white" />
-            )}
+            <FaBars className="text-xl text-white" />
           </button>
 
-          {/* Logo (Mobile) */}
           <div className="flex items-center gap-2 lg:hidden">
             <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-sm">WP</span>
@@ -90,10 +95,10 @@ export default function Topbar({ onMenuClick, sidebarOpen }) {
         </div>
 
         {/* Right: Currencies, Notifications, Profile */}
-        <div className="flex items-center gap-2 md:gap-4">
+        <div className="flex items-center gap-2 md:gap-3">
           {/* Currencies - Show if user logged in */}
           {profile && (
-            <div className="hidden md:flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-2">
               {/* Real Money */}
               <div className="flex items-center gap-2 bg-discord-darkest px-3 py-2 rounded-lg border border-gray-700">
                 <FaMoneyBillWave className="text-green-400 text-sm" />
@@ -118,14 +123,46 @@ export default function Topbar({ onMenuClick, sidebarOpen }) {
                 </span>
               </div>
 
-              {/* Vouchers */}
-              <div className="flex items-center gap-2 bg-discord-darkest px-3 py-2 rounded-lg border border-gray-700">
-                <FaTicketAlt className="text-orange-400 text-sm" />
-                <span className="text-white font-semibold text-sm">
-                  {(parseInt(profile.wallet_vouchers_20 || 0) + 
-                    parseInt(profile.wallet_vouchers_30 || 0) + 
-                    parseInt(profile.wallet_vouchers_50 || 0))}
-                </span>
+              {/* Vouchers - Clickable */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowVouchers(!showVouchers)}
+                  className="flex items-center gap-2 bg-discord-darkest px-3 py-2 rounded-lg border border-gray-700 hover:bg-gray-800 transition-all"
+                >
+                  <FaTicketAlt className="text-orange-400 text-sm" />
+                  <span className="text-white font-semibold text-sm">
+                    {(parseInt(profile.wallet_vouchers_20 || 0) + 
+                      parseInt(profile.wallet_vouchers_30 || 0) + 
+                      parseInt(profile.wallet_vouchers_50 || 0))}
+                  </span>
+                </button>
+
+                {/* Vouchers Dropdown */}
+                {showVouchers && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setShowVouchers(false)}
+                    ></div>
+                    <div className="absolute right-0 mt-2 w-64 bg-discord-dark border border-gray-800 rounded-xl shadow-2xl z-50 p-4">
+                      <h3 className="font-bold text-white mb-3">Vouchers</h3>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between p-3 bg-discord-darkest rounded-lg">
+                          <span className="text-discord-text text-sm">₹20 Vouchers</span>
+                          <span className="text-white font-bold">{parseInt(profile.wallet_vouchers_20 || 0)}</span>
+                        </div>
+                        <div className="flex items-center justify-between p-3 bg-discord-darkest rounded-lg">
+                          <span className="text-discord-text text-sm">₹30 Vouchers</span>
+                          <span className="text-white font-bold">{parseInt(profile.wallet_vouchers_30 || 0)}</span>
+                        </div>
+                        <div className="flex items-center justify-between p-3 bg-discord-darkest rounded-lg">
+                          <span className="text-discord-text text-sm">₹50 Vouchers</span>
+                          <span className="text-white font-bold">{parseInt(profile.wallet_vouchers_50 || 0)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -152,7 +189,7 @@ export default function Topbar({ onMenuClick, sidebarOpen }) {
                     className="fixed inset-0 z-40"
                     onClick={() => setShowNotifications(false)}
                   ></div>
-                  <div className="absolute right-0 mt-2 w-80 bg-discord-dark border border-gray-800 rounded-xl shadow-2xl z-50 max-h-96 overflow-hidden animate-slide-down">
+                  <div className="absolute right-0 mt-2 w-80 bg-discord-dark border border-gray-800 rounded-xl shadow-2xl z-50 max-h-96 overflow-hidden">
                     <div className="p-4 border-b border-gray-800 flex items-center justify-between">
                       <h3 className="font-bold text-white">Notifications</h3>
                       {unreadCount > 0 && (
@@ -205,16 +242,83 @@ export default function Topbar({ onMenuClick, sidebarOpen }) {
             </div>
           )}
 
-          {/* User Profile */}
+          {/* Profile - Clickable */}
           {profile && (
-            <div className="flex items-center gap-2 bg-discord-darkest px-3 py-2 rounded-lg border border-gray-700">
-              <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-purple-800 rounded-full flex items-center justify-center font-bold text-white text-sm">
-                {profile.username?.charAt(0).toUpperCase() || 'U'}
-              </div>
-              <div className="hidden md:block">
-                <p className="text-sm font-semibold text-white">{profile.username}</p>
-                <p className="text-xs text-discord-text">Level {profile.level || 1}</p>
-              </div>
+            <div className="relative">
+              <button
+                onClick={() => setShowProfile(!showProfile)}
+                className="flex items-center gap-2 bg-discord-darkest px-3 py-2 rounded-lg border border-gray-700 hover:bg-gray-800 transition-all"
+              >
+                <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-purple-800 rounded-full flex items-center justify-center font-bold text-white text-sm">
+                  {profile.username?.charAt(0).toUpperCase() || 'U'}
+                </div>
+                <div className="hidden md:block">
+                  <p className="text-sm font-semibold text-white">{profile.username}</p>
+                  <p className="text-xs text-discord-text">Level {profile.level || 1}</p>
+                </div>
+              </button>
+
+              {/* Profile Dropdown */}
+              {showProfile && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowProfile(false)}
+                  ></div>
+                  <div className="absolute right-0 mt-2 w-72 bg-discord-dark border border-gray-800 rounded-xl shadow-2xl z-50 p-4">
+                    {/* Profile Header */}
+                    <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-800">
+                      <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-purple-800 rounded-full flex items-center justify-center font-bold text-white text-2xl">
+                        {profile.username?.charAt(0).toUpperCase() || 'U'}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-bold text-white text-lg">{profile.username}</p>
+                        <p className="text-xs text-discord-text">UID: {profile.uid}</p>
+                      </div>
+                    </div>
+
+                    {/* Profile Stats */}
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center justify-between p-3 bg-discord-darkest rounded-lg">
+                        <span className="text-discord-text text-sm">Level</span>
+                        <span className="text-white font-bold">{profile.level || 1}</span>
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-discord-darkest rounded-lg">
+                        <span className="text-discord-text text-sm">Achievement Points</span>
+                        <span className="text-purple-400 font-bold">{profile.achievement_points || 0}</span>
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-discord-darkest rounded-lg">
+                        <span className="text-discord-text text-sm">Total Wins</span>
+                        <span className="text-green-400 font-bold">{profile.total_wins || 0}</span>
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-discord-darkest rounded-lg">
+                        <span className="text-discord-text text-sm">Total Games</span>
+                        <span className="text-blue-400 font-bold">{profile.total_games || 0}</span>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="space-y-2">
+                      <button
+                        onClick={() => {
+                          setShowProfile(false);
+                          router.push('/wallet');
+                        }}
+                        className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-all"
+                      >
+                        View Wallet
+                      </button>
+                      <button
+                        onClick={handleLogout}
+                        className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+                      >
+                        <FaSignOutAlt />
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
