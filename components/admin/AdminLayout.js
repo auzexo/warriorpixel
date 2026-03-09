@@ -1,199 +1,193 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
-import { hasPermission, PERMISSIONS } from '@/lib/admin';
-import { FaTrophy, FaUsers, FaBullhorn, FaHistory, FaCrown, FaSignOutAlt, FaBars, FaTimes, FaLock } from 'react-icons/fa';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
+import { 
+  FaTachometerAlt, 
+  FaUsers, 
+  FaTrophy, 
+  FaShieldAlt,
+  FaVideo,
+  FaBullhorn,
+  FaCog,
+  FaSignOutAlt,
+  FaBars,
+  FaTimes
+} from 'react-icons/fa';
 
 export default function AdminLayout({ children }) {
   const router = useRouter();
-  const pathname = usePathname();
-  const { profile } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [adminSession, setAdminSession] = useState(null);
 
   useEffect(() => {
-    // Check if admin is logged in
-    const session = localStorage.getItem('admin_session');
-    if (session) {
-      setAdminSession(JSON.parse(session));
-    } else {
-      router.push('/admin');
-    }
+    checkAdminAccess();
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem('admin_session');
-    router.push('/admin');
-  };
+  const checkAdminAccess = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        router.push('/');
+        return;
+      }
 
-  const menuItems = [
-    {
-      icon: FaTrophy,
-      label: 'Tournament Management',
-      path: '/admin/dashboard',
-      permission: PERMISSIONS.TOURNAMENT_CREATE,
-    },
-    {
-      icon: FaUsers,
-      label: 'User Management',
-      path: '/admin/users',
-      permission: PERMISSIONS.USER_VIEW,
-    },
-    {
-      icon: FaBullhorn,
-      label: 'Announcements',
-      path: '/admin/announcements',
-      permission: PERMISSIONS.ANNOUNCEMENT_CREATE,
-    },
-    {
-      icon: FaHistory,
-      label: 'Admin Logs',
-      path: '/admin/logs',
-      permission: PERMISSIONS.LOGS_VIEW,
-    },
-    {
-      icon: FaLock,
-      label: 'Permissions Panel',
-      path: '/admin/permissions',
-      requireSuperAdmin: true,
-    },
-  ];
+      const { data: profile } = await supabase
+        .from('users')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single();
 
-  const canAccessItem = (item) => {
-    if (!adminSession) return false;
-    
-    // For Permissions Panel - show if user has full_access
-    if (item.requireSuperAdmin) {
-      return hasPermission(adminSession.permissions, PERMISSIONS.FULL_ACCESS);
+      if (!profile?.is_admin) {
+        alert('Access denied: Admin privileges required');
+        router.push('/');
+        return;
+      }
+
+      setIsAdmin(true);
+    } catch (error) {
+      console.error('Error checking admin access:', error);
+      router.push('/');
+    } finally {
+      setLoading(false);
     }
-    
-    return hasPermission(adminSession.permissions, item.permission);
   };
 
-  if (!adminSession) {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/');
+  };
+
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500"></div>
+      <div className="min-h-screen bg-discord-darkest flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
       </div>
     );
   }
 
+  if (!isAdmin) {
+    return null;
+  }
+
+  const menuItems = [
+    { icon: FaTachometerAlt, label: 'Dashboard', path: '/admin', color: 'text-purple-400' },
+    { icon: FaUsers, label: 'Users', path: '/admin/users', color: 'text-blue-400' },
+    { icon: FaTrophy, label: 'Tournaments', path: '/admin/tournaments', color: 'text-yellow-400' },
+    { icon: FaShieldAlt, label: 'Guilds', path: '/admin/guilds', color: 'text-green-400' },
+    { icon: FaVideo, label: 'Videos', path: '/admin/videos', color: 'text-red-400' },
+    { icon: FaBullhorn, label: 'Announcements', path: '/admin/announcements', color: 'text-orange-400' },
+    { icon: FaCog, label: 'Settings', path: '/admin/settings', color: 'text-gray-400' }
+  ];
+
   return (
     <div className="min-h-screen bg-discord-darkest">
+      {/* Mobile Header */}
+      <div className="lg:hidden bg-discord-dark border-b border-gray-800 p-4 flex items-center justify-between sticky top-0 z-50">
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="p-2 hover:bg-gray-800 rounded-lg transition-all"
+        >
+          {sidebarOpen ? <FaTimes className="text-white text-xl" /> : <FaBars className="text-white text-xl" />}
+        </button>
+        <h1 className="text-lg font-bold text-white">👑 Admin Panel</h1>
+        <div className="w-10"></div>
+      </div>
+
       <div className="flex">
         {/* Sidebar */}
-        <aside className={`fixed lg:sticky top-0 left-0 h-screen bg-discord-dark border-r border-gray-800 w-64 flex flex-col z-40 transition-transform duration-300 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        }`}>
-          {/* Close button (mobile) */}
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="lg:hidden absolute top-4 right-4 p-2 hover:bg-white hover:bg-opacity-10 rounded-lg transition-all"
-          >
-            <FaTimes className="text-xl" />
-          </button>
-
-          {/* Logo */}
-          <div className="p-6 border-b border-gray-800">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-orange-500 rounded-lg flex items-center justify-center">
-                <FaCrown className="text-white text-xl" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-white">Admin Panel</h1>
-                <p className="text-xs text-discord-text">WarriorPixel</p>
-              </div>
-            </div>
+        <aside className={`
+          fixed lg:sticky top-0 left-0 h-screen w-64 bg-discord-dark border-r border-gray-800 
+          transition-transform duration-300 z-40
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        `}>
+          <div className="p-6">
+            <h1 className="text-2xl font-bold text-white mb-2 hidden lg:block">👑 Admin Panel</h1>
+            <p className="text-sm text-discord-text hidden lg:block">WarriorPixel Dashboard</p>
           </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 p-4 overflow-y-auto">
-            <div className="space-y-2">
-              {menuItems.filter(canAccessItem).map((item) => {
-                const Icon = item.icon;
-                const isActive = pathname === item.path;
-
-                return (
-                  <button
-                    key={item.path}
-                    onClick={() => {
-                      router.push(item.path);
-                      setSidebarOpen(false);
-                    }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                      isActive
-                        ? 'bg-red-600 text-white'
-                        : 'hover:bg-white hover:bg-opacity-5 text-gray-300'
-                    }`}
-                  >
-                    <Icon className="text-lg" />
-                    <span className="font-medium">{item.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+          <nav className="px-3 flex-1 overflow-y-auto">
+            {menuItems.map((item, index) => (
+              <button
+                key={index}
+                onClick={() => {
+                  router.push(item.path);
+                  setSidebarOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-800 transition-all mb-2 group"
+              >
+                <item.icon className={`text-xl ${item.color} group-hover:scale-110 transition-all`} />
+                <span className="text-white font-semibold">{item.label}</span>
+              </button>
+            ))}
           </nav>
 
-          {/* Admin Info & Logout */}
           <div className="p-4 border-t border-gray-800">
-            <div className="bg-white bg-opacity-5 rounded-lg p-3 mb-3">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center font-bold">
-                  {profile?.username?.charAt(0).toUpperCase() || 'A'}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm truncate text-white">{profile?.username}</p>
-                  <p className="text-xs text-discord-text truncate">Admin</p>
-                </div>
-              </div>
-              <div className="text-xs text-discord-text">
-                <p>Permissions: {adminSession.permissions.includes('full_access') ? 'Full Access' : adminSession.permissions.length}</p>
-              </div>
-            </div>
-
             <button
               onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-all font-medium"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-red-600 hover:bg-red-700 transition-all"
             >
-              <FaSignOutAlt />
-              Logout
+              <FaSignOutAlt className="text-white" />
+              <span className="text-white font-semibold">Logout</span>
             </button>
           </div>
         </aside>
 
-        {/* Mobile overlay */}
+        {/* Overlay for mobile */}
         {sidebarOpen && (
           <div
             className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
             onClick={() => setSidebarOpen(false)}
-          />
+          ></div>
         )}
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col min-h-screen">
-          {/* Top Bar */}
-          <div className="bg-discord-dark border-b border-gray-800 px-4 py-3 flex items-center justify-between sticky top-0 z-20">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="p-2 hover:bg-white hover:bg-opacity-10 rounded-lg transition-all lg:hidden"
-            >
-              <FaBars className="text-xl text-white" />
-            </button>
-            <div className="flex items-center gap-2">
-              <FaCrown className="text-red-500" />
-              <h2 className="text-lg font-bold text-white">Admin Dashboard</h2>
-            </div>
-            <div></div>
-          </div>
-
-          {/* Content */}
-          <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-auto">
+        <main className="flex-1 p-4 lg:p-8 overflow-x-hidden">
+          <div className="max-w-7xl mx-auto">
             {children}
-          </main>
-        </div>
+          </div>
+        </main>
       </div>
+
+      {/* Global CSS for dark inputs */}
+      <style jsx global>{`
+        /* Admin Panel Input Styling */
+        #__next input[type="text"],
+        #__next input[type="email"],
+        #__next input[type="password"],
+        #__next input[type="number"],
+        #__next input[type="datetime-local"],
+        #__next textarea,
+        #__next select {
+          background-color: #0a0a0f !important;
+          border: 1px solid #374151 !important;
+          color: #ffffff !important;
+          padding: 0.75rem 1rem !important;
+          border-radius: 0.5rem !important;
+        }
+
+        #__next input::placeholder,
+        #__next textarea::placeholder {
+          color: #6b7280 !important;
+        }
+
+        #__next input:focus,
+        #__next textarea:focus,
+        #__next select:focus {
+          outline: none !important;
+          border-color: #7c3aed !important;
+        }
+
+        /* Fix white text inputs */
+        .admin-input {
+          background-color: #0a0a0f !important;
+          border: 1px solid #374151 !important;
+          color: #ffffff !important;
+        }
+      `}</style>
     </div>
   );
-      }
+}
