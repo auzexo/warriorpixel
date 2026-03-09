@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { FaTrophy, FaPlus, FaEdit, FaTrash, FaUsers, FaClock } from 'react-icons/fa';
+import { FaTrophy, FaPlus, FaEdit, FaTrash, FaUsers, FaHashtag, FaCopy } from 'react-icons/fa';
 
 export default function AdminTournamentsPage() {
   const router = useRouter();
@@ -24,7 +24,6 @@ export default function AdminTournamentsPage() {
 
       if (error) throw error;
 
-      // Load participant counts
       const tournamentsWithCounts = await Promise.all(
         (data || []).map(async (tournament) => {
           const { count } = await supabase
@@ -41,14 +40,14 @@ export default function AdminTournamentsPage() {
 
       setTournaments(tournamentsWithCounts);
     } catch (error) {
-      console.error('Error loading tournaments:', error);
+      console.error('Error:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const deleteTournament = async (id) => {
-    if (!confirm('Delete this tournament? This cannot be undone!')) return;
+    if (!confirm('Delete this tournament? Cannot be undone!')) return;
 
     try {
       const { error } = await supabase
@@ -60,9 +59,14 @@ export default function AdminTournamentsPage() {
       alert('Tournament deleted');
       loadTournaments();
     } catch (error) {
-      console.error('Error deleting:', error);
+      console.error('Error:', error);
       alert('Error: ' + error.message);
     }
+  };
+
+  const copyTournamentId = (id) => {
+    navigator.clipboard.writeText(`TID-${id}`);
+    alert('Tournament ID copied!');
   };
 
   if (loading) {
@@ -87,20 +91,19 @@ export default function AdminTournamentsPage() {
           className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold flex items-center gap-2 transition-all"
         >
           <FaPlus />
-          Create Tournament
+          Create
         </button>
       </div>
 
-      {/* Tournaments List */}
       <div className="space-y-4">
         {tournaments.length === 0 ? (
           <div className="bg-discord-dark border border-gray-800 rounded-xl p-12 text-center">
             <FaTrophy className="text-6xl text-gray-600 mx-auto mb-4" />
-            <p className="text-xl text-white mb-2">No Tournaments Yet</p>
-            <p className="text-discord-text mb-6">Create your first tournament to get started</p>
+            <p className="text-xl text-white mb-2">No Tournaments</p>
+            <p className="text-discord-text mb-6">Create your first tournament</p>
             <button
               onClick={() => router.push('/admin/tournaments/create')}
-              className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-all"
+              className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold"
             >
               Create First Tournament
             </button>
@@ -112,7 +115,7 @@ export default function AdminTournamentsPage() {
               className="bg-discord-dark border border-gray-800 rounded-xl p-6 hover:border-purple-600 transition-all"
             >
               <div className="flex items-start justify-between mb-4">
-                <div>
+                <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-xl font-bold text-white">{tournament.title}</h3>
                     <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
@@ -124,7 +127,18 @@ export default function AdminTournamentsPage() {
                       {tournament.status}
                     </span>
                   </div>
-                  <p className="text-discord-text">{tournament.game}</p>
+                  <div className="flex items-center gap-4 text-sm">
+                    <p className="text-discord-text">{tournament.game}</p>
+                    <button
+                      onClick={() => copyTournamentId(tournament.id)}
+                      className="flex items-center gap-2 text-purple-400 hover:text-purple-300 transition-all"
+                      title="Copy Tournament ID"
+                    >
+                      <FaHashtag className="text-xs" />
+                      <span className="font-mono font-bold">TID-{tournament.id}</span>
+                      <FaCopy className="text-xs" />
+                    </button>
+                  </div>
                 </div>
               </div>
 
