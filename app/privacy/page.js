@@ -1,4 +1,3 @@
-CREATE: app/privacy/page.js
 'use client';
 
 import { FaUserShield, FaArrowLeft } from 'react-icons/fa';
@@ -176,7 +175,7 @@ export default function PrivacyPage() {
             </ul>
           </section>
 
-          <section className="mb-8">
+          ection className="mb-8">
             <h2 className="text-2xl font-bold text-white mb-4">10. International Data Transfers</h2>
             <p className="text-discord-text mb-4">
               Your data is primarily stored on servers in India. If we transfer data internationally, we ensure appropriate safeguards are in place to protect your information.
