@@ -20,9 +20,9 @@ export default function CreateTournamentPage() {
     game: 'Free Fire',
     description: '',
     rules: '',
-    prize_pool: '',
-    entry_fee: '',
-    max_participants: 50,
+    prize_pool: '0',
+    entry_fee: '0',
+    max_participants: '50',
     start_time: '',
     status: 'upcoming',
     room_id: '',
@@ -41,8 +41,12 @@ export default function CreateTournamentPage() {
         .eq('is_active', true)
         .order('preset_number');
 
-      if (error) throw error;
-      setPresets(data || []);
+      if (error) {
+        console.error('Error loading presets:', error);
+        // Continue even if presets fail to load
+      } else {
+        setPresets(data || []);
+      }
     } catch (error) {
       console.error('Error loading presets:', error);
     } finally {
@@ -51,16 +55,22 @@ export default function CreateTournamentPage() {
   };
 
   const handlePresetSelect = (presetId) => {
+    if (!presetId) {
+      setSelectedPreset(null);
+      return;
+    }
+
     const preset = presets.find(p => p.id === parseInt(presetId));
     setSelectedPreset(preset);
 
     if (preset) {
       setFormData(prev => ({
         ...prev,
-        entry_fee: preset.entry_fee,
+        entry_fee: String(preset.entry_fee || 0),
+        prize_pool: String(preset.entry_fee || 0),
         description: preset.description_template || '',
-        rules: preset.rules?.join('\n') || '',
-        max_participants: preset.max_players
+        rules: Array.isArray(preset.rules) ? preset.rules.join('\n') : '',
+        max_participants: String(preset.max_players || 50)
       }));
     }
   };
@@ -68,13 +78,19 @@ export default function CreateTournamentPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.title || !formData.start_time) {
-      alert('Please fill in Tournament Name and Start Time');
+    // Validation
+    if (!formData.title || !formData.title.trim()) {
+      alert('❌ Tournament Name is required');
+      return;
+    }
+
+    if (!formData.start_time) {
+      alert('❌ Start Date & Time is required');
       return;
     }
 
     if (usePreset && !selectedPreset) {
-      alert('Please select a preset');
+      alert('❌ Please select a preset');
       return;
     }
 
@@ -83,26 +99,47 @@ export default function CreateTournamentPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Build tournament data - only include fields that exist
-      const tournamentData = {
-        title: formData.title.trim(),
-        game: formData.game,
-        description: formData.description.trim(),
-        rules: formData.rules.trim(),
-        prize_pool: parseFloat(formData.prize_pool) || 0,
-        entry_fee: parseFloat(formData.entry_fee) || 0,
-        max_participants: parseInt(formData.max_participants) || 50,
-        start_time: formData.start_time,
-        status: formData.status
-      };
+      // Build the safest possible insert object
+      const tournamentData = {};
+      
+      // Required fields
+      tournamentData.title = formData.title.trim();
+      tournamentData.game = formData.game || 'Free Fire';
+      tournamentData.start_time = formData.start_time;
+      tournamentData.status = formData.status || 'upcoming';
+      
+      // Numeric fields with defaults
+      tournamentData.prize_pool = parseFloat(formData.prize_pool) || 0;
+      tournamentData.entry_fee = parseFloat(formData.entry_fee) || 0;
+      tournamentData.max_participants = parseInt(formData.max_participants) || 50;
+      
+      // Optional text fields
+      if (formData.description && formData.description.trim()) {
+        tournamentData.description = formData.description.trim();
+      }
+      
+      if (formData.rules && formData.rules.trim()) {
+        tournamentData.rules = formData.rules.trim();
+      }
+      
+      if (formData.room_id && formData.room_id.trim()) {
+        tournamentData.room_id = formData.room_id.trim();
+      }
+      
+      if (formData.room_password && formData.room_password.trim()) {
+        tournamentData.room_password = formData.room_password.trim();
+      }
+      
+      // Foreign keys
+      if (usePreset && selectedPreset && selectedPreset.id) {
+        tournamentData.preset_id = selectedPreset.id;
+      }
+      
+      if (user && user.id) {
+        tournamentData.created_by = user.id;
+      }
 
-      // Add optional fields only if they have values
-      if (formData.room_id) tournamentData.room_id = formData.room_id.trim();
-      if (formData.room_password) tournamentData.room_password = formData.room_password.trim();
-      if (usePreset && selectedPreset) tournamentData.preset_id = selectedPreset.id;
-      if (user?.id) tournamentData.created_by = user.id;
-
-      console.log('Creating tournament with data:', tournamentData);
+      console.log('📤 Sending tournament data:', tournamentData);
 
       const { data, error } = await supabase
         .from('tournaments')
@@ -111,15 +148,25 @@ export default function CreateTournamentPage() {
         .single();
 
       if (error) {
-        console.error('Supabase error:', error);
+        console.error('❌ Supabase error:', error);
         throw error;
       }
 
+      console.log('✅ Tournament created:', data);
       alert('✅ Tournament created successfully!');
       router.push('/admin/tournaments');
+      
     } catch (error) {
-      console.error('Error creating tournament:', error);
-      alert('❌ Error: ' + error.message);
+      console.error('❌ Error creating tournament:', error);
+      
+      // More helpful error messages
+      if (error.message.includes('schema cache')) {
+        alert('❌ Database schema error. Please:\n1. Refresh the page\n2. Wait 2 minutes\n3. Try again\n\nIf issue persists, restart PostgREST in Supabase settings.');
+      } else if (error.message.includes('column')) {
+        alert('❌ Database column error:\n' + error.message + '\n\nPlease verify the SQL script was run correctly.');
+      } else {
+        alert('❌ Error: ' + error.message);
+      }
     } finally {
       setCreating(false);
     }
@@ -128,8 +175,9 @@ export default function CreateTournamentPage() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="flex flex-col items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mb-4"></div>
+          <p className="text-discord-text">Loading presets...</p>
         </div>
       </AdminLayout>
     );
@@ -163,11 +211,14 @@ export default function CreateTournamentPage() {
                   : 'bg-discord-darkest text-discord-text hover:bg-gray-800'
               }`}
             >
-              Use Preset
+              Use Preset (7 Available)
             </button>
             <button
               type="button"
-              onClick={() => setUsePreset(false)}
+              onClick={() => {
+                setUsePreset(false);
+                setSelectedPreset(null);
+              }}
               className={`px-6 py-4 rounded-lg font-bold transition-all ${
                 !usePreset 
                   ? 'bg-purple-600 text-white' 
@@ -182,37 +233,45 @@ export default function CreateTournamentPage() {
           {usePreset && (
             <div>
               <label className="block text-white font-semibold mb-2">Select Preset *</label>
-              <select
-                value={selectedPreset?.id || ''}
-                onChange={(e) => handlePresetSelect(e.target.value)}
-                className="w-full px-4 py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-purple-600"
-                required
-              >
-                <option value="">-- Choose a Preset --</option>
-                {presets.map(preset => (
-                  <option key={preset.id} value={preset.id}>
-                    {preset.name} - Entry: ₹{preset.entry_fee} | Per Kill: ₹{preset.per_kill_reward} | Booyah: ₹{preset.booyah_reward}
-                  </option>
-                ))}
-              </select>
-              
-              {selectedPreset && (
-                <div className="mt-4 bg-green-600 bg-opacity-10 border border-green-600 rounded-lg p-4">
-                  <h3 className="font-bold text-white mb-2">{selectedPreset.name}</h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-green-400">Entry Fee: ₹{selectedPreset.entry_fee}</p>
-                      <p className="text-green-400">Per Kill: ₹{selectedPreset.per_kill_reward}</p>
-                      <p className="text-green-400">Booyah: ₹{selectedPreset.booyah_reward}</p>
-                    </div>
-                    <div>
-                      <p className="text-green-400">Mode: {selectedPreset.mode}</p>
-                      <p className="text-green-400">Players: {selectedPreset.min_players}-{selectedPreset.max_players}</p>
-                      <p className="text-green-400">Type: {selectedPreset.is_free ? 'FREE' : 'PAID'}</p>
-                    </div>
-                  </div>
-                  <p className="text-green-400 text-xs mt-2">{selectedPreset.description_template}</p>
+              {presets.length === 0 ? (
+                <div className="bg-red-600 bg-opacity-10 border border-red-600 rounded-lg p-4 text-center">
+                  <p className="text-red-400">No presets found. Please run the SQL script to create presets.</p>
                 </div>
+              ) : (
+                <>
+                  <select
+                    value={selectedPreset?.id || ''}
+                    onChange={(e) => handlePresetSelect(e.target.value)}
+                    className="w-full px-4 py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-purple-600"
+                    required
+                  >
+                    <option value="">-- Choose a Preset --</option>
+                    {presets.map(preset => (
+                      <option key={preset.id} value={preset.id}>
+                        {preset.name} (Entry: ₹{preset.entry_fee} | Kill: ₹{preset.per_kill_reward} | Booyah: ₹{preset.booyah_reward})
+                      </option>
+                    ))}
+                  </select>
+                  
+                  {selectedPreset && (
+                    <div className="mt-4 bg-green-600 bg-opacity-10 border border-green-600 rounded-lg p-4">
+                      <h3 className="font-bold text-white mb-2">{selectedPreset.name}</h3>
+                      <div className="grid grid-cols-2 gap-4 text-sm mb-2">
+                        <div>
+                          <p className="text-green-400">💰 Entry Fee: ₹{selectedPreset.entry_fee}</p>
+                          <p className="text-green-400">☠️ Per Kill: ₹{selectedPreset.per_kill_reward}</p>
+                          <p className="text-green-400">👑 Booyah: ₹{selectedPreset.booyah_reward}</p>
+                        </div>
+                        <div>
+                          <p className="text-green-400">🎮 Mode: {selectedPreset.mode}</p>
+                          <p className="text-green-400">👥 Players: {selectedPreset.min_players}-{selectedPreset.max_players}</p>
+                          <p className="text-green-400">💵 Type: {selectedPreset.is_free ? 'FREE' : 'PAID'}</p>
+                        </div>
+                      </div>
+                      <p className="text-green-300 text-sm italic">{selectedPreset.description_template}</p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -232,6 +291,7 @@ export default function CreateTournamentPage() {
                 placeholder="e.g., Friday Night Finals"
                 className="w-full px-4 py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-purple-600"
                 required
+                maxLength={200}
               />
             </div>
 
@@ -255,18 +315,19 @@ export default function CreateTournamentPage() {
                 onChange={(e) => setFormData({...formData, description: e.target.value})}
                 placeholder="Tournament description..."
                 rows={3}
+                maxLength={1000}
                 className="w-full px-4 py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-purple-600"
               />
             </div>
 
             <div>
-              <label className="block text-white font-semibold mb-2">Rules</label>
+              <label className="block text-white font-semibold mb-2">Rules (one per line)</label>
               <textarea
                 value={formData.rules}
                 onChange={(e) => setFormData({...formData, rules: e.target.value})}
-                placeholder="Tournament rules (one per line)..."
+                placeholder="No cheating&#10;No hacking&#10;Respectful behavior"
                 rows={5}
-                className="w-full px-4 py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-purple-600"
+                className="w-full px-4 py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-purple-600 font-mono text-sm"
               />
             </div>
           </div>
@@ -284,6 +345,7 @@ export default function CreateTournamentPage() {
                   <input
                     type="number"
                     step="0.01"
+                    min="0"
                     value={formData.prize_pool}
                     onChange={(e) => setFormData({...formData, prize_pool: e.target.value})}
                     placeholder="1000"
@@ -296,6 +358,7 @@ export default function CreateTournamentPage() {
                   <input
                     type="number"
                     step="0.01"
+                    min="0"
                     value={formData.entry_fee}
                     onChange={(e) => setFormData({...formData, entry_fee: e.target.value})}
                     placeholder="10"
@@ -345,8 +408,8 @@ export default function CreateTournamentPage() {
 
         {/* Room Details */}
         <div className="bg-discord-dark border border-gray-800 rounded-xl p-6">
-          <h2 className="text-xl font-bold text-white mb-2">🎮 Room Details</h2>
-          <p className="text-discord-text text-sm mb-4">Optional - Can be added later</p>
+          <h2 className="text-xl font-bold text-white mb-2">🎮 Room Details (Optional)</h2>
+          <p className="text-discord-text text-sm mb-4">Can be added now or later via Edit</p>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -356,6 +419,7 @@ export default function CreateTournamentPage() {
                 value={formData.room_id}
                 onChange={(e) => setFormData({...formData, room_id: e.target.value})}
                 placeholder="123456789"
+                maxLength={50}
                 className="w-full px-4 py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-purple-600"
               />
             </div>
@@ -367,6 +431,7 @@ export default function CreateTournamentPage() {
                 value={formData.room_password}
                 onChange={(e) => setFormData({...formData, room_password: e.target.value})}
                 placeholder="pass1234"
+                maxLength={50}
                 className="w-full px-4 py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-purple-600"
               />
             </div>
@@ -378,7 +443,8 @@ export default function CreateTournamentPage() {
           <button
             type="button"
             onClick={() => router.push('/admin/tournaments')}
-            className="flex-1 px-6 py-4 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-bold transition-all"
+            disabled={creating}
+            className="flex-1 px-6 py-4 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white rounded-lg font-bold transition-all"
           >
             Cancel
           </button>
@@ -388,7 +454,7 @@ export default function CreateTournamentPage() {
             className="flex-1 px-6 py-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-lg font-bold flex items-center justify-center gap-2 transition-all"
           >
             <FaCheckCircle />
-            {creating ? 'Creating...' : 'Create Tournament'}
+            {creating ? 'Creating Tournament...' : 'Create Tournament'}
           </button>
         </div>
       </form>
