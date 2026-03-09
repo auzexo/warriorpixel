@@ -2,214 +2,154 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
-import { FaLock, FaUser, FaKey, FaShieldAlt } from 'react-icons/fa';
+import AdminLayout from '@/components/admin/AdminLayout';
+import { FaUsers, FaTrophy, FaMoneyBillWave, FaChartLine, FaShieldAlt } from 'react-icons/fa';
 
-export default function AdminLoginPage() {
+export default function AdminDashboard() {
   const router = useRouter();
-  const { profile, loading: authLoading } = useAuth();
-  const [adminId, setAdminId] = useState('');
-  const [adminPassword, setAdminPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [checkingSession, setCheckingSession] = useState(true);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalTournaments: 0,
+    upcomingTournaments: 0,
+    liveTournaments: 0,
+    completedTournaments: 0,
+    totalRevenue: 0,
+    totalGuilds: 4
+  });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkAdminSession = () => {
-      try {
-        const adminSession = localStorage.getItem('admin_session');
-        if (adminSession) {
-          const session = JSON.parse(adminSession);
-          const loginTime = new Date(session.loginTime);
-          const now = new Date();
-          const hoursSinceLogin = (now - loginTime) / (1000 * 60 * 60);
-          
-          if (hoursSinceLogin < 24) {
-            router.push('/admin/dashboard');
-            return;
-          } else {
-            localStorage.removeItem('admin_session');
-          }
-        }
-      } catch (error) {
-        console.error('Error checking admin session:', error);
-        localStorage.removeItem('admin_session');
-      }
-      setCheckingSession(false);
-    };
+    loadStats();
+  }, []);
 
-    if (!authLoading) {
-      checkAdminSession();
-    }
-  }, [authLoading, router]);
-
-  useEffect(() => {
-    if (!authLoading && profile && !profile.is_admin) {
-      setError('Access Denied: You do not have admin privileges');
-    }
-  }, [profile, authLoading]);
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
+  const loadStats = async () => {
     try {
-      const trimmedId = adminId.trim();
-      const trimmedPassword = adminPassword.trim();
+      // Get user count
+      const { count: userCount } = await supabase
+        .from('users')
+        .select('*', { count: 'exact', head: true });
 
-      const { data: adminAccount, error: queryError } = await supabase
-        .from('admin_accounts')
-        .select('*')
-        .eq('admin_id', trimmedId)
-        .eq('admin_password', trimmedPassword)
-        .eq('is_active', true)
-        .single();
+      // Get tournament counts
+      const { data: tournaments } = await supabase
+        .from('tournaments')
+        .select('status, entry_fee');
 
-      if (queryError || !adminAccount) {
-        setError('Invalid Admin ID or Password');
-        setLoading(false);
-        return;
-      }
+      const upcomingCount = tournaments?.filter(t => t.status === 'upcoming').length || 0;
+      const liveCount = tournaments?.filter(t => t.status === 'live').length || 0;
+      const completedCount = tournaments?.filter(t => t.status === 'completed').length || 0;
 
-      await supabase
-        .from('admin_accounts')
-        .update({ last_login: new Date().toISOString() })
-        .eq('id', adminAccount.id);
+      // Calculate revenue
+      const revenue = tournaments?.reduce((sum, t) => {
+        return sum + parseFloat(t.entry_fee || 0);
+      }, 0) || 0;
 
-      const adminSession = {
-        adminAccountId: adminAccount.id,
-        permissions: adminAccount.permissions,
-        loginTime: new Date().toISOString(),
-      };
-
-      localStorage.setItem('admin_session', JSON.stringify(adminSession));
-      window.location.href = '/admin/dashboard';
+      setStats({
+        totalUsers: userCount || 0,
+        totalTournaments: tournaments?.length || 0,
+        upcomingTournaments: upcomingCount,
+        liveTournaments: liveCount,
+        completedTournaments: completedCount,
+        totalRevenue: revenue,
+        totalGuilds: 4
+      });
     } catch (error) {
-      console.error('Admin login error:', error);
-      setError('Login failed: ' + error.message);
+      console.error('Error loading stats:', error);
+    } finally {
       setLoading(false);
     }
   };
 
-  if (authLoading || checkingSession) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-discord-darkest flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto mb-4"></div>
-          <p className="text-discord-text">Loading...</p>
+      <AdminLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
         </div>
-      </div>
-    );
-  }
-
-  if (!profile?.is_admin) {
-    return (
-      <div className="min-h-screen bg-discord-darkest flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-discord-dark rounded-xl p-8 border border-red-500">
-          <div className="text-center">
-            <FaShieldAlt className="text-6xl text-red-500 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-white mb-2">Access Denied</h1>
-            <p className="text-discord-text mb-6">
-              You do not have administrator privileges.
-            </p>
-            <button
-              onClick={() => router.push('/')}
-              className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-bold transition-all"
-            >
-              Return Home
-            </button>
-          </div>
-        </div>
-      </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-discord-darkest flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
-        <div className="bg-discord-dark rounded-xl p-8 border border-gray-800">
-          <div className="text-center mb-8">
-            <div className="w-20 h-20 bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <FaLock className="text-white text-4xl" />
-            </div>
-            <h1 className="text-3xl font-bold text-white mb-2">Admin Panel</h1>
-            <p className="text-discord-text">Enter your admin credentials</p>
-          </div>
+    <AdminLayout>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-white mb-2">Dashboard Overview</h1>
+        <p className="text-discord-text">Welcome to WarriorPixel Admin Panel</p>
+      </div>
 
-          <div className="mb-6 p-4 bg-white bg-opacity-5 rounded-lg">
-            <p className="text-sm text-discord-text">Logged in as:</p>
-            <p className="font-semibold text-white">{profile.username}</p>
-            <p className="text-xs text-discord-text">{profile.uid}</p>
-          </div>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="bg-discord-dark border border-gray-800 rounded-xl p-6 hover:border-purple-600 transition-all">
+          <FaUsers className="text-4xl text-purple-400 mb-3" />
+          <p className="text-sm text-discord-text mb-1">Total Users</p>
+          <p className="text-3xl font-bold text-white">{stats.totalUsers}</p>
+        </div>
 
-          {error && (
-            <div className="mb-6 p-4 bg-red-500 bg-opacity-10 border border-red-500 rounded-lg">
-              <p className="text-red-500 text-sm font-semibold">Error:</p>
-              <p className="text-red-400 text-sm">{error}</p>
-            </div>
-          )}
+        <div className="bg-discord-dark border border-gray-800 rounded-xl p-6 hover:border-yellow-600 transition-all">
+          <FaTrophy className="text-4xl text-yellow-400 mb-3" />
+          <p className="text-sm text-discord-text mb-1">Total Tournaments</p>
+          <p className="text-3xl font-bold text-white">{stats.totalTournaments}</p>
+        </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-discord-text mb-2">
-                <FaUser className="inline mr-2" />
-                Admin ID
-              </label>
-              <input
-                type="text"
-                value={adminId}
-                onChange={(e) => setAdminId(e.target.value)}
-                placeholder="Enter admin ID"
-                className="w-full px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-500"
-                required
-                disabled={loading}
-                autoComplete="off"
-              />
-            </div>
+        <div className="bg-discord-dark border border-gray-800 rounded-xl p-6 hover:border-green-600 transition-all">
+          <FaMoneyBillWave className="text-4xl text-green-400 mb-3" />
+          <p className="text-sm text-discord-text mb-1">Total Revenue</p>
+          <p className="text-3xl font-bold text-white">₹{stats.totalRevenue.toFixed(0)}</p>
+        </div>
 
-            <div>
-              <label className="block text-sm font-medium text-discord-text mb-2">
-                <FaKey className="inline mr-2" />
-                Admin Password
-              </label>
-              <input
-                type="password"
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                placeholder="Enter admin password"
-                className="w-full px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-500"
-                required
-                disabled={loading}
-                autoComplete="off"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  Verifying...
-                </span>
-              ) : (
-                'Access Admin Panel'
-              )}
-            </button>
-          </form>
-
-          <div className="mt-6 p-4 bg-blue-500 bg-opacity-10 border border-blue-500 rounded-lg">
-            <p className="text-blue-400 text-xs font-semibold">🔒 Secure Access</p>
-            <p className="text-discord-text text-xs mt-1">
-              This panel requires separate admin authentication. All actions are logged.
-            </p>
-          </div>
+        <div className="bg-discord-dark border border-gray-800 rounded-xl p-6 hover:border-blue-600 transition-all">
+          <FaShieldAlt className="text-4xl text-blue-400 mb-3" />
+          <p className="text-sm text-discord-text mb-1">Active Guilds</p>
+          <p className="text-3xl font-bold text-white">{stats.totalGuilds}</p>
         </div>
       </div>
-    </div>
+
+      {/* Tournament Status */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-blue-600 bg-opacity-10 border border-blue-600 rounded-xl p-6">
+          <h3 className="text-lg font-bold text-white mb-2">Upcoming</h3>
+          <p className="text-4xl font-bold text-blue-400">{stats.upcomingTournaments}</p>
+        </div>
+        <div className="bg-green-600 bg-opacity-10 border border-green-600 rounded-xl p-6">
+          <h3 className="text-lg font-bold text-white mb-2">Live Now</h3>
+          <p className="text-4xl font-bold text-green-400">{stats.liveTournaments}</p>
+        </div>
+        <div className="bg-gray-600 bg-opacity-10 border border-gray-600 rounded-xl p-6">
+          <h3 className="text-lg font-bold text-white mb-2">Completed</h3>
+          <p className="text-4xl font-bold text-gray-400">{stats.completedTournaments}</p>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="bg-discord-dark border border-gray-800 rounded-xl p-6">
+        <h2 className="text-xl font-bold text-white mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <button
+            onClick={() => router.push('/admin/tournaments/create')}
+            className="px-6 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-all"
+          >
+            Create Tournament
+          </button>
+          <button
+            onClick={() => router.push('/admin/users')}
+            className="px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all"
+          >
+            Manage Users
+          </button>
+          <button
+            onClick={() => router.push('/admin/guilds')}
+            className="px-6 py-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-all"
+          >
+            Manage Guilds
+          </button>
+          <button
+            onClick={() => router.push('/admin/announcements')}
+            className="px-6 py-4 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold transition-all"
+          >
+            Send Announcement
+          </button>
+        </div>
+      </div>
+    </AdminLayout>
   );
-                }
+}
