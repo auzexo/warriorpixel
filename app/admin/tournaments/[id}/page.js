@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { FaTrophy, FaArrowLeft, FaUsers, FaMoneyBillWave, FaSkull, FaCrown, FaCheckCircle, FaHashtag, FaCopy } from 'react-icons/fa';
+import { FaTrophy, FaArrowLeft, FaUsers, FaMoneyBillWave, FaSkull, FaCrown, FaCheckCircle, FaHashtag } from 'react-icons/fa';
 
 export default function TournamentManagePage() {
   const params = useParams();
@@ -13,7 +13,6 @@ export default function TournamentManagePage() {
   const [preset, setPreset] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [booyahWinner, setBooyahWinner] = useState(null);
   const [first, setFirst] = useState(null);
   const [second, setSecond] = useState(null);
@@ -22,12 +21,14 @@ export default function TournamentManagePage() {
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
-    loadTournamentDetails();
+    if (params.id) {
+      loadData();
+    }
   }, [params.id]);
 
-  const loadTournamentDetails = async () => {
+  const loadData = async () => {
     try {
-      setError(null);
+      console.log('Loading tournament ID:', params.id);
 
       const { data: tournamentData, error: tournamentError } = await supabase
         .from('tournaments')
@@ -35,7 +36,12 @@ export default function TournamentManagePage() {
         .eq('id', params.id)
         .single();
 
-      if (tournamentError) throw new Error('Tournament not found');
+      if (tournamentError) {
+        console.error('Tournament error:', tournamentError);
+        throw new Error('Tournament not found');
+      }
+
+      console.log('Tournament loaded:', tournamentData);
       setTournament(tournamentData);
 
       if (tournamentData.preset_id) {
@@ -44,23 +50,21 @@ export default function TournamentManagePage() {
           .select('*')
           .eq('id', tournamentData.preset_id)
           .single();
-
+        
         if (presetData) setPreset(presetData);
       }
 
-      const { data: participantsData, error: participantsError } = await supabase
+      const { data: participantsData } = await supabase
         .from('tournament_participants')
         .select('*')
         .eq('tournament_id', params.id)
         .order('seat_number', { ascending: true });
 
-      if (participantsError) throw new Error('Failed to load participants');
-
       const participantsWithUsers = await Promise.all(
         (participantsData || []).map(async (participant) => {
           const { data: userData } = await supabase
             .from('users')
-            .select('id, username, email, wallet_real, total_wins, total_games')
+            .select('id, username, email, wallet_real')
             .eq('id', participant.user_id)
             .single();
 
@@ -89,7 +93,7 @@ export default function TournamentManagePage() {
 
     } catch (error) {
       console.error('Error:', error);
-      setError(error.message);
+      alert('Error loading tournament: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -103,24 +107,19 @@ export default function TournamentManagePage() {
     }));
   };
 
-  const copyTournamentId = () => {
-    navigator.clipboard.writeText(`TID-${tournament.id}`);
-    alert('Tournament ID copied!');
-  };
-
-  const saveAllResults = async () => {
+  const saveResults = async () => {
     if (!booyahWinner) {
-      alert('❌ Please select the Booyah winner (Win Tag)');
+      alert('❌ Please select the Booyah winner');
       return;
     }
 
     const isPreset6 = preset?.preset_number === 6;
     if (isPreset6 && (!first || !second || !third)) {
-      alert('❌ Preset 6 requires 1st, 2nd, and 3rd place selection');
+      alert('❌ Preset 6 requires 1st, 2nd, and 3rd place');
       return;
     }
 
-    if (!confirm('Distribute prizes and complete tournament?\n\nThis cannot be undone!')) {
+    if (!confirm('Distribute prizes?\n\nThis cannot be undone!')) {
       return;
     }
 
@@ -129,7 +128,6 @@ export default function TournamentManagePage() {
     try {
       let totalDistributed = 0;
 
-      // Calculate and distribute prizes for each participant
       for (const participant of participants) {
         const kills = killCounts[participant.id] || 0;
         const isBooyah = participant.id === booyahWinner;
@@ -141,70 +139,50 @@ export default function TournamentManagePage() {
         let booyahReward = 0;
         let positionReward = 0;
 
-        // PRESET 6 SPECIAL: 1st/2nd/3rd + Booyah system
         if (isPreset6) {
           if (isFirst) positionReward = 20;
           if (isSecond) positionReward = 15;
           if (isThird) positionReward = 10;
-          if (isBooyah) booyahReward = 5; // Booyah gets additional ₹5
-        } 
-        // ALL OTHER PRESETS (1-5, 7): Kill + Booyah system
-        else if (preset) {
+          if (isBooyah) booyahReward = 5;
+        } else if (preset) {
           killReward = kills * (preset.per_kill_reward || 0);
           booyahReward = isBooyah ? (preset.booyah_reward || 0) : 0;
-        }
-        // CUSTOM TOURNAMENTS: Use tournament's own settings
-        else {
-          // Custom logic can be added here if needed
-          killReward = kills * 0; // Customize as needed
-          booyahReward = isBooyah ? 0 : 0;
         }
 
         const totalPrize = killReward + booyahReward + positionReward;
 
-        // Update participant record
         await supabase
           .from('tournament_participants')
           .update({
             kills: kills,
-            got_booyah: isBooyah, // Only 1 person gets the win tag
+            got_booyah: isBooyah,
             position: isFirst ? 1 : isSecond ? 2 : isThird ? 3 : null,
             prize_won: totalPrize
           })
           .eq('id', participant.id);
 
-        // If prize > 0, distribute rewards
         if (totalPrize > 0) {
           totalDistributed += totalPrize;
-
           const currentWallet = parseFloat(participant.users?.wallet_real) || 0;
-          const currentWins = parseInt(participant.users?.total_wins) || 0;
-          const currentGames = parseInt(participant.users?.total_games) || 0;
-
           const newBalance = currentWallet + totalPrize;
-          const newWins = isBooyah ? currentWins + 1 : currentWins; // Only booyah winner gets win count
-          const newGames = currentGames + 1;
 
-          // Update user wallet and stats
           await supabase
             .from('users')
             .update({
               wallet_real: newBalance,
-              total_wins: newWins,
-              total_games: newGames
+              total_wins: isBooyah ? (participant.users.total_wins || 0) + 1 : (participant.users.total_wins || 0),
+              total_games: (participant.users.total_games || 0) + 1
             })
             .eq('id', participant.user_id);
 
-          // Build transaction description
           let description = `${tournament.title}`;
           if (kills > 0) description += ` | ${kills} Kills: ₹${killReward}`;
           if (isBooyah) description += ` | Booyah: ₹${booyahReward}`;
           if (positionReward > 0) {
             const pos = isFirst ? '1st' : isSecond ? '2nd' : '3rd';
-            description += ` | ${pos} Place: ₹${positionReward}`;
+            description += ` | ${pos}: ₹${positionReward}`;
           }
 
-          // Record transaction
           await supabase.from('transactions').insert({
             user_id: participant.user_id,
             type: 'tournament_win',
@@ -214,10 +192,9 @@ export default function TournamentManagePage() {
             tournament_id: tournament.id
           });
 
-          // Send notification
           await supabase.from('notifications').insert({
             user_id: participant.user_id,
-            title: `🎉 Tournament Rewards`,
+            title: '🎉 Tournament Rewards',
             message: `You earned ₹${totalPrize.toFixed(2)} from ${tournament.title}!`,
             type: 'tournament_win',
             read: false
@@ -225,7 +202,6 @@ export default function TournamentManagePage() {
         }
       }
 
-      // Update tournament status
       await supabase
         .from('tournaments')
         .update({ 
@@ -234,11 +210,11 @@ export default function TournamentManagePage() {
         })
         .eq('id', tournament.id);
 
-      alert(`✅ Prizes distributed successfully!\n\nTotal: ₹${totalDistributed.toFixed(2)}`);
+      alert(`✅ Prizes distributed!\nTotal: ₹${totalDistributed.toFixed(2)}`);
       router.push('/admin/tournaments');
 
     } catch (error) {
-      console.error('❌ Error:', error);
+      console.error('Error:', error);
       alert('❌ Error: ' + error.message);
     } finally {
       setProcessing(false);
@@ -255,18 +231,18 @@ export default function TournamentManagePage() {
     );
   }
 
-  if (error || !tournament) {
+  if (!tournament) {
     return (
       <AdminLayout>
-        <div className="max-w-2xl mx-auto mt-12">
-          <div className="bg-red-600 bg-opacity-10 border border-red-600 rounded-xl p-8 text-center">
-            <p className="text-2xl font-bold text-white mb-2">Error</p>
-            <p className="text-red-400 mb-6">{error || 'Tournament not found'}</p>
+        <div className="max-w-2xl mx-auto mt-12 text-center">
+          <div className="bg-red-600 bg-opacity-10 border border-red-600 rounded-xl p-8">
+            <p className="text-2xl font-bold text-white mb-2">Tournament Not Found</p>
+            <p className="text-red-400 mb-6">Tournament ID: {params.id}</p>
             <button
               onClick={() => router.push('/admin/tournaments')}
-              className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-semibold"
+              className="px-6 py-3 bg-gray-700 text-white rounded-lg font-semibold"
             >
-              ← Back
+              ← Back to Tournaments
             </button>
           </div>
         </div>
@@ -279,38 +255,19 @@ export default function TournamentManagePage() {
 
   return (
     <AdminLayout>
-      {/* Header */}
       <div className="mb-6">
         <button
           onClick={() => router.push('/admin/tournaments')}
-          className="flex items-center gap-2 text-discord-text hover:text-white mb-4 transition-all"
+          className="flex items-center gap-2 text-discord-text hover:text-white mb-4"
         >
           <FaArrowLeft />
           Back
         </button>
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-2">{tournament.title}</h1>
-            <div className="flex items-center gap-4 flex-wrap">
-              <p className="text-discord-text">{tournament.game}</p>
-              {preset && <p className="text-discord-text">• {preset.name}</p>}
-              <button
-                onClick={copyTournamentId}
-                className="flex items-center gap-2 text-purple-400 hover:text-purple-300 text-sm transition-all"
-              >
-                <FaHashtag className="text-xs" />
-                <span className="font-mono font-bold">TID-{tournament.id}</span>
-                <FaCopy className="text-xs" />
-              </button>
-            </div>
-          </div>
-          <span className={`px-4 py-2 rounded-lg font-bold uppercase ${
-            tournament.status === 'upcoming' ? 'bg-blue-600' :
-            tournament.status === 'live' ? 'bg-green-600' :
-            'bg-gray-600'
-          } text-white`}>
-            {tournament.status}
-          </span>
+        <h1 className="text-3xl font-bold text-white mb-2">{tournament.title}</h1>
+        <div className="flex items-center gap-4">
+          <p className="text-discord-text">{tournament.game}</p>
+          {preset && <p className="text-discord-text">• {preset.name}</p>}
+          <p className="text-discord-text font-mono">• TID-{tournament.id}</p>
         </div>
       </div>
 
@@ -372,13 +329,13 @@ export default function TournamentManagePage() {
         <div className="bg-discord-dark border border-gray-800 rounded-xl p-6 mb-8">
           <h2 className="text-xl font-bold text-white mb-6">Manage Results</h2>
 
-          {/* Booyah Winner (WIN TAG) */}
+          {/* Booyah Winner */}
           <div className="bg-gradient-to-br from-yellow-600 to-yellow-800 rounded-xl p-6 mb-6">
             <div className="flex items-center gap-3 mb-4">
               <FaCrown className="text-3xl text-white" />
               <div>
                 <h3 className="text-xl font-bold text-white">Booyah Winner (Win Tag)</h3>
-                <p className="text-yellow-100 text-sm">Winner gets booyah reward + win count</p>
+                <p className="text-yellow-100 text-sm">Only 1 person gets win tag + booyah reward</p>
               </div>
             </div>
             <select
@@ -386,7 +343,7 @@ export default function TournamentManagePage() {
               onChange={(e) => setBooyahWinner(e.target.value)}
               className="w-full px-4 py-3 bg-yellow-900 bg-opacity-30 border border-yellow-400 rounded-lg text-white font-semibold"
             >
-              <option value="">-- Select Booyah Winner --</option>
+              <option value="">-- Select Winner --</option>
               {participants.map(p => (
                 <option key={p.id} value={p.id}>
                   Seat {p.seat_number} - {p.users?.username || p.in_game_name} ({p.in_game_id})
@@ -440,7 +397,7 @@ export default function TournamentManagePage() {
             </div>
           )}
 
-          {/* Kill Entry (for non-preset6) */}
+          {/* Kill Entry */}
           {!isPreset6 && preset?.per_kill_reward > 0 && (
             <div className="bg-discord-darkest rounded-xl p-6 border border-gray-700 mb-6">
               <h3 className="font-bold text-white mb-4">Enter Kills (₹{preset.per_kill_reward} per kill)</h3>
@@ -472,22 +429,22 @@ export default function TournamentManagePage() {
 
           {/* Save Button */}
           <button
-            onClick={saveAllResults}
+            onClick={saveResults}
             disabled={!booyahWinner || processing}
-            className="w-full px-6 py-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-lg font-bold text-lg flex items-center justify-center gap-2"
+            className="w-full px-6 py-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-700 text-white rounded-lg font-bold text-lg flex items-center justify-center gap-2"
           >
             <FaCheckCircle />
-            {processing ? 'Processing...' : 'Save All & Distribute Prizes'}
+            {processing ? 'Processing...' : 'Save & Distribute Prizes'}
           </button>
         </div>
       )}
 
-      {/* Participants List */}
+      {/* Participants */}
       <div className="bg-discord-dark border border-gray-800 rounded-xl p-6">
         <h2 className="text-xl font-bold text-white mb-4">Participants ({participants.length})</h2>
         <div className="space-y-2">
           {participants.length === 0 ? (
-            <p className="text-center text-discord-text py-8">No participants yet</p>
+            <p className="text-center text-discord-text py-8">No participants</p>
           ) : (
             participants.map(p => (
               <div key={p.id} className="bg-discord-darkest border border-gray-700 rounded-lg p-3 flex items-center justify-between">
@@ -503,7 +460,7 @@ export default function TournamentManagePage() {
                 </div>
                 <div className="flex items-center gap-3">
                   {p.kills > 0 && <span className="text-white text-sm">{p.kills} kills</span>}
-                  {p.got_booyah && <FaCrown className="text-yellow-400" title="Booyah Winner" />}
+                  {p.got_booyah && <FaCrown className="text-yellow-400" />}
                   {p.prize_won > 0 && <span className="text-green-400 font-bold text-sm">₹{parseFloat(p.prize_won).toFixed(2)}</span>}
                 </div>
               </div>
