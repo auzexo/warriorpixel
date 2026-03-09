@@ -5,7 +5,6 @@ import { FaUserShield, FaArrowLeft } from 'react-icons/fa';
 export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-discord-darkest">
-      {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-8 md:p-12 rounded-2xl mb-8 border border-blue-500">
         <div className="flex items-center gap-4 mb-4">
           <div className="w-16 h-16 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
@@ -29,7 +28,6 @@ export default function PrivacyPage() {
         </a>
       </div>
 
-      {/* Content */}
       <div className="bg-discord-dark border border-gray-800 rounded-2xl p-8 md:p-12 max-w-4xl mx-auto">
         <div className="prose prose-invert max-w-none">
           <section className="mb-8">
@@ -175,7 +173,7 @@ export default function PrivacyPage() {
             </ul>
           </section>
 
-          ection className="mb-8">
+          <section className="mb-8">
             <h2 className="text-2xl font-bold text-white mb-4">10. International Data Transfers</h2>
             <p className="text-discord-text mb-4">
               Your data is primarily stored on servers in India. If we transfer data internationally, we ensure appropriate safeguards are in place to protect your information.
