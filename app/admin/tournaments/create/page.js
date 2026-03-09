@@ -69,7 +69,7 @@ export default function CreateTournamentPage() {
     e.preventDefault();
 
     if (!formData.title || !formData.start_time) {
-      alert('Please fill in all required fields');
+      alert('Please fill in Tournament Name and Start Time');
       return;
     }
 
@@ -83,21 +83,26 @@ export default function CreateTournamentPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
+      // Build tournament data - only include fields that exist
       const tournamentData = {
-        title: formData.title,
+        title: formData.title.trim(),
         game: formData.game,
-        description: formData.description,
-        rules: formData.rules,
+        description: formData.description.trim(),
+        rules: formData.rules.trim(),
         prize_pool: parseFloat(formData.prize_pool) || 0,
         entry_fee: parseFloat(formData.entry_fee) || 0,
-        max_participants: parseInt(formData.max_participants),
+        max_participants: parseInt(formData.max_participants) || 50,
         start_time: formData.start_time,
-        status: formData.status,
-        room_id: formData.room_id || null,
-        room_password: formData.room_password || null,
-        created_by: user?.id,
-        preset_id: usePreset ? selectedPreset?.id : null
+        status: formData.status
       };
+
+      // Add optional fields only if they have values
+      if (formData.room_id) tournamentData.room_id = formData.room_id.trim();
+      if (formData.room_password) tournamentData.room_password = formData.room_password.trim();
+      if (usePreset && selectedPreset) tournamentData.preset_id = selectedPreset.id;
+      if (user?.id) tournamentData.created_by = user.id;
+
+      console.log('Creating tournament with data:', tournamentData);
 
       const { data, error } = await supabase
         .from('tournaments')
@@ -105,13 +110,16 @@ export default function CreateTournamentPage() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
-      alert('Tournament created successfully!');
+      alert('✅ Tournament created successfully!');
       router.push('/admin/tournaments');
     } catch (error) {
       console.error('Error creating tournament:', error);
-      alert('Error: ' + error.message);
+      alert('❌ Error: ' + error.message);
     } finally {
       setCreating(false);
     }
@@ -203,6 +211,7 @@ export default function CreateTournamentPage() {
                       <p className="text-green-400">Type: {selectedPreset.is_free ? 'FREE' : 'PAID'}</p>
                     </div>
                   </div>
+                  <p className="text-green-400 text-xs mt-2">{selectedPreset.description_template}</p>
                 </div>
               )}
             </div>
@@ -274,6 +283,7 @@ export default function CreateTournamentPage() {
                   <label className="block text-white font-semibold mb-2">Prize Pool (₹)</label>
                   <input
                     type="number"
+                    step="0.01"
                     value={formData.prize_pool}
                     onChange={(e) => setFormData({...formData, prize_pool: e.target.value})}
                     placeholder="1000"
@@ -285,6 +295,7 @@ export default function CreateTournamentPage() {
                   <label className="block text-white font-semibold mb-2">Entry Fee (₹)</label>
                   <input
                     type="number"
+                    step="0.01"
                     value={formData.entry_fee}
                     onChange={(e) => setFormData({...formData, entry_fee: e.target.value})}
                     placeholder="10"
@@ -327,7 +338,6 @@ export default function CreateTournamentPage() {
               >
                 <option value="upcoming">Upcoming</option>
                 <option value="live">Live</option>
-                <option value="completed">Completed</option>
               </select>
             </div>
           </div>
@@ -336,7 +346,7 @@ export default function CreateTournamentPage() {
         {/* Room Details */}
         <div className="bg-discord-dark border border-gray-800 rounded-xl p-6">
           <h2 className="text-xl font-bold text-white mb-2">🎮 Room Details</h2>
-          <p className="text-discord-text text-sm mb-4">Can be added now or later (5 min before start)</p>
+          <p className="text-discord-text text-sm mb-4">Optional - Can be added later</p>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
