@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { FaTrophy, FaArrowLeft, FaUsers, FaMoneyBillWave, FaSkull, FaCrown, FaCheckCircle } from 'react-icons/fa';
+import { FaTrophy, FaArrowLeft, FaUsers, FaMoneyBillWave, FaSkull, FaCrown, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
 
 export default function ManageTournamentPage() {
   const params = useParams();
@@ -92,25 +92,32 @@ export default function ManageTournamentPage() {
 
   const saveResults = async () => {
     if (!booyahWinner) {
-      alert('❌ Select booyah winner');
+      alert('❌ Please select the booyah winner first!');
       return;
     }
 
     const isPreset6 = preset?.preset_number === 6;
     if (isPreset6 && (!first || !second || !third)) {
-      alert('❌ Preset 6 needs 1st/2nd/3rd');
+      alert('❌ Preset 6 requires 1st, 2nd, and 3rd place selections!');
       return;
     }
 
-    if (!confirm('Distribute prizes? This cannot be undone!')) return;
+    if (!confirm('⚠️ CONFIRM PRIZE DISTRIBUTION\n\nThis action will:\n• Distribute all prizes\n• Update player stats\n• Mark tournament as completed\n\nThis CANNOT be undone!\n\nContinue?')) {
+      return;
+    }
 
     setProcessing(true);
 
     try {
-      console.log('Starting prize distribution...');
+      console.log('🚀 Starting prize distribution...');
+      console.log('Tournament ID:', tournament.id);
+      console.log('Preset:', preset);
+      
       let totalDistributed = 0;
+      const updateResults = [];
 
       for (const participant of participants) {
+        // ENSURE CORRECT DATA TYPES
         const kills = parseInt(killCounts[participant.id]) || 0;
         const isBooyah = participant.id === booyahWinner;
         const isFirst = participant.id === first;
@@ -121,50 +128,65 @@ export default function ManageTournamentPage() {
         let booyahReward = 0;
         let positionReward = 0;
 
-        // Calculate rewards based on preset
+        // Calculate rewards
         if (isPreset6) {
           if (isFirst) positionReward = 20;
           if (isSecond) positionReward = 15;
           if (isThird) positionReward = 10;
           if (isBooyah) booyahReward = 5;
         } else if (preset) {
-          killReward = kills * (preset.per_kill_reward || 0);
-          booyahReward = isBooyah ? (preset.booyah_reward || 0) : 0;
+          killReward = kills * (parseFloat(preset.per_kill_reward) || 0);
+          booyahReward = isBooyah ? (parseFloat(preset.booyah_reward) || 0) : 0;
         }
 
-        const totalPrize = killReward + booyahReward + positionReward;
+        const totalPrize = parseFloat((killReward + booyahReward + positionReward).toFixed(2));
 
-        console.log(`Updating participant ${participant.users?.username}:`, {
-          kills,
-          got_booyah: isBooyah,
-          position: isFirst ? 1 : isSecond ? 2 : isThird ? 3 : null,
-          prize_won: totalPrize
-        });
+        console.log(`\n📝 Processing ${participant.users?.username}:`);
+        console.log(`  - Kills: ${kills} (type: ${typeof kills})`);
+        console.log(`  - Got Booyah: ${isBooyah} (type: ${typeof isBooyah})`);
+        console.log(`  - Position: ${isFirst ? 1 : isSecond ? 2 : isThird ? 3 : null}`);
+        console.log(`  - Prize: ₹${totalPrize}`);
 
-        // UPDATE PARTICIPANT RECORD - THIS IS CRITICAL
-        const { error: updateError } = await supabase
+        // UPDATE PARTICIPANT - WITH EXPLICIT DATA TYPES
+        const updateData = {
+          kills: kills,  // INTEGER
+          got_booyah: isBooyah,  // BOOLEAN
+          position: isFirst ? 1 : isSecond ? 2 : isThird ? 3 : null,  // INTEGER or NULL
+          prize_won: totalPrize  // DECIMAL
+        };
+
+        console.log('  - Update data:', updateData);
+
+        const { data: updatedParticipant, error: updateError } = await supabase
           .from('tournament_participants')
-          .update({
-            kills: kills,
-            got_booyah: isBooyah,
-            position: isFirst ? 1 : isSecond ? 2 : isThird ? 3 : null,
-            prize_won: totalPrize,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', participant.id);
+          .update(updateData)
+          .eq('id', participant.id)
+          .select()
+          .single();
 
         if (updateError) {
-          console.error('Update error for participant:', updateError);
-          throw new Error(`Failed to update participant: ${updateError.message}`);
+          console.error('❌ Update error:', updateError);
+          throw new Error(`Failed to update ${participant.users?.username}: ${updateError.message}`);
         }
 
-        console.log(`✅ Updated participant ${participant.users?.username}`);
+        console.log('  ✅ Database updated successfully');
+        console.log('  - Returned data:', updatedParticipant);
+        
+        updateResults.push({
+          username: participant.users?.username,
+          kills: updatedParticipant.kills,
+          got_booyah: updatedParticipant.got_booyah,
+          prize_won: updatedParticipant.prize_won
+        });
 
         // Award prize money
         if (totalPrize > 0) {
           totalDistributed += totalPrize;
-          const newBalance = parseFloat(participant.users.wallet_real || 0) + totalPrize;
+          const currentBalance = parseFloat(participant.users.wallet_real || 0);
+          const newBalance = parseFloat((currentBalance + totalPrize).toFixed(2));
           
+          console.log(`  💰 Wallet: ₹${currentBalance} → ₹${newBalance}`);
+
           const { error: walletError } = await supabase
             .from('users')
             .update({
@@ -175,14 +197,18 @@ export default function ManageTournamentPage() {
             .eq('id', participant.user_id);
 
           if (walletError) {
-            console.error('Wallet error:', walletError);
+            console.error('  ⚠️ Wallet error:', walletError);
+          } else {
+            console.log('  ✅ Wallet updated');
           }
 
+          // Transaction description
           let desc = tournament.title;
-          if (kills > 0) desc += ` | ${kills} Kills: ₹${killReward}`;
-          if (isBooyah) desc += ` | Booyah: ₹${booyahReward}`;
-          if (positionReward > 0) desc += ` | Position: ₹${positionReward}`;
+          if (kills > 0) desc += ` | ${kills} Kills: ₹${killReward.toFixed(2)}`;
+          if (isBooyah) desc += ` | Booyah: ₹${booyahReward.toFixed(2)}`;
+          if (positionReward > 0) desc += ` | Position: ₹${positionReward.toFixed(2)}`;
 
+          // Record transaction
           await supabase.from('transactions').insert({
             user_id: participant.user_id,
             type: 'tournament_win',
@@ -192,32 +218,48 @@ export default function ManageTournamentPage() {
             tournament_id: tournament.id
           });
 
+          // Send notification
           await supabase.from('notifications').insert({
             user_id: participant.user_id,
             title: '🎉 Tournament Rewards',
-            message: `You earned ₹${totalPrize.toFixed(2)} from ${tournament.title}!`,
+            message: `You earned ₹${totalPrize.toFixed(2)} from ${tournament.title}!${kills > 0 ? ` (${kills} kills)` : ''}${isBooyah ? ' 👑 Booyah!' : ''}`,
             type: 'tournament_win',
             read: false
           });
+
+          console.log('  ✅ Transaction & notification sent');
         }
       }
 
       // Mark tournament as completed
-      await supabase
+      const { error: tournamentUpdateError } = await supabase
         .from('tournaments')
         .update({ 
           status: 'completed',
-          distributed_prizes: totalDistributed,
-          updated_at: new Date().toISOString()
+          distributed_prizes: totalDistributed
         })
         .eq('id', tournament.id);
 
-      console.log('✅ All prizes distributed!');
-      alert(`✅ Prizes distributed!\n\nTotal: ₹${totalDistributed.toFixed(2)}`);
+      if (tournamentUpdateError) {
+        console.error('Tournament update error:', tournamentUpdateError);
+      }
+
+      console.log('\n✅ ALL PRIZES DISTRIBUTED!');
+      console.log('Update summary:', updateResults);
+      console.log(`Total distributed: ₹${totalDistributed.toFixed(2)}`);
+
+      alert(
+        `✅ PRIZES DISTRIBUTED SUCCESSFULLY!\n\n` +
+        `Total: ₹${totalDistributed.toFixed(2)}\n` +
+        `Players: ${updateResults.length}\n` +
+        `Booyah Winner: ${participants.find(p => p.id === booyahWinner)?.users?.username}\n\n` +
+        `Check browser console for detailed logs.`
+      );
+      
       router.push('/admin/tournaments');
     } catch (error) {
-      console.error('❌ Distribution error:', error);
-      alert('❌ Error: ' + error.message);
+      console.error('❌ DISTRIBUTION ERROR:', error);
+      alert(`❌ ERROR DISTRIBUTING PRIZES\n\n${error.message}\n\nCheck browser console for details.`);
     } finally {
       setProcessing(false);
     }
@@ -238,8 +280,8 @@ export default function ManageTournamentPage() {
       <AdminLayout>
         <div className="text-center py-12">
           <p className="text-white text-xl mb-4">Tournament not found</p>
-          <button onClick={() => router.push('/admin/tournaments')} className="px-6 py-3 bg-gray-700 text-white rounded-lg">
-            ← Back
+          <button onClick={() => router.push('/admin/tournaments')} className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600">
+            ← Back to Tournaments
           </button>
         </div>
       </AdminLayout>
@@ -247,19 +289,23 @@ export default function ManageTournamentPage() {
   }
 
   const isPreset6 = preset?.preset_number === 6;
-  const totalKills = Object.values(killCounts).reduce((s, k) => s + k, 0);
+  const totalKills = Object.values(killCounts).reduce((s, k) => s + (parseInt(k) || 0), 0);
 
   return (
     <AdminLayout>
       <div className="mb-6">
-        <button onClick={() => router.push('/admin/tournaments')} className="flex items-center gap-2 text-discord-text hover:text-white mb-4">
-          <FaArrowLeft /> Back
+        <button 
+          onClick={() => router.push('/admin/tournaments')} 
+          className="flex items-center gap-2 text-discord-text hover:text-white mb-4 transition-colors"
+        >
+          <FaArrowLeft /> Back to Tournaments
         </button>
-        <h1 className="text-3xl font-bold text-white">{tournament.title}</h1>
-        <p className="text-discord-text">{tournament.game} • TID-{tournament.id}</p>
+        <h1 className="text-3xl font-bold text-white mb-1">{tournament.title}</h1>
+        <p className="text-discord-text">{tournament.game} • TID-{tournament.id.slice(0, 8)}</p>
       </div>
 
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
           <FaUsers className="text-2xl text-blue-400 mb-2" />
           <p className="text-xs text-discord-text">Participants</p>
@@ -267,77 +313,117 @@ export default function ManageTournamentPage() {
         </div>
         <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
           <FaMoneyBillWave className="text-2xl text-green-400 mb-2" />
-          <p className="text-xs text-discord-text">Entry</p>
-          <p className="text-2xl font-bold text-white">₹{tournament.entry_fee}</p>
+          <p className="text-xs text-discord-text">Entry Fee</p>
+          <p className="text-2xl font-bold text-white">₹{parseFloat(tournament.entry_fee).toFixed(0)}</p>
         </div>
         <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
           <FaSkull className="text-2xl text-red-400 mb-2" />
-          <p className="text-xs text-discord-text">Kills</p>
+          <p className="text-xs text-discord-text">Total Kills</p>
           <p className="text-2xl font-bold text-white">{totalKills}</p>
         </div>
         <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
           <FaTrophy className="text-2xl text-yellow-400 mb-2" />
-          <p className="text-xs text-discord-text">Prize</p>
-          <p className="text-2xl font-bold text-green-400">₹{tournament.prize_pool}</p>
+          <p className="text-xs text-discord-text">Prize Pool</p>
+          <p className="text-2xl font-bold text-green-400">₹{parseFloat(tournament.prize_pool).toFixed(0)}</p>
         </div>
       </div>
 
+      {/* Manage Results Section */}
       {tournament.status !== 'completed' && (
         <div className="bg-discord-dark border border-gray-800 rounded-xl p-6 mb-8">
-          <h2 className="text-xl font-bold text-white mb-6">Manage Results</h2>
+          <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+            <FaTrophy className="text-yellow-400" />
+            Manage Tournament Results
+          </h2>
 
+          {/* Booyah Winner Selection */}
           <div className="bg-gradient-to-br from-yellow-600 to-yellow-800 rounded-xl p-6 mb-6">
-            <h3 className="text-xl font-bold text-white mb-4">👑 Booyah Winner (Win Tag)</h3>
+            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+              <FaCrown />
+              Booyah Winner (Win Tag)
+            </h3>
             <select
               value={booyahWinner || ''}
               onChange={(e) => setBooyahWinner(e.target.value)}
-              className="w-full px-4 py-3 bg-yellow-900 bg-opacity-30 border border-yellow-400 rounded-lg text-white"
+              className="w-full px-4 py-3 bg-yellow-900 bg-opacity-30 border border-yellow-400 rounded-lg text-white font-semibold focus:outline-none focus:ring-2 focus:ring-yellow-300"
             >
-              <option value="">-- Select Winner --</option>
+              <option value="">-- Select Booyah Winner --</option>
               {participants.map(p => (
-                <option key={p.id} value={p.id}>Seat {p.seat_number} - {p.users?.username}</option>
+                <option key={p.id} value={p.id}>
+                  Seat #{p.seat_number} - {p.users?.username} ({p.in_game_name})
+                </option>
               ))}
             </select>
           </div>
 
+          {/* Preset 6 Position Selection */}
           {isPreset6 && (
-            <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-yellow-600 bg-opacity-10 border border-yellow-600 rounded-xl p-4">
-                <h4 className="font-bold text-white mb-2">🥇 1st (₹20)</h4>
-                <select value={first || ''} onChange={(e) => setFirst(e.target.value)} className="w-full px-3 py-2 bg-discord-darkest text-white rounded-lg">
-                  <option value="">Select</option>
-                  {participants.map(p => <option key={p.id} value={p.id}>Seat {p.seat_number}</option>)}
+                <h4 className="font-bold text-white mb-2 flex items-center gap-2">
+                  🥇 1st Place <span className="text-yellow-400">(₹20)</span>
+                </h4>
+                <select 
+                  value={first || ''} 
+                  onChange={(e) => setFirst(e.target.value)} 
+                  className="w-full px-3 py-2 bg-discord-darkest border border-yellow-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                >
+                  <option value="">Select Player</option>
+                  {participants.map(p => (
+                    <option key={p.id} value={p.id}>Seat #{p.seat_number} - {p.users?.username}</option>
+                  ))}
                 </select>
               </div>
               <div className="bg-gray-600 bg-opacity-10 border border-gray-600 rounded-xl p-4">
-                <h4 className="font-bold text-white mb-2">🥈 2nd (₹15)</h4>
-                <select value={second || ''} onChange={(e) => setSecond(e.target.value)} className="w-full px-3 py-2 bg-discord-darkest text-white rounded-lg">
-                  <option value="">Select</option>
-                  {participants.filter(p => p.id !== first).map(p => <option key={p.id} value={p.id}>Seat {p.seat_number}</option>)}
+                <h4 className="font-bold text-white mb-2 flex items-center gap-2">
+                  🥈 2nd Place <span className="text-gray-400">(₹15)</span>
+                </h4>
+                <select 
+                  value={second || ''} 
+                  onChange={(e) => setSecond(e.target.value)} 
+                  className="w-full px-3 py-2 bg-discord-darkest border border-gray-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
+                >
+                  <option value="">Select Player</option>
+                  {participants.filter(p => p.id !== first).map(p => (
+                    <option key={p.id} value={p.id}>Seat #{p.seat_number} - {p.users?.username}</option>
+                  ))}
                 </select>
               </div>
               <div className="bg-orange-600 bg-opacity-10 border border-orange-600 rounded-xl p-4">
-                <h4 className="font-bold text-white mb-2">🥉 3rd (₹10)</h4>
-                <select value={third || ''} onChange={(e) => setThird(e.target.value)} className="w-full px-3 py-2 bg-discord-darkest text-white rounded-lg">
-                  <option value="">Select</option>
-                  {participants.filter(p => p.id !== first && p.id !== second).map(p => <option key={p.id} value={p.id}>Seat {p.seat_number}</option>)}
+                <h4 className="font-bold text-white mb-2 flex items-center gap-2">
+                  🥉 3rd Place <span className="text-orange-400">(₹10)</span>
+                </h4>
+                <select 
+                  value={third || ''} 
+                  onChange={(e) => setThird(e.target.value)} 
+                  className="w-full px-3 py-2 bg-discord-darkest border border-orange-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+                >
+                  <option value="">Select Player</option>
+                  {participants.filter(p => p.id !== first && p.id !== second).map(p => (
+                    <option key={p.id} value={p.id}>Seat #{p.seat_number} - {p.users?.username}</option>
+                  ))}
                 </select>
               </div>
             </div>
           )}
 
+          {/* Kill Entry Section */}
           {!isPreset6 && preset?.per_kill_reward > 0 && (
             <div className="bg-discord-darkest rounded-xl p-6 mb-6">
-              <h3 className="font-bold text-white mb-4">Kill Entry (₹{preset.per_kill_reward} each)</h3>
+              <h3 className="font-bold text-white mb-4 flex items-center gap-2">
+                <FaSkull className="text-red-400" />
+                Kill Entry <span className="text-red-400">(₹{preset.per_kill_reward} per kill)</span>
+              </h3>
               <div className="space-y-2">
                 {participants.map(p => (
-                  <div key={p.id} className="flex items-center gap-4 bg-discord-dark rounded-lg p-3">
+                  <div key={p.id} className="flex items-center gap-4 bg-discord-dark rounded-lg p-3 hover:bg-gray-800 transition-colors">
                     <div className="w-16 text-center">
                       <p className="text-xs text-discord-text">Seat</p>
                       <p className="font-bold text-purple-400">#{p.seat_number}</p>
                     </div>
                     <div className="flex-1">
-                      <p className="text-white font-semibold text-sm">{p.users?.username}</p>
+                      <p className="text-white font-semibold">{p.users?.username}</p>
+                      <p className="text-xs text-discord-text">{p.in_game_name}</p>
                     </div>
                     <input
                       type="number"
@@ -345,45 +431,75 @@ export default function ManageTournamentPage() {
                       max="50"
                       value={killCounts[p.id] || 0}
                       onChange={(e) => setKillCounts({...killCounts, [p.id]: parseInt(e.target.value) || 0})}
-                      className="w-20 px-3 py-2 bg-discord-darkest text-white rounded-lg text-center"
+                      className="w-20 px-3 py-2 bg-discord-darkest border border-gray-700 text-white rounded-lg text-center focus:outline-none focus:border-purple-600"
                     />
-                    <span className="text-discord-text text-sm">kills</span>
+                    <span className="text-discord-text text-sm w-12">kills</span>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
+          {/* Warning Banner */}
+          {!booyahWinner && (
+            <div className="bg-red-900 bg-opacity-20 border border-red-600 rounded-lg p-4 mb-6 flex items-center gap-3">
+              <FaExclamationTriangle className="text-2xl text-red-400" />
+              <div>
+                <p className="font-bold text-white">Booyah Winner Required</p>
+                <p className="text-sm text-red-300">Please select the booyah winner before distributing prizes</p>
+              </div>
+            </div>
+          )}
+
+          {/* Distribute Button */}
           <button
             onClick={saveResults}
             disabled={!booyahWinner || processing}
-            className="w-full px-6 py-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-700 text-white rounded-lg font-bold flex items-center justify-center gap-2"
+            className="w-full px-6 py-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-lg font-bold flex items-center justify-center gap-2 transition-all"
           >
-            <FaCheckCircle />
-            {processing ? 'Processing...' : 'Distribute Prizes'}
+            {processing ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                Processing...
+              </>
+            ) : (
+              <>
+                <FaCheckCircle />
+                Distribute Prizes
+              </>
+            )}
           </button>
         </div>
       )}
 
+      {/* Participants List */}
       <div className="bg-discord-dark border border-gray-800 rounded-xl p-6">
         <h2 className="text-xl font-bold text-white mb-4">Participants ({participants.length})</h2>
         <div className="space-y-2">
           {participants.map(p => (
-            <div key={p.id} className="bg-discord-darkest rounded-lg p-3 flex items-center justify-between">
+            <div key={p.id} className="bg-discord-darkest rounded-lg p-3 flex items-center justify-between hover:bg-gray-800 transition-colors">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-purple-600 rounded-full flex flex-col items-center justify-center text-white">
+                <div className="w-12 h-12 bg-purple-600 rounded-full flex flex-col items-center justify-center text-white flex-shrink-0">
                   <span className="text-xs">Seat</span>
                   <span className="font-bold">{p.seat_number}</span>
                 </div>
                 <div>
                   <p className="text-white font-semibold">{p.users?.username}</p>
-                  <p className="text-xs text-discord-text">{p.in_game_name}</p>
+                  <p className="text-xs text-discord-text">{p.in_game_name} • UID: {p.in_game_id}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                {p.kills > 0 && <span className="text-white">{p.kills} kills</span>}
-                {p.got_booyah && <FaCrown className="text-yellow-400" />}
-                {p.prize_won > 0 && <span className="text-green-400 font-bold">₹{p.prize_won}</span>}
+                {p.kills > 0 && (
+                  <span className="text-white text-sm bg-red-900 bg-opacity-30 px-2 py-1 rounded">
+                    {p.kills} kills
+                  </span>
+                )}
+                {p.got_booyah && <FaCrown className="text-2xl text-yellow-400" title="Booyah Winner" />}
+                {p.prize_won > 0 && (
+                  <span className="text-green-400 font-bold bg-green-900 bg-opacity-30 px-2 py-1 rounded">
+                    ₹{parseFloat(p.prize_won).toFixed(2)}
+                  </span>
+                )}
               </div>
             </div>
           ))}
