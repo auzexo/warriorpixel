@@ -57,7 +57,17 @@ export default function AdminTournamentsPage() {
   };
 
   const deleteTournament = async (id) => {
-    if (!confirm('Delete this tournament? Cannot be undone!')) return;
+    const tournament = tournaments.find(t => t.id === id);
+  
+    if (!confirm(
+      `⚠️ DELETE TOURNAMENT?\n\n` +
+      `Title: ${tournament?.title || 'Unknown'}\n` +
+      `Participants: ${tournament?.participantCount || 0}\n\n` +
+      `This will permanently remove the tournament and all participant data.\n` +
+      `Transaction history will be preserved.\n\n` +
+      `This action CANNOT be undone!\n\n` +
+      `Continue with deletion?`
+    )) return;
 
     try {
       const { error } = await supabase
@@ -66,11 +76,12 @@ export default function AdminTournamentsPage() {
         .eq('id', id);
 
       if (error) throw error;
-      alert('Tournament deleted');
+
+      alert('✅ Tournament deleted successfully!');
       loadTournaments();
     } catch (error) {
-      console.error('Error:', error);
-      alert('Error: ' + error.message);
+      console.error('❌ Delete error:', error);
+      alert('Error deleting tournament:\n\n' + error.message);
     }
   };
 
@@ -224,7 +235,7 @@ export default function AdminTournamentsPage() {
                     <div>
                       <p className="text-purple-400 mb-1">Min Players</p>
                       <p className="font-bold text-white">{tournament.preset.min_players}</p>
-                    </div>
+                   </div>
                     <div>
                       <p className="text-purple-400 mb-1">Max Players</p>
                       <p className="font-bold text-white">{tournament.preset.max_players}</p>
