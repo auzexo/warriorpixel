@@ -1,235 +1,313 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
-import { FaTrophy, FaLock, FaCheckCircle, FaChess, FaDice, FaFire } from 'react-icons/fa';
+import { useAuth } from '@/hooks/useAuth';
+import { FaTrophy, FaCrown, FaSkull, FaMoneyBillWave, FaLock, FaCheckCircle, FaStar } from 'react-icons/fa';
 
 export default function AchievementsPage() {
-  const { profile } = useAuth();
+  const { user } = useAuth();
   const [achievements, setAchievements] = useState([]);
   const [userAchievements, setUserAchievements] = useState([]);
+  const [userStats, setUserStats] = useState({
+    tournament_joins: 0,
+    tournament_wins: 0,
+    total_kills: 0,
+    total_earnings: 0,
+    achievement_points: 0
+  });
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [filter, setFilter] = useState('all');
 
   useEffect(() => {
-    loadAchievements();
-  }, [profile]);
+    if (user) {
+      loadData();
+    }
+  }, [user]);
 
-  const loadAchievements = async () => {
-    setLoading(true);
-
-    // Get all achievements
-    const { data: allAchievements } = await supabase
-      .from('achievements')
-      .select('*')
-      .order('category', { ascending: true });
-
-    // Get user's achievement progress
-    let userProgress = [];
-    if (profile) {
-      const { data: progress } = await supabase
-        .from('user_achievements')
+  const loadData = async () => {
+    try {
+      // Load all achievements
+      const { data: achievementsData } = await supabase
+        .from('achievements')
         .select('*')
-        .eq('user_id', profile.id);
-      userProgress = progress || [];
+        .order('category', { ascending: true })
+        .order('requirement_value', { ascending: true });
+
+      setAchievements(achievementsData || []);
+
+      // Load user's unlocked achievements
+      const { data: userAchievementsData } = await supabase
+        .from('user_achievements')
+        .select('*, achievement:achievements(*)')
+        .eq('user_id', user.id);
+
+      setUserAchievements(userAchievementsData || []);
+
+      // Load user stats from database
+      const { data: userData } = await supabase
+        .from('users')
+        .select('achievement_points')
+        .eq('id', user.id)
+        .single();
+
+      // Calculate user's current progress
+      const { data: participantsData } = await supabase
+        .from('tournament_participants')
+        .select('got_booyah, kills, prize_won')
+        .eq('user_id', user.id);
+
+      const stats = {
+        tournament_joins: participantsData?.length || 0,
+        tournament_wins: participantsData?.filter(p => p.got_booyah).length || 0,
+        total_kills: participantsData?.reduce((sum, p) => sum + (p.kills || 0), 0) || 0,
+        total_earnings: participantsData?.reduce((sum, p) => sum + (parseFloat(p.prize_won) || 0), 0) || 0,
+        achievement_points: userData?.achievement_points || 0
+      };
+
+      setUserStats(stats);
+    } catch (error) {
+      console.error('Error loading achievements:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const isUnlocked = (achievementId) => {
+    return userAchievements.some(ua => ua.achievement_id === achievementId);
+  };
+
+  const getProgress = (achievement) => {
+    let current = 0;
+    
+    switch (achievement.requirement_type) {
+      case 'tournament_join':
+        current = userStats.tournament_joins;
+        break;
+      case 'tournament_win':
+        current = userStats.tournament_wins;
+        break;
+      case 'total_kills':
+        current = userStats.total_kills;
+        break;
+      case 'total_earnings':
+        current = userStats.total_earnings;
+        break;
+      default:
+        current = 0;
     }
 
-    setAchievements(allAchievements || []);
-    setUserAchievements(userProgress);
-    setLoading(false);
+    const progress = Math.min(100, (current / achievement.requirement_value) * 100);
+    return { current, progress };
   };
 
   const getCategoryIcon = (category) => {
     switch (category) {
-      case 'chess':
-        return FaChess;
-      case 'ludo':
-      case 'snake_ladder':
-        return FaDice;
-      case 'tournament':
-        return FaTrophy;
-      default:
-        return FaFire;
+      case 'tournament': return <FaTrophy className="text-blue-400" />;
+      case 'victory': return <FaCrown className="text-yellow-400" />;
+      case 'combat': return <FaSkull className="text-red-400" />;
+      case 'wealth': return <FaMoneyBillWave className="text-green-400" />;
+      default: return <FaStar className="text-purple-400" />;
     }
   };
 
-  const getCategoryColor = (category) => {
-    switch (category) {
-      case 'chess':
-        return 'from-blue-500 to-cyan-500';
-      case 'ludo':
-        return 'from-green-500 to-emerald-500';
-      case 'snake_ladder':
-        return 'from-yellow-500 to-orange-500';
-      case 'tournament':
-        return 'from-purple-500 to-pink-500';
-      default:
-        return 'from-gray-500 to-gray-600';
-    }
-  };
+  const filteredAchievements = achievements.filter(achievement => {
+    if (filter === 'unlocked') return isUnlocked(achievement.id);
+    if (filter === 'locked') return !isUnlocked(achievement.id);
+    if (filter === 'all') return true;
+    return achievement.category === filter;
+  });
 
-  const getUserProgress = (achievementId) => {
-    return userAchievements.find(ua => ua.achievement_id === achievementId);
-  };
+  const unlockedCount = achievements.filter(a => isUnlocked(a.id)).length;
+  const totalCount = achievements.length;
+  const completionPercentage = totalCount > 0 ? (unlockedCount / totalCount) * 100 : 0;
 
-  const categories = [
-    { id: 'all', label: 'All' },
-    { id: 'tournament', label: 'Tournament' },
-    { id: 'chess', label: 'Chess' },
-    { id: 'ludo', label: 'Ludo' },
-    { id: 'snake_ladder', label: 'Snake & Ladder' },
-  ];
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-discord-darkest flex items-center justify-center p-4">
+        <div className="text-center">
+          <FaTrophy className="text-6xl text-gray-600 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-2">Login Required</h2>
+          <p className="text-discord-text">Please login to view your achievements</p>
+        </div>
+      </div>
+    );
+  }
 
-  const filteredAchievements = selectedCategory === 'all'
-    ? achievements
-    : achievements.filter(a => a.category === selectedCategory);
-
-  const completedCount = userAchievements.filter(ua => ua.completed).length;
-  const totalPoints = profile?.achievement_points || 0;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-discord-darkest flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-yellow-600 to-orange-600 rounded-xl p-6 md:p-8">
-        <h1 className="text-3xl md:text-4xl font-bold mb-2 flex items-center gap-3">
-          <FaTrophy />
-          Achievements
-        </h1>
-        <p className="text-white text-opacity-90">Complete challenges and earn rewards</p>
-      </div>
+    <div className="min-h-screen bg-discord-darkest p-4 md:p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Achievements</h1>
+          <p className="text-discord-text">Track your progress and unlock rewards</p>
+        </div>
 
-      {/* Stats */}
-      {profile && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-discord-dark rounded-xl p-6 border border-gray-800">
-            <p className="text-discord-text text-sm mb-1">Achievements Unlocked</p>
-            <p className="text-3xl font-bold text-white">
-              {completedCount}/{achievements.length}
-            </p>
+        {/* Stats Overview */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+          <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
+            <FaTrophy className="text-3xl text-purple-400 mb-2" />
+            <p className="text-xs text-discord-text mb-1">Achievement Points</p>
+            <p className="text-2xl font-bold text-white">{userStats.achievement_points}</p>
           </div>
-          <div className="bg-discord-dark rounded-xl p-6 border border-gray-800">
-            <p className="text-discord-text text-sm mb-1">Achievement Points</p>
-            <p className="text-3xl font-bold text-yellow-400">{totalPoints}</p>
+          <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
+            <FaStar className="text-3xl text-yellow-400 mb-2" />
+            <p className="text-xs text-discord-text mb-1">Unlocked</p>
+            <p className="text-2xl font-bold text-white">{unlockedCount}/{totalCount}</p>
           </div>
-          <div className="bg-discord-dark rounded-xl p-6 border border-gray-800">
-            <p className="text-discord-text text-sm mb-1">Completion Rate</p>
-            <p className="text-3xl font-bold text-purple-400">
-              {achievements.length > 0 ? Math.round((completedCount / achievements.length) * 100) : 0}%
-            </p>
+          <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
+            <FaTrophy className="text-3xl text-blue-400 mb-2" />
+            <p className="text-xs text-discord-text mb-1">Tournaments</p>
+            <p className="text-2xl font-bold text-white">{userStats.tournament_joins}</p>
+          </div>
+          <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
+            <FaCrown className="text-3xl text-yellow-400 mb-2" />
+            <p className="text-xs text-discord-text mb-1">Wins</p>
+            <p className="text-2xl font-bold text-white">{userStats.tournament_wins}</p>
+          </div>
+          <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
+            <FaSkull className="text-3xl text-red-400 mb-2" />
+            <p className="text-xs text-discord-text mb-1">Total Kills</p>
+            <p className="text-2xl font-bold text-white">{userStats.total_kills}</p>
           </div>
         </div>
-      )}
 
-      {/* Category Filters */}
-      <div className="bg-discord-dark rounded-xl p-4 border border-gray-800">
-        <div className="flex flex-wrap gap-3">
-          {categories.map((cat) => (
+        {/* Progress Bar */}
+        <div className="bg-discord-dark border border-gray-800 rounded-xl p-6 mb-8">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-lg font-bold text-white">Overall Progress</h3>
+            <span className="text-sm font-bold text-purple-400">{completionPercentage.toFixed(1)}%</span>
+          </div>
+          <div className="w-full bg-discord-darkest rounded-full h-4 overflow-hidden">
+            <div 
+              className="bg-gradient-to-r from-purple-600 to-blue-600 h-full transition-all duration-500"
+              style={{ width: `${completionPercentage}%` }}
+            ></div>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
+          {['all', 'unlocked', 'locked', 'tournament', 'victory', 'combat', 'wealth'].map((f) => (
             <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                selectedCategory === cat.id
-                  ? 'bg-yellow-600 text-white'
-                  : 'bg-white bg-opacity-5 text-discord-text hover:bg-opacity-10'
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-4 py-2 rounded-lg font-semibold capitalize whitespace-nowrap transition-all ${
+                filter === f
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-discord-dark text-discord-text hover:bg-gray-800'
               }`}
             >
-              {cat.label}
+              {f}
             </button>
           ))}
         </div>
-      </div>
 
-      {/* Achievements Grid */}
-      {loading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto mb-4"></div>
-          <p className="text-discord-text">Loading achievements...</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredAchievements.map((achievement) => {
-            const userProgress = getUserProgress(achievement.id);
-            const isCompleted = userProgress?.completed || false;
-            const progress = userProgress?.progress || 0;
-            const Icon = getCategoryIcon(achievement.category);
-            const colorClass = getCategoryColor(achievement.category);
+        {/* Achievements Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredAchievements.length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <FaTrophy className="text-6xl text-gray-600 mx-auto mb-4" />
+              <p className="text-xl text-white mb-2">No achievements found</p>
+              <p className="text-discord-text">Try a different filter</p>
+            </div>
+          ) : (
+            filteredAchievements.map((achievement) => {
+              const unlocked = isUnlocked(achievement.id);
+              const { current, progress } = getProgress(achievement);
 
-            return (
-              <div
-                key={achievement.id}
-                className={`bg-discord-dark rounded-xl p-6 border transition-all ${
-                  isCompleted
-                    ? 'border-yellow-500'
-                    : 'border-gray-800 hover:border-gray-700'
-                }`}
-              >
-                <div className="flex items-start gap-4">
-                  {/* Icon */}
-                  <div className={`w-16 h-16 bg-gradient-to-br ${colorClass} rounded-xl flex items-center justify-center flex-shrink-0 relative`}>
-                    <Icon className="text-white text-2xl" />
-                    {isCompleted && (
-                      <div className="absolute -top-2 -right-2 bg-green-500 rounded-full p-1">
-                        <FaCheckCircle className="text-white text-sm" />
-                      </div>
-                    )}
-                    {!isCompleted && progress === 0 && (
-                      <div className="absolute -top-2 -right-2 bg-gray-700 rounded-full p-1">
-                        <FaLock className="text-gray-400 text-sm" />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1">
-                    <h3 className={`font-bold text-lg mb-1 ${isCompleted ? 'text-yellow-400' : 'text-white'}`}>
-                      {achievement.name}
-                    </h3>
-                    <p className="text-discord-text text-sm mb-3">{achievement.description}</p>
-
-                    {/* Rewards */}
-                    <div className="flex items-center gap-3 mb-3 text-sm">
-                      <span className="text-yellow-400 font-semibold">+{achievement.points_reward} pts</span>
-                      <span className="text-gray-600">|</span>
-                      <span className="text-orange-400 font-semibold">+{achievement.coins_reward} coins</span>
+              return (
+                <div
+                  key={achievement.id}
+                  className={`relative rounded-xl p-6 border-2 transition-all ${
+                    unlocked
+                      ? 'bg-gradient-to-br from-purple-900 to-purple-800 border-purple-500'
+                      : 'bg-discord-dark border-gray-800 opacity-75'
+                  }`}
+                >
+                  {/* Unlocked Badge */}
+                  {unlocked && (
+                    <div className="absolute top-4 right-4">
+                      <FaCheckCircle className="text-2xl text-green-400" />
                     </div>
+                  )}
 
-                    {/* Progress Bar */}
-                    {!isCompleted && profile && (
-                      <div>
-                        <div className="flex justify-between text-xs text-discord-text mb-1">
-                          <span>Progress</span>
-                          <span>{progress}/{achievement.requirement_count}</span>
-                        </div>
-                        <div className="w-full bg-gray-700 rounded-full h-2">
-                          <div
-                            className={`bg-gradient-to-r ${colorClass} h-2 rounded-full transition-all`}
-                            style={{ width: `${(progress / achievement.requirement_count) * 100}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    )}
+                  {/* Locked Icon */}
+                  {!unlocked && (
+                    <div className="absolute top-4 right-4">
+                      <FaLock className="text-2xl text-gray-600" />
+                    </div>
+                  )}
 
-                    {isCompleted && (
-                      <div className="flex items-center gap-2 text-green-400 text-sm font-semibold">
-                        <FaCheckCircle />
-                        Completed
-                      </div>
-                    )}
+                  {/* Category Icon */}
+                  <div className="text-4xl mb-4">
+                    {getCategoryIcon(achievement.category)}
                   </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
 
-      {filteredAchievements.length === 0 && !loading && (
-        <div className="text-center py-12 bg-discord-dark rounded-xl border border-gray-800">
-          <FaTrophy className="text-6xl text-gray-600 mx-auto mb-4" />
-          <p className="text-discord-text">No achievements found in this category</p>
+                  {/* Achievement Name */}
+                  <h3 className={`text-xl font-bold mb-2 ${unlocked ? 'text-white' : 'text-gray-400'}`}>
+                    {achievement.name}
+                  </h3>
+
+                  {/* Description */}
+                  <p className={`text-sm mb-4 ${unlocked ? 'text-purple-200' : 'text-gray-500'}`}>
+                    {achievement.description}
+                  </p>
+
+                  {/* Points */}
+                  <div className="flex items-center gap-2 mb-4">
+                    <FaStar className={unlocked ? 'text-yellow-400' : 'text-gray-600'} />
+                    <span className={`font-bold ${unlocked ? 'text-yellow-400' : 'text-gray-500'}`}>
+                      {achievement.points} points
+                    </span>
+                  </div>
+
+                  {/* Progress Bar (only for locked achievements) */}
+                  {!unlocked && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs text-gray-400">Progress</span>
+                        <span className="text-xs font-bold text-gray-400">
+                          {current}/{achievement.requirement_value}
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-800 rounded-full h-2 overflow-hidden">
+                        <div 
+                          className="bg-purple-600 h-full transition-all duration-500"
+                          style={{ width: `${progress}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Unlocked Date */}
+                  {unlocked && (
+                    <div className="mt-4 pt-4 border-t border-purple-700">
+                      <p className="text-xs text-purple-300">
+                        Unlocked: {new Date(
+                          userAchievements.find(ua => ua.achievement_id === achievement.id)?.earned_at
+                        ).toLocaleDateString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
