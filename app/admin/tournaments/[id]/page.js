@@ -102,23 +102,30 @@ export default function ManageTournamentPage() {
       return;
     }
 
-    if (!confirm('Distribute prizes?')) return;
+    if (!confirm('Distribute prizes? This cannot be undone!')) return;
 
     setProcessing(true);
 
     try {
+      console.log('Starting prize distribution...');
+      let totalDistributed = 0;
+
       for (const participant of participants) {
-        const kills = killCounts[participant.id] || 0;
+        const kills = parseInt(killCounts[participant.id]) || 0;
         const isBooyah = participant.id === booyahWinner;
+        const isFirst = participant.id === first;
+        const isSecond = participant.id === second;
+        const isThird = participant.id === third;
 
         let killReward = 0;
         let booyahReward = 0;
         let positionReward = 0;
 
+        // Calculate rewards based on preset
         if (isPreset6) {
-          if (participant.id === first) positionReward = 20;
-          if (participant.id === second) positionReward = 15;
-          if (participant.id === third) positionReward = 10;
+          if (isFirst) positionReward = 20;
+          if (isSecond) positionReward = 15;
+          if (isThird) positionReward = 10;
           if (isBooyah) booyahReward = 5;
         } else if (preset) {
           killReward = kills * (preset.per_kill_reward || 0);
@@ -127,26 +134,49 @@ export default function ManageTournamentPage() {
 
         const totalPrize = killReward + booyahReward + positionReward;
 
-        await supabase
+        console.log(`Updating participant ${participant.users?.username}:`, {
+          kills,
+          got_booyah: isBooyah,
+          position: isFirst ? 1 : isSecond ? 2 : isThird ? 3 : null,
+          prize_won: totalPrize
+        });
+
+        // UPDATE PARTICIPANT RECORD - THIS IS CRITICAL
+        const { error: updateError } = await supabase
           .from('tournament_participants')
           .update({
-            kills,
+            kills: kills,
             got_booyah: isBooyah,
-            position: participant.id === first ? 1 : participant.id === second ? 2 : participant.id === third ? 3 : null,
-            prize_won: totalPrize
+            position: isFirst ? 1 : isSecond ? 2 : isThird ? 3 : null,
+            prize_won: totalPrize,
+            updated_at: new Date().toISOString()
           })
           .eq('id', participant.id);
 
+        if (updateError) {
+          console.error('Update error for participant:', updateError);
+          throw new Error(`Failed to update participant: ${updateError.message}`);
+        }
+
+        console.log(`✅ Updated participant ${participant.users?.username}`);
+
+        // Award prize money
         if (totalPrize > 0) {
-          const newBalance = parseFloat(participant.users.wallet_real) + totalPrize;
-          await supabase
+          totalDistributed += totalPrize;
+          const newBalance = parseFloat(participant.users.wallet_real || 0) + totalPrize;
+          
+          const { error: walletError } = await supabase
             .from('users')
             .update({
               wallet_real: newBalance,
-              total_wins: isBooyah ? (participant.users.total_wins || 0) + 1 : participant.users.total_wins,
+              total_wins: isBooyah ? (participant.users.total_wins || 0) + 1 : (participant.users.total_wins || 0),
               total_games: (participant.users.total_games || 0) + 1
             })
             .eq('id', participant.user_id);
+
+          if (walletError) {
+            console.error('Wallet error:', walletError);
+          }
 
           let desc = tournament.title;
           if (kills > 0) desc += ` | ${kills} Kills: ₹${killReward}`;
@@ -172,14 +202,21 @@ export default function ManageTournamentPage() {
         }
       }
 
+      // Mark tournament as completed
       await supabase
         .from('tournaments')
-        .update({ status: 'completed' })
+        .update({ 
+          status: 'completed',
+          distributed_prizes: totalDistributed,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', tournament.id);
 
-      alert('✅ Prizes distributed!');
+      console.log('✅ All prizes distributed!');
+      alert(`✅ Prizes distributed!\n\nTotal: ₹${totalDistributed.toFixed(2)}`);
       router.push('/admin/tournaments');
     } catch (error) {
+      console.error('❌ Distribution error:', error);
       alert('❌ Error: ' + error.message);
     } finally {
       setProcessing(false);
@@ -250,13 +287,13 @@ export default function ManageTournamentPage() {
           <h2 className="text-xl font-bold text-white mb-6">Manage Results</h2>
 
           <div className="bg-gradient-to-br from-yellow-600 to-yellow-800 rounded-xl p-6 mb-6">
-            <h3 className="text-xl font-bold text-white mb-4">👑 Booyah Winner</h3>
+            <h3 className="text-xl font-bold text-white mb-4">👑 Booyah Winner (Win Tag)</h3>
             <select
               value={booyahWinner || ''}
               onChange={(e) => setBooyahWinner(e.target.value)}
               className="w-full px-4 py-3 bg-yellow-900 bg-opacity-30 border border-yellow-400 rounded-lg text-white"
             >
-              <option value="">-- Select --</option>
+              <option value="">-- Select Winner --</option>
               {participants.map(p => (
                 <option key={p.id} value={p.id}>Seat {p.seat_number} - {p.users?.username}</option>
               ))}
@@ -305,10 +342,12 @@ export default function ManageTournamentPage() {
                     <input
                       type="number"
                       min="0"
+                      max="50"
                       value={killCounts[p.id] || 0}
                       onChange={(e) => setKillCounts({...killCounts, [p.id]: parseInt(e.target.value) || 0})}
                       className="w-20 px-3 py-2 bg-discord-darkest text-white rounded-lg text-center"
                     />
+                    <span className="text-discord-text text-sm">kills</span>
                   </div>
                 ))}
               </div>
