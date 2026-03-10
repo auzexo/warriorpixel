@@ -114,7 +114,6 @@ export default function ManageTournamentPage() {
       console.log('Preset:', preset);
       
       let totalDistributed = 0;
-      const updateResults = [];
 
       for (const participant of participants) {
         // ENSURE CORRECT DATA TYPES
@@ -142,27 +141,20 @@ export default function ManageTournamentPage() {
         const totalPrize = parseFloat((killReward + booyahReward + positionReward).toFixed(2));
 
         console.log(`\n📝 Processing ${participant.users?.username}:`);
-        console.log(`  - Kills: ${kills} (type: ${typeof kills})`);
-        console.log(`  - Got Booyah: ${isBooyah} (type: ${typeof isBooyah})`);
-        console.log(`  - Position: ${isFirst ? 1 : isSecond ? 2 : isThird ? 3 : null}`);
-        console.log(`  - Prize: ₹${totalPrize}`);
+        console.log(`  Kills: ${kills}, Booyah: ${isBooyah}, Prize: ₹${totalPrize}`);
 
-        // UPDATE PARTICIPANT - WITH EXPLICIT DATA TYPES
+        // UPDATE PARTICIPANT - FIXED (removed .single())
         const updateData = {
-          kills: kills,  // INTEGER
-          got_booyah: isBooyah,  // BOOLEAN
-          position: isFirst ? 1 : isSecond ? 2 : isThird ? 3 : null,  // INTEGER or NULL
-          prize_won: totalPrize  // DECIMAL
+          kills: kills,
+          got_booyah: isBooyah,
+          position: isFirst ? 1 : isSecond ? 2 : isThird ? 3 : null,
+          prize_won: totalPrize
         };
 
-        console.log('  - Update data:', updateData);
-
-        const { data: updatedParticipant, error: updateError } = await supabase
+        const { error: updateError } = await supabase
           .from('tournament_participants')
           .update(updateData)
-          .eq('id', participant.id)
-          .select()
-          .single();
+          .eq('id', participant.id);
 
         if (updateError) {
           console.error('❌ Update error:', updateError);
@@ -170,14 +162,6 @@ export default function ManageTournamentPage() {
         }
 
         console.log('  ✅ Database updated successfully');
-        console.log('  - Returned data:', updatedParticipant);
-        
-        updateResults.push({
-          username: participant.users?.username,
-          kills: updatedParticipant.kills,
-          got_booyah: updatedParticipant.got_booyah,
-          prize_won: updatedParticipant.prize_won
-        });
 
         // Award prize money
         if (totalPrize > 0) {
@@ -198,9 +182,10 @@ export default function ManageTournamentPage() {
 
           if (walletError) {
             console.error('  ⚠️ Wallet error:', walletError);
-          } else {
-            console.log('  ✅ Wallet updated');
+            throw new Error(`Failed to update wallet for ${participant.users?.username}: ${walletError.message}`);
           }
+
+          console.log('  ✅ Wallet updated');
 
           // Transaction description
           let desc = tournament.title;
@@ -209,7 +194,7 @@ export default function ManageTournamentPage() {
           if (positionReward > 0) desc += ` | Position: ₹${positionReward.toFixed(2)}`;
 
           // Record transaction
-          await supabase.from('transactions').insert({
+          const { error: txError } = await supabase.from('transactions').insert({
             user_id: participant.user_id,
             type: 'tournament_win',
             amount: totalPrize,
@@ -218,8 +203,12 @@ export default function ManageTournamentPage() {
             tournament_id: tournament.id
           });
 
+          if (txError) {
+            console.error('  ⚠️ Transaction error:', txError);
+          }
+
           // Send notification
-          await supabase.from('notifications').insert({
+          const { error: notifError } = await supabase.from('notifications').insert({
             user_id: participant.user_id,
             title: '🎉 Tournament Rewards',
             message: `You earned ₹${totalPrize.toFixed(2)} from ${tournament.title}!${kills > 0 ? ` (${kills} kills)` : ''}${isBooyah ? ' 👑 Booyah!' : ''}`,
@@ -227,7 +216,23 @@ export default function ManageTournamentPage() {
             read: false
           });
 
+          if (notifError) {
+            console.error('  ⚠️ Notification error:', notifError);
+          }
+
           console.log('  ✅ Transaction & notification sent');
+        } else {
+          // Update total_games even if no prize
+          const { error: gamesError } = await supabase
+            .from('users')
+            .update({
+              total_games: (participant.users.total_games || 0) + 1
+            })
+            .eq('id', participant.user_id);
+
+          if (gamesError) {
+            console.error('  ⚠️ Games count error:', gamesError);
+          }
         }
       }
 
@@ -241,25 +246,24 @@ export default function ManageTournamentPage() {
         .eq('id', tournament.id);
 
       if (tournamentUpdateError) {
-        console.error('Tournament update error:', tournamentUpdateError);
+        console.error('❌ Tournament update error:', tournamentUpdateError);
+        throw new Error(`Failed to mark tournament as completed: ${tournamentUpdateError.message}`);
       }
 
       console.log('\n✅ ALL PRIZES DISTRIBUTED!');
-      console.log('Update summary:', updateResults);
       console.log(`Total distributed: ₹${totalDistributed.toFixed(2)}`);
 
       alert(
         `✅ PRIZES DISTRIBUTED SUCCESSFULLY!\n\n` +
         `Total: ₹${totalDistributed.toFixed(2)}\n` +
-        `Players: ${updateResults.length}\n` +
-        `Booyah Winner: ${participants.find(p => p.id === booyahWinner)?.users?.username}\n\n` +
-        `Check browser console for detailed logs.`
+        `Players: ${participants.length}\n` +
+        `Booyah Winner: ${participants.find(p => p.id === booyahWinner)?.users?.username}`
       );
       
       router.push('/admin/tournaments');
     } catch (error) {
       console.error('❌ DISTRIBUTION ERROR:', error);
-      alert(`❌ ERROR DISTRIBUTING PRIZES\n\n${error.message}\n\nCheck browser console for details.`);
+      alert(`❌ ERROR DISTRIBUTING PRIZES\n\n${error.message}\n\nPlease check browser console for details and try again.`);
     } finally {
       setProcessing(false);
     }
