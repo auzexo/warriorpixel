@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
-import { FaTrophy, FaUsers, FaMoneyBillWave, FaClock, FaFire, FaInfoCircle, FaTimes, FaCheckCircle } from 'react-icons/fa';
+import { FaTrophy, FaClock, FaFire, FaInfoCircle, FaTimes, FaCheckCircle, FaUsers, FaMoneyBillWave } from 'react-icons/fa';
 
 export default function TournamentsPage() {
   const { user, profile } = useAuth();
@@ -29,7 +29,7 @@ export default function TournamentsPage() {
     try {
       let query = supabase
         .from('tournaments')
-        .select('*')
+        .select('*, preset:tournament_presets(*)')
         .order('start_time', { ascending: true });
 
       if (filter === 'upcoming') {
@@ -69,7 +69,6 @@ export default function TournamentsPage() {
     setSelectedTournament(tournament);
     setShowModal(true);
 
-    // Check if user has joined this tournament
     if (user) {
       const { data } = await supabase
         .from('tournament_participants')
@@ -154,19 +153,29 @@ export default function TournamentsPage() {
           });
       }
 
-      // Join tournament
-      const { data: newParticipant } = await supabase
+      // Join tournament - INSERT without trying to get seat_number immediately
+      const { error: insertError } = await supabase
         .from('tournament_participants')
         .insert({
           tournament_id: selectedTournament.id,
           user_id: user.id,
           in_game_name: joinData.in_game_name,
           in_game_id: joinData.in_game_id
-        })
-        .select()
+        });
+
+      if (insertError) throw insertError;
+
+      // Wait a moment for trigger to complete, then fetch the participant data
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const { data: newParticipant } = await supabase
+        .from('tournament_participants')
+        .select('*')
+        .eq('tournament_id', selectedTournament.id)
+        .eq('user_id', user.id)
         .single();
 
-      alert(`✅ Successfully joined! Your seat number is ${newParticipant.seat_number}`);
+      alert(`✅ Successfully joined! Your seat number is ${newParticipant?.seat_number || 'pending'}`);
       setUserParticipation(newParticipant);
       closeModal();
       loadTournaments();
@@ -191,13 +200,11 @@ export default function TournamentsPage() {
   return (
     <div className="min-h-screen bg-discord-darkest p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
         <div className="mb-6 md:mb-8">
           <h1 className="text-2xl md:text-4xl font-bold text-white mb-2">Tournaments</h1>
           <p className="text-sm md:text-base text-discord-text">Join and win prizes</p>
         </div>
 
-        {/* Filters */}
         <div className="flex gap-2 md:gap-4 mb-6 md:mb-8 overflow-x-auto pb-2">
           {['all', 'upcoming', 'live', 'completed'].map((f) => (
             <button
@@ -214,7 +221,6 @@ export default function TournamentsPage() {
           ))}
         </div>
 
-        {/* Tournaments Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {tournaments.length === 0 ? (
             <div className="col-span-full text-center py-12">
@@ -242,6 +248,12 @@ export default function TournamentsPage() {
 
                 <h3 className="text-lg md:text-xl font-bold text-white mb-2 line-clamp-1">{tournament.title}</h3>
                 <p className="text-xs md:text-sm text-discord-text mb-3 md:mb-4">{tournament.game}</p>
+
+                {tournament.preset && (
+                  <div className="bg-purple-600 bg-opacity-10 border border-purple-600 rounded-lg p-2 mb-3">
+                    <p className="text-xs font-bold text-purple-400">{tournament.preset.name}</p>
+                  </div>
+                )}
 
                 <div className="space-y-2 mb-3 md:mb-4">
                   <div className="flex items-center justify-between">
@@ -290,19 +302,14 @@ export default function TournamentsPage() {
       {showModal && selectedTournament && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
           <div className="bg-discord-dark border border-gray-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            {/* Header */}
             <div className="sticky top-0 bg-discord-dark border-b border-gray-800 p-4 md:p-6 flex items-center justify-between">
-              <h2 className="text-xl md:text-2xl font-bold text-white pr-4 line-clamp-2">{selectedTournament.title}</h2>
-              <button
-                onClick={closeModal}
-                className="p-2 hover:bg-gray-800 rounded-lg transition-all flex-shrink-0"
-              >
+              <h2 className="text-xl md:text-2xl font-bold text-white pr-4">{selectedTournament.title}</h2>
+              <button onClick={closeModal} className="p-2 hover:bg-gray-800 rounded-lg transition-all">
                 <FaTimes className="text-white text-lg md:text-xl" />
               </button>
             </div>
 
             <div className="p-4 md:p-6 space-y-4 md:space-y-6">
-              {/* Status & Game */}
               <div className="flex items-center gap-3 flex-wrap">
                 <span className={`px-3 md:px-4 py-1 md:py-2 rounded-lg text-xs md:text-sm font-bold uppercase ${
                   selectedTournament.status === 'upcoming' ? 'bg-blue-600' :
@@ -314,7 +321,6 @@ export default function TournamentsPage() {
                 <span className="text-sm md:text-base text-discord-text">{selectedTournament.game}</span>
               </div>
 
-              {/* User Participation Status */}
               {userParticipation && (
                 <div className="bg-green-600 bg-opacity-10 border border-green-600 rounded-lg p-3 md:p-4">
                   <div className="flex items-center gap-3">
@@ -328,21 +334,86 @@ export default function TournamentsPage() {
                 </div>
               )}
 
+              {/* ENHANCED PRIZE STRUCTURE DISPLAY */}
+              {selectedTournament.preset && (
+                <div className="bg-gradient-to-br from-purple-600 to-purple-800 rounded-xl p-4 md:p-6">
+                  <h3 className="text-lg md:text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <FaTrophy className="text-yellow-400" />
+                    Prize Structure: {selectedTournament.preset.name}
+                  </h3>
+                  
+                  <div className="space-y-3">
+                    {/* Entry Fee */}
+                    <div className="bg-white bg-opacity-10 rounded-lg p-3">
+                      <p className="text-xs text-purple-200 mb-1">Entry Fee</p>
+                      <p className="text-2xl font-bold text-white">₹{selectedTournament.entry_fee}</p>
+                    </div>
+
+                    {/* Preset 6 Special */}
+                    {selectedTournament.preset.preset_number === 6 ? (
+                      <>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="bg-yellow-500 bg-opacity-20 rounded-lg p-3 text-center">
+                            <p className="text-2xl mb-1">🥇</p>
+                            <p className="text-xs text-yellow-200">1st Place</p>
+                            <p className="text-lg font-bold text-white">₹20</p>
+                          </div>
+                          <div className="bg-gray-400 bg-opacity-20 rounded-lg p-3 text-center">
+                            <p className="text-2xl mb-1">🥈</p>
+                            <p className="text-xs text-gray-200">2nd Place</p>
+                            <p className="text-lg font-bold text-white">₹15</p>
+                          </div>
+                          <div className="bg-orange-500 bg-opacity-20 rounded-lg p-3 text-center">
+                            <p className="text-2xl mb-1">🥉</p>
+                            <p className="text-xs text-orange-200">3rd Place</p>
+                            <p className="text-lg font-bold text-white">₹10</p>
+                          </div>
+                        </div>
+                        <div className="bg-yellow-600 bg-opacity-20 rounded-lg p-3">
+                          <p className="text-xs text-yellow-200 mb-1">👑 Booyah Winner Bonus</p>
+                          <p className="text-xl font-bold text-white">+₹{selectedTournament.preset.booyah_reward}</p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {/* Kill Rewards */}
+                        {selectedTournament.preset.per_kill_reward > 0 && (
+                          <div className="bg-red-600 bg-opacity-20 rounded-lg p-3">
+                            <p className="text-xs text-red-200 mb-1">☠️ Per Kill Reward</p>
+                            <p className="text-xl font-bold text-white">₹{selectedTournament.preset.per_kill_reward} each</p>
+                            <p className="text-xs text-red-200 mt-1">Example: 10 kills = ₹{selectedTournament.preset.per_kill_reward * 10}</p>
+                          </div>
+                        )}
+                        
+                        {/* Booyah */}
+                        {selectedTournament.preset.booyah_reward > 0 && (
+                          <div className="bg-yellow-600 bg-opacity-20 rounded-lg p-3">
+                            <p className="text-xs text-yellow-200 mb-1">👑 Booyah Winner (Win Tag)</p>
+                            <p className="text-xl font-bold text-white">₹{selectedTournament.preset.booyah_reward}</p>
+                            <p className="text-xs text-yellow-200 mt-1">Only 1 person wins</p>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {/* Total Prize Pool */}
+                    <div className="bg-green-600 bg-opacity-20 rounded-lg p-3 border-2 border-green-400">
+                      <p className="text-xs text-green-200 mb-1">Total Prize Pool</p>
+                      <p className="text-3xl font-bold text-white">₹{parseFloat(selectedTournament.prize_pool).toFixed(0)}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Stats */}
               <div className="grid grid-cols-2 gap-3 md:gap-4">
                 <div className="bg-discord-darkest rounded-lg p-3 md:p-4">
-                  <p className="text-xs md:text-sm text-discord-text mb-1">Prize Pool</p>
-                  <p className="text-lg md:text-2xl font-bold text-green-400">₹{parseFloat(selectedTournament.prize_pool || 0).toFixed(0)}</p>
-                </div>
-                <div className="bg-discord-darkest rounded-lg p-3 md:p-4">
-                  <p className="text-xs md:text-sm text-discord-text mb-1">Entry Fee</p>
-                  <p className="text-lg md:text-2xl font-bold text-white">₹{parseFloat(selectedTournament.entry_fee || 0).toFixed(0)}</p>
-                </div>
-                <div className="bg-discord-darkest rounded-lg p-3 md:p-4">
+                  <FaUsers className="text-2xl text-blue-400 mb-2" />
                   <p className="text-xs md:text-sm text-discord-text mb-1">Players</p>
                   <p className="text-lg md:text-2xl font-bold text-white">{selectedTournament.participantCount}/{selectedTournament.max_participants}</p>
                 </div>
                 <div className="bg-discord-darkest rounded-lg p-3 md:p-4">
+                  <FaClock className="text-2xl text-purple-400 mb-2" />
                   <p className="text-xs md:text-sm text-discord-text mb-1">Start Time</p>
                   <p className="text-sm md:text-lg font-bold text-white">
                     {new Date(selectedTournament.start_time).toLocaleDateString('en-IN', {
@@ -355,7 +426,6 @@ export default function TournamentsPage() {
                 </div>
               </div>
 
-              {/* Description */}
               {selectedTournament.description && (
                 <div>
                   <h3 className="font-bold text-white mb-2 text-sm md:text-base">Description</h3>
@@ -363,7 +433,6 @@ export default function TournamentsPage() {
                 </div>
               )}
 
-              {/* Rules */}
               {selectedTournament.rules && (
                 <div>
                   <h3 className="font-bold text-white mb-2 text-sm md:text-base">Rules</h3>
@@ -373,7 +442,6 @@ export default function TournamentsPage() {
                 </div>
               )}
 
-              {/* Room Details - ONLY if user joined */}
               {userParticipation && selectedTournament.room_id && (
                 <div className="bg-yellow-600 bg-opacity-10 border border-yellow-600 rounded-lg p-3 md:p-4">
                   <h3 className="font-bold text-white mb-3 text-sm md:text-base">🎮 Room Details</h3>
@@ -390,7 +458,6 @@ export default function TournamentsPage() {
                 </div>
               )}
 
-              {/* Join Form - Only if not joined and upcoming */}
               {!userParticipation && selectedTournament.status === 'upcoming' && (
                 <div>
                   <h3 className="font-bold text-white mb-3 text-sm md:text-base">Join Tournament</h3>
@@ -428,7 +495,6 @@ export default function TournamentsPage() {
                 </div>
               )}
 
-              {/* Live Status */}
               {selectedTournament.status === 'live' && !userParticipation && (
                 <div className="bg-red-600 bg-opacity-10 border border-red-600 rounded-lg p-4 text-center">
                   <p className="font-bold text-white text-sm md:text-base">Tournament is Live</p>
@@ -436,7 +502,6 @@ export default function TournamentsPage() {
                 </div>
               )}
 
-              {/* Completed */}
               {selectedTournament.status === 'completed' && (
                 <div className="bg-gray-600 bg-opacity-10 border border-gray-600 rounded-lg p-4 text-center">
                   <p className="font-bold text-white text-sm md:text-base">Tournament Completed</p>
