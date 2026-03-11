@@ -8,8 +8,8 @@ import { FaCrown, FaUser, FaLock, FaSignInAlt, FaSpinner } from 'react-icons/fa'
 export default function AdminLoginPage() {
   const router = useRouter();
   const [credentials, setCredentials] = useState({
-    username: '',
-    password: ''
+    admin_id: '',
+    admin_password: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -27,17 +27,17 @@ export default function AdminLoginPage() {
     setError('');
     setLoading(true);
 
-    console.log('🔐 Attempting login for:', credentials.username);
+    console.log('🔐 Attempting login for:', credentials.admin_id);
 
     try {
-      // Query admin_accounts table with detailed logging
+      // Query admin_accounts table with CORRECT column names
       console.log('📊 Querying admin_accounts...');
       
       const { data: admin, error: adminError } = await supabase
         .from('admin_accounts')
         .select('*')
-        .eq('username', credentials.username)
-        .eq('password', credentials.password)
+        .eq('admin_id', credentials.admin_id)
+        .eq('admin_password', credentials.admin_password)
         .eq('is_active', true)
         .maybeSingle();
 
@@ -45,20 +45,21 @@ export default function AdminLoginPage() {
 
       if (adminError) {
         console.error('❌ Database error:', adminError);
-        throw new Error(`Database error: ${adminError.message}. Code: ${adminError.code}`);
+        throw new Error(`Database error: ${adminError.message}`);
       }
 
       if (!admin) {
         console.log('❌ No admin found with these credentials');
-        throw new Error('Invalid username or password');
+        throw new Error('Invalid admin ID or password');
       }
 
-      console.log('✅ Admin found:', admin.username);
+      console.log('✅ Admin found:', admin.admin_id);
 
       // Create session
       const session = {
         id: admin.id,
-        username: admin.username,
+        username: admin.admin_id, // Use admin_id as username for compatibility
+        admin_id: admin.admin_id,
         permissions: admin.permissions || [],
         loginTime: new Date().toISOString()
       };
@@ -124,10 +125,10 @@ export default function AdminLoginPage() {
               </div>
             )}
 
-            {/* Username */}
+            {/* Admin ID */}
             <div className="mb-6">
               <label className="block text-sm font-semibold text-white mb-2">
-                Username
+                Admin ID
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -135,9 +136,9 @@ export default function AdminLoginPage() {
                 </div>
                 <input
                   type="text"
-                  value={credentials.username}
-                  onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
-                  placeholder="Enter username"
+                  value={credentials.admin_id}
+                  onChange={(e) => setCredentials({ ...credentials, admin_id: e.target.value })}
+                  placeholder="Enter admin ID"
                   className="w-full pl-12 pr-4 py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600 focus:ring-opacity-50 transition-all"
                   required
                   autoComplete="username"
@@ -145,10 +146,10 @@ export default function AdminLoginPage() {
               </div>
             </div>
 
-            {/* Password */}
+            {/* Admin Password */}
             <div className="mb-6">
               <label className="block text-sm font-semibold text-white mb-2">
-                Password
+                Admin Password
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -156,9 +157,9 @@ export default function AdminLoginPage() {
                 </div>
                 <input
                   type="password"
-                  value={credentials.password}
-                  onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
-                  placeholder="Enter password"
+                  value={credentials.admin_password}
+                  onChange={(e) => setCredentials({ ...credentials, admin_password: e.target.value })}
+                  placeholder="Enter admin password"
                   className="w-full pl-12 pr-4 py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600 focus:ring-opacity-50 transition-all"
                   required
                   autoComplete="current-password"
