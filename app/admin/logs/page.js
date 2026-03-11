@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { FaHistory, FaFilter, FaDiscord, FaUser, FaTrophy, FaMoneyBillWave, FaBullhorn, FaSync, FaDownload } from 'react-icons/fa';
@@ -81,6 +81,23 @@ export default function AdminLogsPage() {
     return 'text-purple-400';
   };
 
+  // Compute filtered logs with useMemo
+  const filteredLogs = useMemo(() => {
+    return logs.filter(log => {
+      if (!searchTerm) return true;
+      const search = searchTerm.toLowerCase();
+      return (
+        log.action?.toLowerCase().includes(search) ||
+        log.details?.toLowerCase().includes(search)
+      );
+    });
+  }, [logs, searchTerm]);
+
+  // Get unique action types
+  const actionTypes = useMemo(() => {
+    return [...new Set(logs.map(log => log.action))].filter(Boolean);
+  }, [logs]);
+
   const sendLogsToDiscord = async () => {
     if (!discordWebhook) {
       alert('Please enter a Discord webhook URL');
@@ -98,7 +115,7 @@ export default function AdminLogsPage() {
         name: `${log.action || 'Unknown Action'}`,
         value: `**Details:** ${log.details || 'No details'}\n` +
                `**Time:** ${new Date(log.created_at).toLocaleString('en-IN')}\n` +
-               `**Admin:** ${log.admin_id?.substring(0, 8)}...`,
+               `**Admin:** ${log.admin_id?.substring(0, 8) || 'Unknown'}...`,
         inline: false,
       }));
 
@@ -129,38 +146,40 @@ export default function AdminLogsPage() {
   };
 
   const exportLogs = () => {
-    const csv = [
-      ['Timestamp', 'Action', 'Details', 'Admin ID', 'IP Address'].join(','),
-      ...filteredLogs.map(log => [
-        new Date(log.created_at).toISOString(),
-        log.action,
-        `"${log.details?.replace(/"/g, '""') || ''}"`,
-        log.admin_id,
-        log.ip_address || 'N/A'
-      ].join(','))
-    ].join('\n');
+    try {
+      const csv = [
+        ['Timestamp', 'Action', 'Details', 'Admin ID', 'IP Address'].join(','),
+        ...filteredLogs.map(log => [
+          new Date(log.created_at).toISOString(),
+          log.action || '',
+          `"${(log.details || '').replace(/"/g, '""')}"`,
+          log.admin_id || '',
+          log.ip_address || 'N/A'
+        ].join(','))
+      ].join('\n');
 
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `admin-logs-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `admin-logs-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Error exporting logs');
+    }
   };
 
-  // Get unique action types
-  const actionTypes = [...new Set(logs.map(log => log.action))].filter(Boolean);
-
-  // Filter logs by search term
-  const filteredLogs = logs.filter(log => {
-    if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
+  if (loading) {
     return (
-      log.action?.toLowerCase().includes(search) ||
-      log.details?.toLowerCase().includes(search)
+      <AdminLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        </div>
+      </AdminLayout>
     );
-  });
+  }
 
   return (
     <AdminLayout>
@@ -292,12 +311,7 @@ export default function AdminLogsPage() {
           </div>
 
           <div className="divide-y divide-gray-800 max-h-[600px] overflow-y-auto">
-            {loading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto"></div>
-                <p className="text-discord-text mt-4">Loading logs...</p>
-              </div>
-            ) : filteredLogs.length > 0 ? (
+            {filteredLogs.length > 0 ? (
               filteredLogs.map((log) => {
                 const Icon = getActionIcon(log.action);
                 const colorClass = getActionColor(log.action);
@@ -312,7 +326,7 @@ export default function AdminLogsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
                           <h3 className={`font-bold ${colorClass}`}>
-                            {log.action}
+                            {log.action || 'Unknown Action'}
                           </h3>
                           <span className="text-xs text-discord-text">
                             {new Date(log.created_at).toLocaleString('en-IN')}
@@ -320,11 +334,11 @@ export default function AdminLogsPage() {
                         </div>
                         
                         <p className="text-sm text-white mb-2">
-                          {log.details}
+                          {log.details || 'No details'}
                         </p>
 
                         <div className="flex flex-wrap items-center gap-4 text-xs text-discord-text">
-                          <span>Admin: {log.admin_id?.substring(0, 8)}...</span>
+                          <span>Admin: {log.admin_id?.substring(0, 8) || 'Unknown'}...</span>
                           <span>IP: {log.ip_address || 'N/A'}</span>
                         </div>
                       </div>
