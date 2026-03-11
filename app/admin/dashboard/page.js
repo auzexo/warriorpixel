@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { FaTrophy, FaUsers, FaMoneyBillWave, FaChartLine } from 'react-icons/fa';
+import { FaTrophy, FaUsers, FaBullhorn, FaShieldAlt, FaVideo, FaMoneyBillWave, FaChartLine, FaFileAlt, FaKey, FaCog, FaCrown } from 'react-icons/fa';
 
 export default function AdminDashboard() {
   const [mounted, setMounted] = useState(false);
@@ -21,142 +21,161 @@ export default function AdminDashboard() {
     );
   }
 
+  const mainSections = [
+    { name: 'Tournaments', path: '/admin/tournaments', icon: FaTrophy, color: 'purple', desc: 'Create and manage tournaments' },
+    { name: 'Users', path: '/admin/users', icon: FaUsers, color: 'blue', desc: 'View and moderate users' },
+    { name: 'Guilds', path: '/admin/guilds', icon: FaShieldAlt, color: 'indigo', desc: 'Manage guild system' },
+  ];
+
+  const contentSections = [
+    { name: 'Announcements', path: '/admin/announcements', icon: FaBullhorn, color: 'green', desc: 'Post announcements' },
+    { name: 'Videos & Content', path: '/admin/content', icon: FaVideo, color: 'pink', desc: 'Manage media content' },
+  ];
+
+  const financialSections = [
+    { name: 'Transactions', path: '/admin/transactions', icon: FaMoneyBillWave, color: 'emerald', desc: 'View all transactions' },
+    { name: 'Analytics', path: '/admin/analytics', icon: FaChartLine, color: 'orange', desc: 'Platform statistics' },
+  ];
+
+  const systemSections = [
+    { name: 'Admin Logs', path: '/admin/logs', icon: FaFileAlt, color: 'gray', desc: 'View admin actions' },
+    { name: 'Permissions', path: '/admin/permissions', icon: FaKey, color: 'red', desc: 'Manage permissions' },
+    { name: 'Settings', path: '/admin/settings', icon: FaCog, color: 'slate', desc: 'Platform settings' },
+  ];
+
+  const SectionCard = ({ item }) => (
+    <a
+      href={item.path}
+      className={`bg-discord-dark border border-${item.color}-600 hover:border-${item.color}-500 rounded-xl p-6 transition-all hover:shadow-lg hover:shadow-${item.color}-600/20 group`}
+    >
+      <div className="flex items-start gap-4">
+        <div className={`w-12 h-12 bg-${item.color}-600 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform`}>
+          <item.icon className="text-2xl text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-lg font-bold text-white mb-1 group-hover:text-${item.color}-400 transition-colors">{item.name}</h3>
+          <p className="text-sm text-discord-text">{item.desc}</p>
+        </div>
+      </div>
+    </a>
+  );
+
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className="space-y-8">
         {/* Welcome Header */}
+        <div className="bg-gradient-to-r from-red-600 to-orange-600 rounded-2xl p-8 text-center">
+          <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <FaCrown className="text-4xl text-white" />
+          </div>
+          <h1 className="text-3xl font-bold text-white mb-2">Welcome to Admin Panel</h1>
+          <p className="text-red-100">WarriorPixel Management Dashboard</p>
+        </div>
+
+        {/* Main Section */}
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Dashboard</h1>
-          <p className="text-discord-text">Welcome to WarriorPixel Admin Panel</p>
-        </div>
-
-        {/* Main Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Total Users */}
-          <div className="bg-gradient-to-br from-blue-900 to-blue-800 border border-blue-600 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <FaUsers className="text-3xl text-blue-400" />
-              <span className="text-xs font-semibold text-blue-300 uppercase">Users</span>
-            </div>
-            <h3 className="text-3xl font-bold text-white mb-1">-</h3>
-            <p className="text-sm text-blue-300">Total Users</p>
-            <div className="mt-3 text-xs text-blue-400">
-              Loading stats...
-            </div>
-          </div>
-
-          {/* Total Tournaments */}
-          <div className="bg-gradient-to-br from-purple-900 to-purple-800 border border-purple-600 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <FaTrophy className="text-3xl text-purple-400" />
-              <span className="text-xs font-semibold text-purple-300 uppercase">Tournaments</span>
-            </div>
-            <h3 className="text-3xl font-bold text-white mb-1">-</h3>
-            <p className="text-sm text-purple-300">Total Tournaments</p>
-            <div className="mt-3 text-xs text-purple-400">
-              Loading stats...
-            </div>
-          </div>
-
-          {/* Revenue */}
-          <div className="bg-gradient-to-br from-green-900 to-green-800 border border-green-600 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <FaMoneyBillWave className="text-3xl text-green-400" />
-              <span className="text-xs font-semibold text-green-300 uppercase">Revenue</span>
-            </div>
-            <h3 className="text-3xl font-bold text-white mb-1">₹-</h3>
-            <p className="text-sm text-green-300">Total Revenue</p>
-            <div className="mt-3 text-xs text-green-400">
-              Loading stats...
-            </div>
-          </div>
-
-          {/* Prizes Distributed */}
-          <div className="bg-gradient-to-br from-orange-900 to-orange-800 border border-orange-600 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <FaChartLine className="text-3xl text-orange-400" />
-              <span className="text-xs font-semibold text-orange-300 uppercase">Prizes</span>
-            </div>
-            <h3 className="text-3xl font-bold text-white mb-1">₹-</h3>
-            <p className="text-sm text-orange-300">Total Distributed</p>
-            <div className="mt-3 text-xs text-orange-400">
-              Loading stats...
-            </div>
+          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+            <div className="w-1 h-6 bg-purple-600 rounded-full"></div>
+            Main Management
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {mainSections.map((item) => (
+              <SectionCard key={item.path} item={item} />
+            ))}
           </div>
         </div>
 
-        {/* Quick Actions */}
+        {/* Content Section */}
+        <div>
+          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+            <div className="w-1 h-6 bg-green-600 rounded-full"></div>
+            Content Management
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {contentSections.map((item) => (
+              <SectionCard key={item.path} item={item} />
+            ))}
+          </div>
+        </div>
+
+        {/* Financial Section */}
+        <div>
+          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+            <div className="w-1 h-6 bg-orange-600 rounded-full"></div>
+            Financial & Insights
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {financialSections.map((item) => (
+              <SectionCard key={item.path} item={item} />
+            ))}
+          </div>
+        </div>
+
+        {/* System Section */}
+        <div>
+          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+            <div className="w-1 h-6 bg-red-600 rounded-full"></div>
+            System & Settings
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {systemSections.map((item) => (
+              <SectionCard key={item.path} item={item} />
+            ))}
+          </div>
+        </div>
+
+        {/* Quick Stats - Static Display */}
         <div className="bg-discord-dark border border-gray-800 rounded-xl p-6">
-          <h2 className="text-xl font-bold text-white mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <h2 className="text-xl font-bold text-white mb-4">Platform Overview</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center p-4 bg-discord-darkest rounded-lg">
+              <p className="text-2xl font-bold text-purple-400 mb-1">🏆</p>
+              <p className="text-sm text-white font-semibold">Tournaments</p>
+              <p className="text-xs text-discord-text mt-1">View in Analytics</p>
+            </div>
+            <div className="text-center p-4 bg-discord-darkest rounded-lg">
+              <p className="text-2xl font-bold text-blue-400 mb-1">👥</p>
+              <p className="text-sm text-white font-semibold">Users</p>
+              <p className="text-xs text-discord-text mt-1">View in Analytics</p>
+            </div>
+            <div className="text-center p-4 bg-discord-darkest rounded-lg">
+              <p className="text-2xl font-bold text-green-400 mb-1">💰</p>
+              <p className="text-sm text-white font-semibold">Revenue</p>
+              <p className="text-xs text-discord-text mt-1">View in Analytics</p>
+            </div>
+            <div className="text-center p-4 bg-discord-darkest rounded-lg">
+              <p className="text-2xl font-bold text-orange-400 mb-1">📊</p>
+              <p className="text-sm text-white font-semibold">Analytics</p>
+              <p className="text-xs text-discord-text mt-1">Full statistics</p>
+            </div>
+          </div>
+          <div className="mt-4 text-center">
             <a
-              href="/admin/tournaments/create"
-              className="p-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-all flex flex-col items-center gap-2 text-center"
+              href="/admin/analytics"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white rounded-lg font-semibold transition-all"
             >
-              <FaTrophy className="text-2xl" />
-              <span className="text-sm">New Tournament</span>
-            </a>
-            <a
-              href="/admin/users"
-              className="p-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all flex flex-col items-center gap-2 text-center"
-            >
-              <FaUsers className="text-2xl" />
-              <span className="text-sm">Manage Users</span>
-            </a>
-            <a
-              href="/admin/announcements/create"
-              className="p-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-all flex flex-col items-center gap-2 text-center"
-            >
-              <FaChartLine className="text-2xl" />
-              <span className="text-sm">Announcement</span>
-            </a>
-            <a
-              href="/admin/tournaments"
-              className="p-4 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold transition-all flex flex-col items-center gap-2 text-center"
-            >
-              <FaTrophy className="text-2xl" />
-              <span className="text-sm">View All</span>
+              <FaChartLine />
+              View Full Analytics
             </a>
           </div>
         </div>
 
-        {/* Welcome Message */}
-        <div className="bg-discord-dark border border-gray-800 rounded-xl p-8 text-center">
-          <h2 className="text-2xl font-bold text-white mb-4">🎮 WarriorPixel Admin Panel</h2>
-          <p className="text-discord-text mb-6">
-            Manage tournaments, users, and platform settings from this dashboard.
-          </p>
-          <div className="flex items-center justify-center gap-4">
-            <a
-              href="/admin/tournaments"
-              className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-all"
-            >
-              View Tournaments
-            </a>
-            <a
-              href="/admin/users"
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all"
-            >
-              View Users
-            </a>
-          </div>
-        </div>
-
-        {/* System Info */}
+        {/* System Status */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-discord-dark border border-gray-800 rounded-xl p-4 text-center">
-            <h3 className="font-semibold text-white mb-2">System Status</h3>
-            <p className="text-sm text-green-400">✓ All systems operational</p>
+            <div className="text-2xl mb-2">✅</div>
+            <h3 className="font-semibold text-white mb-1">System Status</h3>
+            <p className="text-sm text-green-400">All systems operational</p>
           </div>
-
           <div className="bg-discord-dark border border-gray-800 rounded-xl p-4 text-center">
-            <h3 className="font-semibold text-white mb-2">Platform</h3>
+            <div className="text-2xl mb-2">🎮</div>
+            <h3 className="font-semibold text-white mb-1">Platform</h3>
             <p className="text-sm text-discord-text">WarriorPixel Gaming</p>
           </div>
-
           <div className="bg-discord-dark border border-gray-800 rounded-xl p-4 text-center">
-            <h3 className="font-semibold text-white mb-2">Version</h3>
-            <p className="text-sm text-discord-text">Admin v1.0</p>
+            <div className="text-2xl mb-2">🔧</div>
+            <h3 className="font-semibold text-white mb-1">Admin Version</h3>
+            <p className="text-sm text-discord-text">v1.0 - Phase 3</p>
           </div>
         </div>
       </div>
