@@ -27,7 +27,6 @@ export default function ManageTournamentPage() {
   const loadData = async () => {
     try {
       const tournamentId = params.id;
-      console.log('Loading tournament:', tournamentId);
 
       const { data: tournamentData, error: tournamentError } = await supabase
         .from('tournaments')
@@ -110,13 +109,10 @@ export default function ManageTournamentPage() {
 
     try {
       console.log('🚀 Starting prize distribution...');
-      console.log('Tournament ID:', tournament.id);
-      console.log('Preset:', preset);
       
       let totalDistributed = 0;
 
       for (const participant of participants) {
-        // ENSURE CORRECT DATA TYPES
         const kills = parseInt(killCounts[participant.id]) || 0;
         const isBooyah = participant.id === booyahWinner;
         const isFirst = participant.id === first;
@@ -140,20 +136,17 @@ export default function ManageTournamentPage() {
 
         const totalPrize = parseFloat((killReward + booyahReward + positionReward).toFixed(2));
 
-        console.log(`\n📝 Processing ${participant.users?.username}:`);
-        console.log(`  Kills: ${kills}, Booyah: ${isBooyah}, Prize: ₹${totalPrize}`);
+        console.log(`Processing ${participant.users?.username}: ${kills} kills, booyah: ${isBooyah}, prize: ₹${totalPrize}`);
 
-        // UPDATE PARTICIPANT - FIXED (removed .single())
-        const updateData = {
-          kills: kills,
-          got_booyah: isBooyah,
-          position: isFirst ? 1 : isSecond ? 2 : isThird ? 3 : null,
-          prize_won: totalPrize
-        };
-
+        // UPDATE PARTICIPANT
         const { error: updateError } = await supabase
           .from('tournament_participants')
-          .update(updateData)
+          .update({
+            kills: kills,
+            got_booyah: isBooyah,
+            position: isFirst ? 1 : isSecond ? 2 : isThird ? 3 : null,
+            prize_won: totalPrize
+          })
           .eq('id', participant.id);
 
         if (updateError) {
@@ -161,31 +154,31 @@ export default function ManageTournamentPage() {
           throw new Error(`Failed to update ${participant.users?.username}: ${updateError.message}`);
         }
 
-        console.log('  ✅ Database updated successfully');
-
-        // Award prize money
+        // Award prize money and UPDATE STATS
         if (totalPrize > 0) {
           totalDistributed += totalPrize;
           const currentBalance = parseFloat(participant.users.wallet_real || 0);
           const newBalance = parseFloat((currentBalance + totalPrize).toFixed(2));
-          
-          console.log(`  💰 Wallet: ₹${currentBalance} → ₹${newBalance}`);
 
+          // UPDATE USER: WALLET + GAME STATS + ACHIEVEMENT STATS
           const { error: walletError } = await supabase
             .from('users')
             .update({
               wallet_real: newBalance,
               total_wins: isBooyah ? (participant.users.total_wins || 0) + 1 : (participant.users.total_wins || 0),
-              total_games: (participant.users.total_games || 0) + 1
+              total_games: (participant.users.total_games || 0) + 1,
+              // ACHIEVEMENT STATS
+              stat_tournaments_joined: (participant.users.stat_tournaments_joined || 0) + 1,
+              stat_tournaments_won: isBooyah ? (participant.users.stat_tournaments_won || 0) + 1 : (participant.users.stat_tournaments_won || 0),
+              stat_total_kills: (participant.users.stat_total_kills || 0) + kills,
+              stat_total_earnings: (participant.users.stat_total_earnings || 0) + Math.floor(totalPrize)
             })
             .eq('id', participant.user_id);
 
           if (walletError) {
-            console.error('  ⚠️ Wallet error:', walletError);
+            console.error('⚠️ Wallet/stats error:', walletError);
             throw new Error(`Failed to update wallet for ${participant.users?.username}: ${walletError.message}`);
           }
-
-          console.log('  ✅ Wallet updated');
 
           // Transaction description
           let desc = tournament.title;
@@ -194,7 +187,7 @@ export default function ManageTournamentPage() {
           if (positionReward > 0) desc += ` | Position: ₹${positionReward.toFixed(2)}`;
 
           // Record transaction
-          const { error: txError } = await supabase.from('transactions').insert({
+          await supabase.from('transactions').insert({
             user_id: participant.user_id,
             type: 'tournament_win',
             amount: totalPrize,
@@ -203,12 +196,8 @@ export default function ManageTournamentPage() {
             tournament_id: tournament.id
           });
 
-          if (txError) {
-            console.error('  ⚠️ Transaction error:', txError);
-          }
-
           // Send notification
-          const { error: notifError } = await supabase.from('notifications').insert({
+          await supabase.from('notifications').insert({
             user_id: participant.user_id,
             title: '🎉 Tournament Rewards',
             message: `You earned ₹${totalPrize.toFixed(2)} from ${tournament.title}!${kills > 0 ? ` (${kills} kills)` : ''}${isBooyah ? ' 👑 Booyah!' : ''}`,
@@ -216,28 +205,26 @@ export default function ManageTournamentPage() {
             read: false
           });
 
-          if (notifError) {
-            console.error('  ⚠️ Notification error:', notifError);
-          }
-
-          console.log('  ✅ Transaction & notification sent');
+          console.log(`✅ Updated ${participant.users?.username}`);
         } else {
-          // Update total_games even if no prize
-          const { error: gamesError } = await supabase
+          // Update stats even if no prize
+          const { error: statsError } = await supabase
             .from('users')
             .update({
-              total_games: (participant.users.total_games || 0) + 1
+              total_games: (participant.users.total_games || 0) + 1,
+              stat_tournaments_joined: (participant.users.stat_tournaments_joined || 0) + 1,
+              stat_total_kills: (participant.users.stat_total_kills || 0) + kills
             })
             .eq('id', participant.user_id);
 
-          if (gamesError) {
-            console.error('  ⚠️ Games count error:', gamesError);
+          if (statsError) {
+            console.error('⚠️ Stats error:', statsError);
           }
         }
       }
 
       // Mark tournament as completed
-      const { error: tournamentUpdateError } = await supabase
+      await supabase
         .from('tournaments')
         .update({ 
           status: 'completed',
@@ -245,13 +232,7 @@ export default function ManageTournamentPage() {
         })
         .eq('id', tournament.id);
 
-      if (tournamentUpdateError) {
-        console.error('❌ Tournament update error:', tournamentUpdateError);
-        throw new Error(`Failed to mark tournament as completed: ${tournamentUpdateError.message}`);
-      }
-
-      console.log('\n✅ ALL PRIZES DISTRIBUTED!');
-      console.log(`Total distributed: ₹${totalDistributed.toFixed(2)}`);
+      console.log('✅ ALL PRIZES DISTRIBUTED!');
 
       alert(
         `✅ PRIZES DISTRIBUTED SUCCESSFULLY!\n\n` +
@@ -263,7 +244,7 @@ export default function ManageTournamentPage() {
       router.push('/admin/tournaments');
     } catch (error) {
       console.error('❌ DISTRIBUTION ERROR:', error);
-      alert(`❌ ERROR DISTRIBUTING PRIZES\n\n${error.message}\n\nPlease check browser console for details and try again.`);
+      alert(`❌ ERROR DISTRIBUTING PRIZES\n\n${error.message}\n\nPlease try again.`);
     } finally {
       setProcessing(false);
     }
@@ -364,9 +345,7 @@ export default function ManageTournamentPage() {
           {isPreset6 && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-yellow-600 bg-opacity-10 border border-yellow-600 rounded-xl p-4">
-                <h4 className="font-bold text-white mb-2 flex items-center gap-2">
-                  🥇 1st Place <span className="text-yellow-400">(₹20)</span>
-                </h4>
+                <h4 className="font-bold text-white mb-2">🥇 1st Place (₹20)</h4>
                 <select 
                   value={first || ''} 
                   onChange={(e) => setFirst(e.target.value)} 
@@ -379,9 +358,7 @@ export default function ManageTournamentPage() {
                 </select>
               </div>
               <div className="bg-gray-600 bg-opacity-10 border border-gray-600 rounded-xl p-4">
-                <h4 className="font-bold text-white mb-2 flex items-center gap-2">
-                  🥈 2nd Place <span className="text-gray-400">(₹15)</span>
-                </h4>
+                <h4 className="font-bold text-white mb-2">🥈 2nd Place (₹15)</h4>
                 <select 
                   value={second || ''} 
                   onChange={(e) => setSecond(e.target.value)} 
@@ -394,9 +371,7 @@ export default function ManageTournamentPage() {
                 </select>
               </div>
               <div className="bg-orange-600 bg-opacity-10 border border-orange-600 rounded-xl p-4">
-                <h4 className="font-bold text-white mb-2 flex items-center gap-2">
-                  🥉 3rd Place <span className="text-orange-400">(₹10)</span>
-                </h4>
+                <h4 className="font-bold text-white mb-2">🥉 3rd Place (₹10)</h4>
                 <select 
                   value={third || ''} 
                   onChange={(e) => setThird(e.target.value)} 
@@ -416,18 +391,18 @@ export default function ManageTournamentPage() {
             <div className="bg-discord-darkest rounded-xl p-6 mb-6">
               <h3 className="font-bold text-white mb-4 flex items-center gap-2">
                 <FaSkull className="text-red-400" />
-                Kill Entry <span className="text-red-400">(₹{preset.per_kill_reward} per kill)</span>
+                Kill Entry (₹{preset.per_kill_reward} per kill)
               </h3>
               <div className="space-y-2">
                 {participants.map(p => (
                   <div key={p.id} className="flex items-center gap-4 bg-discord-dark rounded-lg p-3 hover:bg-gray-800 transition-colors">
-                    <div className="w-16 text-center">
+                    <div className="w-16 text-center flex-shrink-0">
                       <p className="text-xs text-discord-text">Seat</p>
                       <p className="font-bold text-purple-400">#{p.seat_number}</p>
                     </div>
-                    <div className="flex-1">
-                      <p className="text-white font-semibold">{p.users?.username}</p>
-                      <p className="text-xs text-discord-text">{p.in_game_name}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-semibold truncate">{p.users?.username}</p>
+                      <p className="text-xs text-discord-text truncate">{p.in_game_name}</p>
                     </div>
                     <input
                       type="number"
@@ -435,9 +410,9 @@ export default function ManageTournamentPage() {
                       max="50"
                       value={killCounts[p.id] || 0}
                       onChange={(e) => setKillCounts({...killCounts, [p.id]: parseInt(e.target.value) || 0})}
-                      className="w-20 px-3 py-2 bg-discord-darkest border border-gray-700 text-white rounded-lg text-center focus:outline-none focus:border-purple-600"
+                      className="w-20 px-3 py-2 bg-discord-darkest border border-gray-700 text-white rounded-lg text-center focus:outline-none focus:border-purple-600 flex-shrink-0"
                     />
-                    <span className="text-discord-text text-sm w-12">kills</span>
+                    <span className="text-discord-text text-sm w-12 flex-shrink-0">kills</span>
                   </div>
                 ))}
               </div>
@@ -447,7 +422,7 @@ export default function ManageTournamentPage() {
           {/* Warning Banner */}
           {!booyahWinner && (
             <div className="bg-red-900 bg-opacity-20 border border-red-600 rounded-lg p-4 mb-6 flex items-center gap-3">
-              <FaExclamationTriangle className="text-2xl text-red-400" />
+              <FaExclamationTriangle className="text-2xl text-red-400 flex-shrink-0" />
               <div>
                 <p className="font-bold text-white">Booyah Winner Required</p>
                 <p className="text-sm text-red-300">Please select the booyah winner before distributing prizes</p>
@@ -482,25 +457,25 @@ export default function ManageTournamentPage() {
         <div className="space-y-2">
           {participants.map(p => (
             <div key={p.id} className="bg-discord-darkest rounded-lg p-3 flex items-center justify-between hover:bg-gray-800 transition-colors">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div className="w-12 h-12 bg-purple-600 rounded-full flex flex-col items-center justify-center text-white flex-shrink-0">
                   <span className="text-xs">Seat</span>
                   <span className="font-bold">{p.seat_number}</span>
                 </div>
-                <div>
-                  <p className="text-white font-semibold">{p.users?.username}</p>
-                  <p className="text-xs text-discord-text">{p.in_game_name} • UID: {p.in_game_id}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-white font-semibold truncate">{p.users?.username}</p>
+                  <p className="text-xs text-discord-text truncate">{p.in_game_name} • UID: {p.in_game_id}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-shrink-0">
                 {p.kills > 0 && (
-                  <span className="text-white text-sm bg-red-900 bg-opacity-30 px-2 py-1 rounded">
+                  <span className="text-white text-sm bg-red-900 bg-opacity-30 px-2 py-1 rounded whitespace-nowrap">
                     {p.kills} kills
                   </span>
                 )}
                 {p.got_booyah && <FaCrown className="text-2xl text-yellow-400" title="Booyah Winner" />}
                 {p.prize_won > 0 && (
-                  <span className="text-green-400 font-bold bg-green-900 bg-opacity-30 px-2 py-1 rounded">
+                  <span className="text-green-400 font-bold bg-green-900 bg-opacity-30 px-2 py-1 rounded whitespace-nowrap">
                     ₹{parseFloat(p.prize_won).toFixed(2)}
                   </span>
                 )}
