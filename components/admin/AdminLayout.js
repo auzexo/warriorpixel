@@ -1,48 +1,56 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { 
-  FaTachometerAlt, 
-  FaUsers, 
+  FaHome, 
   FaTrophy, 
-  FaShieldAlt,
+  FaUsers, 
+  FaBars, 
+  FaTimes, 
+  FaCog, 
+  FaSignOutAlt, 
+  FaBullhorn, 
+  FaChartLine, 
+  FaFileAlt, 
+  FaMoneyBillWave, 
+  FaShieldAlt, 
+  FaUserShield,
   FaVideo,
-  FaBullhorn,
-  FaCog,
-  FaSignOutAlt,
-  FaBars,
-  FaTimes
+  FaKey,
+  FaExchangeAlt
 } from 'react-icons/fa';
 
 export default function AdminLayout({ children }) {
+  const { user, signOut } = useAuth();
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     checkAdminAccess();
-  }, []);
+  }, [user]);
 
   const checkAdminAccess = async () => {
+    if (!user) {
+      router.push('/');
+      return;
+    }
+
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        router.push('/');
-        return;
-      }
+      const { data: whitelistEntry } = await supabase
+        .from('super_admin_whitelist')
+        .select('*')
+        .eq('email', user.email)
+        .eq('is_active', true)
+        .maybeSingle();
 
-      const { data: profile } = await supabase
-        .from('users')
-        .select('is_admin')
-        .eq('id', user.id)
-        .single();
-
-      if (!profile?.is_admin) {
-        alert('Access denied: Admin privileges required');
+      if (!whitelistEntry) {
+        alert('Access Denied: Admin privileges required');
         router.push('/');
         return;
       }
@@ -56,10 +64,47 @@ export default function AdminLayout({ children }) {
     }
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
+  const handleSignOut = async () => {
+    if (confirm('Are you sure you want to sign out?')) {
+      await signOut();
+      router.push('/');
+    }
   };
+
+  // Complete navigation structure
+  const navigationSections = [
+    {
+      title: 'Main',
+      items: [
+        { name: 'Dashboard', path: '/admin', icon: FaHome, exactMatch: true },
+        { name: 'Tournaments', path: '/admin/tournaments', icon: FaTrophy },
+        { name: 'Users', path: '/admin/users', icon: FaUsers },
+        { name: 'Guilds', path: '/admin/guilds', icon: FaShieldAlt }
+      ]
+    },
+    {
+      title: 'Content',
+      items: [
+        { name: 'Announcements', path: '/admin/announcements', icon: FaBullhorn },
+        { name: 'Videos & Content', path: '/admin/content', icon: FaVideo }
+      ]
+    },
+    {
+      title: 'Financial',
+      items: [
+        { name: 'Transactions', path: '/admin/transactions', icon: FaMoneyBillWave },
+        { name: 'Analytics', path: '/admin/analytics', icon: FaChartLine }
+      ]
+    },
+    {
+      title: 'System',
+      items: [
+        { name: 'Admin Logs', path: '/admin/logs', icon: FaFileAlt },
+        { name: 'Permissions', path: '/admin/permissions', icon: FaKey },
+        { name: 'Settings', path: '/admin/settings', icon: FaCog }
+      ]
+    }
+  ];
 
   if (loading) {
     return (
@@ -73,121 +118,124 @@ export default function AdminLayout({ children }) {
     return null;
   }
 
-  const menuItems = [
-    { icon: FaTachometerAlt, label: 'Dashboard', path: '/admin', color: 'text-purple-400' },
-    { icon: FaUsers, label: 'Users', path: '/admin/users', color: 'text-blue-400' },
-    { icon: FaTrophy, label: 'Tournaments', path: '/admin/tournaments', color: 'text-yellow-400' },
-    { icon: FaShieldAlt, label: 'Guilds', path: '/admin/guilds', color: 'text-green-400' },
-    { icon: FaVideo, label: 'Videos', path: '/admin/videos', color: 'text-red-400' },
-    { icon: FaBullhorn, label: 'Announcements', path: '/admin/announcements', color: 'text-orange-400' },
-    { icon: FaCog, label: 'Settings', path: '/admin/settings', color: 'text-gray-400' }
-  ];
+  const isActive = (item) => {
+    if (item.exactMatch) {
+      return pathname === item.path;
+    }
+    return pathname === item.path || pathname.startsWith(item.path + '/');
+  };
 
   return (
     <div className="min-h-screen bg-discord-darkest">
       {/* Mobile Header */}
       <div className="lg:hidden bg-discord-dark border-b border-gray-800 p-4 flex items-center justify-between sticky top-0 z-50">
+        <div>
+          <h1 className="text-xl font-bold text-white">Admin Panel</h1>
+          <p className="text-xs text-discord-text">WarriorPixel</p>
+        </div>
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-2 hover:bg-gray-800 rounded-lg transition-all"
+          className="p-2 hover:bg-gray-800 rounded-lg transition-all text-white"
         >
-          {sidebarOpen ? <FaTimes className="text-white text-xl" /> : <FaBars className="text-white text-xl" />}
+          {sidebarOpen ? <FaTimes size={24} /> : <FaBars size={24} />}
         </button>
-        <h1 className="text-lg font-bold text-white">👑 Admin Panel</h1>
-        <div className="w-10"></div>
       </div>
 
       <div className="flex">
         {/* Sidebar */}
         <aside className={`
-          fixed lg:sticky top-0 left-0 h-screen w-64 bg-discord-dark border-r border-gray-800 
-          transition-transform duration-300 z-40
+          fixed lg:static inset-y-0 left-0 z-40
+          w-64 bg-discord-dark border-r border-gray-800
+          transform transition-transform duration-300 ease-in-out
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}>
-          <div className="p-6">
-            <h1 className="text-2xl font-bold text-white mb-2 hidden lg:block">👑 Admin Panel</h1>
-            <p className="text-sm text-discord-text hidden lg:block">WarriorPixel Dashboard</p>
-          </div>
+          <div className="h-full flex flex-col">
+            {/* Logo/Title */}
+            <div className="p-6 border-b border-gray-800 hidden lg:block">
+              <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+                <FaUserShield className="text-purple-400" />
+                Admin Panel
+              </h1>
+              <p className="text-sm text-discord-text mt-1">WarriorPixel Management</p>
+            </div>
 
-          <nav className="px-3 flex-1 overflow-y-auto">
-            {menuItems.map((item, index) => (
+            {/* Navigation - Organized by Sections */}
+            <nav className="flex-1 p-4 overflow-y-auto">
+              {navigationSections.map((section) => (
+                <div key={section.title} className="mb-6">
+                  <p className="text-xs font-semibold text-discord-text uppercase tracking-wider mb-2 px-4">
+                    {section.title}
+                  </p>
+                  <ul className="space-y-1">
+                    {section.items.map((item) => {
+                      const Icon = item.icon;
+                      const active = isActive(item);
+
+                      return (
+                        <li key={item.path}>
+                          <button
+                            onClick={() => {
+                              router.push(item.path);
+                              setSidebarOpen(false);
+                            }}
+                            className={`
+                              w-full flex items-center gap-3 px-4 py-3 rounded-lg
+                              transition-all font-medium text-sm
+                              ${active
+                                ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/50'
+                                : 'text-discord-text hover:bg-gray-800 hover:text-white'
+                              }
+                            `}
+                          >
+                            <Icon className="text-lg flex-shrink-0" />
+                            <span>{item.name}</span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </nav>
+
+            {/* User Info & Sign Out */}
+            <div className="p-4 border-t border-gray-800">
+              <div className="flex items-center gap-3 mb-3 px-2">
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                  {user?.email?.[0].toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">{user?.email}</p>
+                  <p className="text-xs text-discord-text flex items-center gap-1">
+                    <FaUserShield className="text-purple-400" />
+                    Super Admin
+                  </p>
+                </div>
+              </div>
               <button
-                key={index}
-                onClick={() => {
-                  router.push(item.path);
-                  setSidebarOpen(false);
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-800 transition-all mb-2 group"
+                onClick={handleSignOut}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-all shadow-lg hover:shadow-red-600/50"
               >
-                <item.icon className={`text-xl ${item.color} group-hover:scale-110 transition-all`} />
-                <span className="text-white font-semibold">{item.label}</span>
+                <FaSignOutAlt />
+                Sign Out
               </button>
-            ))}
-          </nav>
-
-          <div className="p-4 border-t border-gray-800">
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-red-600 hover:bg-red-700 transition-all"
-            >
-              <FaSignOutAlt className="text-white" />
-              <span className="text-white font-semibold">Logout</span>
-            </button>
+            </div>
           </div>
         </aside>
 
         {/* Overlay for mobile */}
         {sidebarOpen && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
             onClick={() => setSidebarOpen(false)}
-          ></div>
+            className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+          />
         )}
 
         {/* Main Content */}
         <main className="flex-1 p-4 lg:p-8 overflow-x-hidden">
-          <div className="max-w-7xl mx-auto">
-            {children}
-          </div>
+          {children}
         </main>
       </div>
-
-      {/* Global CSS for dark inputs */}
-      <style jsx global>{`
-        /* Admin Panel Input Styling */
-        #__next input[type="text"],
-        #__next input[type="email"],
-        #__next input[type="password"],
-        #__next input[type="number"],
-        #__next input[type="datetime-local"],
-        #__next textarea,
-        #__next select {
-          background-color: #0a0a0f !important;
-          border: 1px solid #374151 !important;
-          color: #ffffff !important;
-          padding: 0.75rem 1rem !important;
-          border-radius: 0.5rem !important;
-        }
-
-        #__next input::placeholder,
-        #__next textarea::placeholder {
-          color: #6b7280 !important;
-        }
-
-        #__next input:focus,
-        #__next textarea:focus,
-        #__next select:focus {
-          outline: none !important;
-          border-color: #7c3aed !important;
-        }
-
-        /* Fix white text inputs */
-        .admin-input {
-          background-color: #0a0a0f !important;
-          border: 1px solid #374151 !important;
-          color: #ffffff !important;
-        }
-      `}</style>
     </div>
   );
 }
