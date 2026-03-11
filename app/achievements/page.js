@@ -23,45 +23,15 @@ export default function AchievementsPage() {
 
   const loadAchievements = async () => {
     try {
-      console.log('🔄 Loading achievements for user:', user.id);
-
-      // Call the RPC function
       const { data, error } = await supabase.rpc('check_unlockable_achievements', {
         p_user_id: user.id
       });
 
-      if (error) {
-        console.error('❌ RPC Error:', error);
-        throw error;
-      }
-
-      console.log('✅ Achievements loaded:', data);
-      
-      // Debug: Log stats
-      if (data && data.length > 0) {
-        const sampleAchievement = data[0];
-        console.log('📊 Sample achievement data:', {
-          name: sampleAchievement.achievement_name,
-          current_progress: sampleAchievement.current_progress,
-          requirement_value: sampleAchievement.requirement_value,
-          is_unlocked: sampleAchievement.is_unlocked,
-          is_claimed: sampleAchievement.is_claimed
-        });
-
-        // Get unique requirement types to see what stats we have
-        const statsByType = {};
-        data.forEach(a => {
-          if (!statsByType[a.requirement_type]) {
-            statsByType[a.requirement_type] = a.current_progress;
-          }
-        });
-        console.log('📈 Current stats:', statsByType);
-      }
-
+      if (error) throw error;
       setAchievements(data || []);
     } catch (error) {
-      console.error('❌ Error loading achievements:', error);
-      alert('Error loading achievements. Check console for details.');
+      console.error('Error loading achievements:', error);
+      alert('Error loading achievements. Please refresh the page.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -77,30 +47,23 @@ export default function AchievementsPage() {
     setClaiming(achievementId);
     
     try {
-      console.log('🎁 Claiming achievement:', achievementName);
-      
       const { data, error } = await supabase.rpc('claim_achievement', {
         p_user_id: user.id,
         p_achievement_id: achievementId
       });
 
-      if (error) {
-        console.error('❌ Claim error:', error);
-        throw error;
-      }
-
-      console.log('✅ Claim result:', data);
+      if (error) throw error;
 
       const result = data[0];
       
       if (result.success) {
-        alert(`🎉 Achievement Claimed!\n\n${achievementName}\n+${result.points_earned} Points\n+₹${result.coins_earned} Bonus`);
+        alert(`🎉 Achievement Claimed!\n\n${achievementName}\n\n+${result.points_earned} Points\n+${result.coins_earned} Coins`);
         await loadAchievements();
       } else {
         alert('❌ ' + result.message);
       }
     } catch (error) {
-      console.error('❌ Claim error:', error);
+      console.error('Claim error:', error);
       alert('Error claiming achievement: ' + error.message);
     } finally {
       setClaiming(null);
@@ -131,8 +94,7 @@ export default function AchievementsPage() {
     if (filter === 'claimable') return a.is_unlocked && !a.is_claimed;
     if (filter === 'claimed') return a.is_claimed;
     if (filter === 'locked') return !a.is_unlocked;
-    if (filter === 'all') return true;
-    return a.requirement_type?.includes(filter);
+    return filter === 'all';
   });
 
   const claimableCount = achievements.filter(a => a.is_unlocked && !a.is_claimed).length;
@@ -140,7 +102,6 @@ export default function AchievementsPage() {
   const totalPoints = achievements.filter(a => a.is_claimed).reduce((sum, a) => sum + a.points, 0);
   const totalCoins = achievements.filter(a => a.is_claimed).reduce((sum, a) => sum + a.coin_reward, 0);
 
-  // Get current stats from achievements data
   const currentStats = {
     tournaments: achievements.find(a => a.requirement_type === 'tournament_join')?.current_progress || 0,
     wins: achievements.find(a => a.requirement_type === 'tournament_win')?.current_progress || 0,
@@ -171,17 +132,17 @@ export default function AchievementsPage() {
   return (
     <div className="min-h-screen bg-discord-darkest p-3 md:p-8">
       <div className="max-w-6xl mx-auto">
-        {/* Header with Refresh */}
+        {/* Header */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <FaTrophy className="text-3xl text-purple-400" />
-              <h1 className="text-2xl md:text-4xl font-bold text-white">Achievements</h1>
+              <FaTrophy className="text-2xl md:text-3xl text-purple-400" />
+              <h1 className="text-xl md:text-3xl font-bold text-white">Achievements</h1>
             </div>
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="px-3 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 text-white rounded-lg flex items-center gap-2 transition-all"
+              className="px-3 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 text-white rounded-lg flex items-center gap-2 transition-all text-sm"
             >
               <FaSync className={refreshing ? 'animate-spin' : ''} />
               <span className="hidden md:inline">Refresh</span>
@@ -190,59 +151,59 @@ export default function AchievementsPage() {
           <p className="text-xs md:text-sm text-discord-text">Complete achievements to earn coins and points</p>
         </div>
 
-        {/* Current Stats Display */}
-        <div className="bg-discord-dark border border-gray-800 rounded-lg p-4 mb-6">
-          <h3 className="text-sm font-bold text-white mb-3">Your Current Stats</h3>
+        {/* Current Stats */}
+        <div className="bg-discord-dark border border-gray-800 rounded-lg p-3 md:p-4 mb-4">
+          <h3 className="text-sm font-bold text-white mb-3">Your Stats</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="text-center">
-              <FaTrophy className="text-2xl text-blue-400 mx-auto mb-1" />
+              <FaTrophy className="text-xl md:text-2xl text-blue-400 mx-auto mb-1" />
               <p className="text-xs text-discord-text">Tournaments</p>
-              <p className="text-xl font-bold text-white">{currentStats.tournaments}</p>
+              <p className="text-lg md:text-xl font-bold text-white">{currentStats.tournaments}</p>
             </div>
             <div className="text-center">
-              <FaCrown className="text-2xl text-yellow-400 mx-auto mb-1" />
+              <FaCrown className="text-xl md:text-2xl text-yellow-400 mx-auto mb-1" />
               <p className="text-xs text-discord-text">Wins</p>
-              <p className="text-xl font-bold text-white">{currentStats.wins}</p>
+              <p className="text-lg md:text-xl font-bold text-white">{currentStats.wins}</p>
             </div>
             <div className="text-center">
-              <FaSkull className="text-2xl text-red-400 mx-auto mb-1" />
+              <FaSkull className="text-xl md:text-2xl text-red-400 mx-auto mb-1" />
               <p className="text-xs text-discord-text">Kills</p>
-              <p className="text-xl font-bold text-white">{currentStats.kills}</p>
+              <p className="text-lg md:text-xl font-bold text-white">{currentStats.kills}</p>
             </div>
             <div className="text-center">
-              <FaCoins className="text-2xl text-green-400 mx-auto mb-1" />
+              <FaMoneyBillWave className="text-xl md:text-2xl text-green-400 mx-auto mb-1" />
               <p className="text-xs text-discord-text">Earnings</p>
-              <p className="text-xl font-bold text-white">₹{currentStats.earnings}</p>
+              <p className="text-lg md:text-xl font-bold text-white">₹{currentStats.earnings}</p>
             </div>
           </div>
         </div>
 
-        {/* Stats Summary */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 mb-6">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-4">
           <div className="bg-gradient-to-br from-purple-900 to-purple-800 border border-purple-600 rounded-lg p-3">
-            <FaStar className="text-2xl text-yellow-400 mb-1" />
+            <FaStar className="text-xl md:text-2xl text-yellow-400 mb-1" />
             <p className="text-xs text-purple-200">Points</p>
-            <p className="text-xl font-bold text-white">{totalPoints}</p>
+            <p className="text-lg md:text-xl font-bold text-white">{totalPoints}</p>
           </div>
-          <div className="bg-gradient-to-br from-green-900 to-green-800 border border-green-600 rounded-lg p-3">
-            <FaCoins className="text-2xl text-yellow-400 mb-1" />
-            <p className="text-xs text-green-200">Coins Earned</p>
-            <p className="text-xl font-bold text-white">₹{totalCoins}</p>
+          <div className="bg-gradient-to-br from-yellow-900 to-yellow-800 border border-yellow-600 rounded-lg p-3">
+            <FaCoins className="text-xl md:text-2xl text-yellow-400 mb-1" />
+            <p className="text-xs text-yellow-200">Coins</p>
+            <p className="text-lg md:text-xl font-bold text-white">{totalCoins}</p>
           </div>
           <div className="bg-discord-dark border border-gray-800 rounded-lg p-3">
-            <FaGift className="text-2xl text-blue-400 mb-1" />
+            <FaGift className="text-xl md:text-2xl text-blue-400 mb-1" />
             <p className="text-xs text-discord-text">Claimable</p>
-            <p className="text-xl font-bold text-white">{claimableCount}</p>
+            <p className="text-lg md:text-xl font-bold text-white">{claimableCount}</p>
           </div>
           <div className="bg-discord-dark border border-gray-800 rounded-lg p-3">
-            <FaCheckCircle className="text-2xl text-green-400 mb-1" />
+            <FaCheckCircle className="text-xl md:text-2xl text-green-400 mb-1" />
             <p className="text-xs text-discord-text">Claimed</p>
-            <p className="text-xl font-bold text-white">{claimedCount}/{achievements.length}</p>
+            <p className="text-lg md:text-xl font-bold text-white">{claimedCount}/{achievements.length}</p>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
           {['all', 'claimable', 'claimed', 'locked'].map(f => (
             <button
               key={f}
@@ -257,7 +218,7 @@ export default function AchievementsPage() {
         </div>
 
         {/* Achievements Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {filteredAchievements.length === 0 ? (
             <div className="col-span-full text-center py-12">
               <FaTrophy className="text-5xl text-gray-600 mx-auto mb-4" />
@@ -278,24 +239,24 @@ export default function AchievementsPage() {
                     achievement.is_claimed 
                       ? 'bg-gradient-to-br from-green-900 to-green-800 border-green-600'
                       : canClaim
-                      ? 'bg-gradient-to-br from-purple-900 to-purple-800 border-purple-500 animate-pulse'
+                      ? 'bg-gradient-to-br from-purple-900 to-purple-800 border-purple-500'
                       : 'bg-discord-dark border-gray-800'
                   }`}
                 >
                   {/* Icon & Status */}
                   <div className="flex items-start justify-between mb-3">
-                    <Icon className={`text-3xl text-${color}-400`} />
+                    <Icon className={`text-2xl md:text-3xl text-${color}-400`} />
                     {achievement.is_claimed ? (
-                      <FaCheckCircle className="text-xl text-green-400" />
+                      <FaCheckCircle className="text-lg md:text-xl text-green-400" />
                     ) : canClaim ? (
-                      <FaGift className="text-xl text-yellow-400 animate-bounce" />
+                      <FaGift className="text-lg md:text-xl text-yellow-400 animate-bounce" />
                     ) : (
-                      <FaLock className="text-xl text-gray-600" />
+                      <FaLock className="text-lg md:text-xl text-gray-600" />
                     )}
                   </div>
 
                   {/* Title */}
-                  <h3 className={`text-lg font-bold mb-1 ${
+                  <h3 className={`text-base md:text-lg font-bold mb-1 ${
                     achievement.is_claimed ? 'text-white' : canClaim ? 'text-white' : 'text-gray-400'
                   }`}>
                     {achievement.achievement_name}
@@ -308,15 +269,15 @@ export default function AchievementsPage() {
                     {achievement.achievement_description}
                   </p>
 
-                  {/* Rewards */}
+                  {/* Rewards - COINS NOT RUPEES */}
                   <div className="flex items-center gap-3 mb-3 text-sm">
                     <div className="flex items-center gap-1">
-                      <FaStar className="text-yellow-400" />
-                      <span className="font-bold text-white">{achievement.points}</span>
+                      <FaStar className="text-yellow-400 text-sm" />
+                      <span className="font-bold text-white">{achievement.points} pts</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <FaCoins className="text-yellow-400" />
-                      <span className="font-bold text-white">₹{achievement.coin_reward}</span>
+                      <FaCoins className="text-yellow-400 text-sm" />
+                      <span className="font-bold text-white">{achievement.coin_reward} coins</span>
                     </div>
                   </div>
 
@@ -343,7 +304,7 @@ export default function AchievementsPage() {
                     <button
                       onClick={() => handleClaim(achievement.achievement_id, achievement.achievement_name)}
                       disabled={claiming === achievement.achievement_id}
-                      className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-700 disabled:to-gray-700 text-white rounded-lg font-bold flex items-center justify-center gap-2 transition-all"
+                      className="w-full px-4 py-2 md:py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-700 disabled:to-gray-700 text-white rounded-lg font-bold flex items-center justify-center gap-2 transition-all text-sm"
                     >
                       {claiming === achievement.achievement_id ? (
                         <>
