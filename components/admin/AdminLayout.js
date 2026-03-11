@@ -63,7 +63,8 @@ export default function AdminLayout({ children }) {
           name: 'Dashboard', 
           path: '/admin/dashboard', 
           icon: FaHome,
-          permission: PERMISSIONS.TOURNAMENT_VIEW
+          permission: PERMISSIONS.TOURNAMENT_VIEW,
+          exactMatch: true
         },
         { 
           name: 'Tournaments', 
@@ -156,11 +157,11 @@ export default function AdminLayout({ children }) {
     return hasPermission(adminSession.permissions, item.permission);
   };
 
-  const isActive = (itemPath) => {
-    if (itemPath === '/admin/dashboard') {
-      return pathname === itemPath;
+  const isActive = (item) => {
+    if (item.exactMatch) {
+      return pathname === item.path;
     }
-    return pathname === itemPath || pathname.startsWith(itemPath + '/');
+    return pathname === item.path || pathname.startsWith(item.path + '/');
   };
 
   if (loading) {
@@ -183,19 +184,25 @@ export default function AdminLayout({ children }) {
     <div className="min-h-screen bg-discord-darkest">
       {/* Mobile Header */}
       <div className="lg:hidden bg-discord-dark border-b border-gray-800 p-4 flex items-center justify-between sticky top-0 z-50">
-        <div className="flex items-center gap-2">
-          <FaCrown className="text-red-500 text-xl" />
-          <div>
-            <h1 className="text-lg font-bold text-white">Admin Panel</h1>
-            <p className="text-xs text-discord-text">WarriorPixel</p>
-          </div>
-        </div>
+        {/* Hamburger on LEFT */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
           className="p-2 hover:bg-gray-800 rounded-lg transition-all text-white"
         >
           {sidebarOpen ? <FaTimes size={24} /> : <FaBars size={24} />}
         </button>
+        
+        {/* Title in CENTER */}
+        <div className="flex items-center gap-2 flex-1 justify-center">
+          <FaCrown className="text-red-500 text-xl" />
+          <div className="text-center">
+            <h1 className="text-lg font-bold text-white">Admin Panel</h1>
+            <p className="text-xs text-discord-text">WarriorPixel</p>
+          </div>
+        </div>
+
+        {/* Empty space on RIGHT for balance */}
+        <div className="w-10"></div>
       </div>
 
       <div className="flex">
@@ -207,7 +214,7 @@ export default function AdminLayout({ children }) {
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}>
           <div className="h-full flex flex-col">
-            {/* Logo/Title */}
+            {/* Logo/Title - Desktop Only */}
             <div className="p-6 border-b border-gray-800 hidden lg:block">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-orange-500 rounded-lg flex items-center justify-center">
@@ -222,41 +229,46 @@ export default function AdminLayout({ children }) {
 
             {/* Navigation - Organized by Sections */}
             <nav className="flex-1 p-4 overflow-y-auto">
-              {navigationSections.map((section) => (
-                <div key={section.title} className="mb-6">
-                  <p className="text-xs font-semibold text-discord-text uppercase tracking-wider mb-2 px-4">
-                    {section.title}
-                  </p>
-                  <ul className="space-y-1">
-                    {section.items.filter(canAccessItem).map((item) => {
-                      const Icon = item.icon;
-                      const active = isActive(item.path);
+              {navigationSections.map((section) => {
+                const sectionItems = section.items.filter(canAccessItem);
+                if (sectionItems.length === 0) return null;
 
-                      return (
-                        <li key={item.path}>
-                          <button
-                            onClick={() => {
-                              router.push(item.path);
-                              setSidebarOpen(false);
-                            }}
-                            className={`
-                              w-full flex items-center gap-3 px-4 py-3 rounded-lg
-                              transition-all font-medium text-sm
-                              ${active
-                                ? 'bg-red-600 text-white shadow-lg shadow-red-600/50'
-                                : 'text-discord-text hover:bg-gray-800 hover:text-white'
-                              }
-                            `}
-                          >
-                            <Icon className="text-lg flex-shrink-0" />
-                            <span>{item.name}</span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ))}
+                return (
+                  <div key={section.title} className="mb-6">
+                    <p className="text-xs font-semibold text-discord-text uppercase tracking-wider mb-2 px-4">
+                      {section.title}
+                    </p>
+                    <ul className="space-y-1">
+                      {sectionItems.map((item) => {
+                        const Icon = item.icon;
+                        const active = isActive(item);
+
+                        return (
+                          <li key={item.path}>
+                            <button
+                              onClick={() => {
+                                router.push(item.path);
+                                setSidebarOpen(false);
+                              }}
+                              className={`
+                                w-full flex items-center gap-3 px-4 py-3 rounded-lg
+                                transition-all font-medium text-sm
+                                ${active
+                                  ? 'bg-red-600 text-white shadow-lg shadow-red-600/50'
+                                  : 'text-discord-text hover:bg-gray-800 hover:text-white'
+                                }
+                              `}
+                            >
+                              <Icon className="text-lg flex-shrink-0" />
+                              <span>{item.name}</span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                );
+              })}
             </nav>
 
             {/* User Info & Sign Out */}
@@ -298,14 +310,8 @@ export default function AdminLayout({ children }) {
           />
         )}
 
-        {/* Main Content */}
+        {/* Main Content - NO REDUNDANT HEADER */}
         <main className="flex-1 p-4 lg:p-8 overflow-x-hidden">
-          {/* Top Bar */}
-          <div className="mb-6 flex items-center gap-2">
-            <FaCrown className="text-red-500 text-xl" />
-            <h2 className="text-2xl font-bold text-white">Admin Dashboard</h2>
-          </div>
-          
           {children}
         </main>
       </div>
