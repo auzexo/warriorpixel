@@ -27,8 +27,12 @@ export default function AdminLoginPage() {
     setError('');
     setLoading(true);
 
+    console.log('🔐 Attempting login for:', credentials.username);
+
     try {
-      // Query admin_accounts table
+      // Query admin_accounts table with detailed logging
+      console.log('📊 Querying admin_accounts...');
+      
       const { data: admin, error: adminError } = await supabase
         .from('admin_accounts')
         .select('*')
@@ -37,14 +41,19 @@ export default function AdminLoginPage() {
         .eq('is_active', true)
         .maybeSingle();
 
+      console.log('📊 Query result:', { admin, adminError });
+
       if (adminError) {
-        console.error('Login error:', adminError);
-        throw new Error('Database error. Please try again.');
+        console.error('❌ Database error:', adminError);
+        throw new Error(`Database error: ${adminError.message}. Code: ${adminError.code}`);
       }
 
       if (!admin) {
+        console.log('❌ No admin found with these credentials');
         throw new Error('Invalid username or password');
       }
+
+      console.log('✅ Admin found:', admin.username);
 
       // Create session
       const session = {
@@ -56,20 +65,28 @@ export default function AdminLoginPage() {
 
       // Store in localStorage
       localStorage.setItem('admin_session', JSON.stringify(session));
+      console.log('✅ Session created');
 
-      // Log admin login
-      await supabase.from('admin_logs').insert({
-        admin_id: admin.id,
-        action: 'login',
-        details: 'Admin logged in',
-        ip_address: 'N/A',
-        user_agent: navigator.userAgent
-      });
+      // Log admin login (don't fail login if this fails)
+      try {
+        await supabase.from('admin_logs').insert({
+          admin_id: admin.id,
+          action: 'login',
+          details: 'Admin logged in',
+          ip_address: 'N/A',
+          user_agent: navigator.userAgent
+        });
+        console.log('✅ Login logged');
+      } catch (logError) {
+        console.error('⚠️ Failed to log admin login:', logError);
+        // Don't fail the login if logging fails
+      }
 
       // Redirect to dashboard
+      console.log('✅ Redirecting to dashboard');
       router.push('/admin/dashboard');
     } catch (err) {
-      console.error('Login error:', err);
+      console.error('❌ Login error:', err);
       setError(err.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
@@ -102,7 +119,8 @@ export default function AdminLoginPage() {
           <form onSubmit={handleLogin} className="p-8">
             {error && (
               <div className="mb-6 p-4 bg-red-900 bg-opacity-30 border border-red-600 rounded-lg">
-                <p className="text-sm text-red-400 text-center">{error}</p>
+                <p className="text-sm text-red-400">{error}</p>
+                <p className="text-xs text-red-500 mt-2">Check browser console (F12) for details</p>
               </div>
             )}
 
