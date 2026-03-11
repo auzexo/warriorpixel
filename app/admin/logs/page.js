@@ -383,6 +383,15 @@ export default function AdminLogsPage() {
                         <td className="px-6 py-4">
                           <p className="text-sm text-discord-text">{log.ip_address || 'N/A'}</p>
                         </td>
+                        <td className="px-6 py-4">
+                          <button
+                            onClick={() => sendToDiscord(log)}
+                            className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs font-semibold transition-all flex items-center gap-1"
+                            title="Send to Discord"
+                          >
+                            📢 Discord
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
