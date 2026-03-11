@@ -1,422 +1,272 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import AdminLayout from '@/components/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
-import { logAdminAction } from '@/lib/admin';
-import { FaBullhorn, FaPlus, FaTrash, FaDiscord, FaClock } from 'react-icons/fa';
+import AdminLayout from '@/components/admin/AdminLayout';
+import { useRouter } from 'next/navigation';
+import { FaBullhorn, FaPlus, FaEdit, FaTrash, FaEye, FaEyeSlash, FaExclamationTriangle, FaInfoCircle, FaCheckCircle, FaTimes } from 'react-icons/fa';
 
-export default function AnnouncementsPage() {
+export default function AdminAnnouncementsPage() {
   const router = useRouter();
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [deleting, setDeleting] = useState(null);
 
   useEffect(() => {
     loadAnnouncements();
   }, []);
 
   const loadAnnouncements = async () => {
-    setLoading(true);
-
-    const { data, error } = await supabase
-      .from('announcements')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (data) {
-      setAnnouncements(data);
-    }
-
-    setLoading(false);
-  };
-
-  const handleDelete = async (announcementId) => {
-    if (!confirm('Delete this announcement?')) return;
-
-    const { error } = await supabase
-      .from('announcements')
-      .delete()
-      .eq('id', announcementId);
-
-    if (!error) {
-      alert('Announcement deleted');
-      loadAnnouncements();
-    } else {
-      alert('Error deleting: ' + error.message);
-    }
-  };
-
-  const getTimeRemaining = (expiresAt) => {
-    const now = new Date();
-    const expires = new Date(expiresAt);
-    const diff = expires - now;
-
-    if (diff <= 0) return 'Expired';
-
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-    if (hours > 0) return `${hours}h ${minutes}m remaining`;
-    return `${minutes}m remaining`;
-  };
-
-  return (
-    <AdminLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-2">Announcements</h1>
-            <p className="text-discord-text">Create and manage platform announcements</p>
-          </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-bold transition-all"
-          >
-            <FaPlus />
-            Create Announcement
-          </button>
-        </div>
-
-        {/* Info */}
-        <div className="bg-yellow-500 bg-opacity-10 border border-yellow-500 rounded-lg p-4">
-          <p className="text-yellow-400 text-sm font-semibold">⏰ Auto-Delete</p>
-          <p className="text-discord-text text-sm mt-1">
-            Announcements are automatically deleted 24 hours after creation
-          </p>
-        </div>
-
-        {/* Announcements List */}
-        <div className="space-y-4">
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
-            </div>
-          ) : announcements.length > 0 ? (
-            announcements.map((announcement) => (
-              <div
-                key={announcement.id}
-                className="bg-discord-dark rounded-xl p-6 border border-gray-800"
-              >
-                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <FaBullhorn className={`text-2xl ${
-                        announcement.priority === 'urgent' ? 'text-red-400' :
-                        announcement.priority === 'high' ? 'text-orange-400' :
-                        'text-blue-400'
-                      }`} />
-                      <div>
-                        <h3 className="text-xl font-bold text-white">{announcement.title}</h3>
-                        <div className="flex items-center gap-3 mt-1">
-                          <span className={`px-2 py-1 rounded text-xs font-bold ${
-                            announcement.priority === 'urgent' ? 'bg-red-500' :
-                            announcement.priority === 'high' ? 'bg-orange-500' :
-                            announcement.priority === 'normal' ? 'bg-blue-500' :
-                            'bg-gray-500'
-                          } text-white`}>
-                            {announcement.priority.toUpperCase()}
-                          </span>
-                          <span className="px-2 py-1 rounded text-xs bg-purple-500 bg-opacity-20 text-purple-400">
-                            {announcement.type}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <p className="text-discord-text mt-3">{announcement.message}</p>
-                    <div className="flex items-center gap-4 mt-4 text-sm">
-                      <span className="text-discord-text flex items-center gap-1">
-                        <FaClock />
-                        {getTimeRemaining(announcement.expires_at)}
-                      </span>
-                      {announcement.sent_to_discord && (
-                        <span className="text-green-400 flex items-center gap-1">
-                          <FaDiscord />
-                          Sent to Discord
-                        </span>
-                      )}
-                      <span className="text-discord-text">
-                        {new Date(announcement.created_at).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleDelete(announcement.id)}
-                    className="p-3 bg-red-600 hover:bg-red-700 rounded-lg transition-all"
-                  >
-                    <FaTrash />
-                  </button>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="text-center py-12 bg-discord-dark rounded-xl border border-gray-800">
-              <FaBullhorn className="text-6xl text-gray-600 mx-auto mb-4" />
-              <p className="text-discord-text">No announcements</p>
-            </div>
-          )}
-        </div>
-
-        {/* Create Modal */}
-        {showCreateModal && (
-          <CreateAnnouncementModal
-            onClose={() => setShowCreateModal(false)}
-            onSuccess={() => {
-              setShowCreateModal(false);
-              loadAnnouncements();
-            }}
-          />
-        )}
-      </div>
-    </AdminLayout>
-  );
-}
-
-// Create Announcement Modal Component
-function CreateAnnouncementModal({ onClose, onSuccess }) {
-  const [loading, setLoading] = useState(false);
-  const [loadingWebhook, setLoadingWebhook] = useState(true);
-  const [formData, setFormData] = useState({
-    title: '',
-    message: '',
-    type: 'general',
-    priority: 'normal',
-    sendToDiscord: true, // Default to true
-    discordWebhook: '',
-  });
-
-  useEffect(() => {
-    loadDefaultWebhook();
-  }, []);
-
-  const loadDefaultWebhook = async () => {
-    const { data } = await supabase
-      .from('admin_settings')
-      .select('setting_value')
-      .eq('setting_key', 'discord_webhook_url')
-      .single();
-
-    if (data?.setting_value) {
-      setFormData(prev => ({ ...prev, discordWebhook: data.setting_value }));
-    }
-    setLoadingWebhook(false);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-  
     try {
-      // Create announcement
-      const { data: announcementData, error: announcementError } = await supabase
+      const { data, error } = await supabase
         .from('announcements')
-        .insert([{
-          title: formData.title,
-          message: formData.message,
-          type: formData.type,
-          priority: formData.priority,
-          discord_webhook_url: formData.sendToDiscord ? formData.discordWebhook : null,
-        }])
-        .select()
-        .single();
-  
-      if (announcementError) throw announcementError;
-  
-      // Send to Discord if enabled
-      if (formData.sendToDiscord && formData.discordWebhook) {
-        try {
-          await fetch(formData.discordWebhook, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              embeds: [{
-                title: `📢 ${formData.title}`,
-                description: formData.message,
-                color: formData.priority === 'urgent' ? 0xFF0000 :
-                       formData.priority === 'high' ? 0xFF6600 : 0x5865F2,
-                footer: { text: 'WarriorPixel Announcement' },
-                timestamp: new Date().toISOString(),
-              }]
-            }),
-          });
-  
-          // Mark as sent
-          await supabase
-            .from('announcements')
-            .update({ sent_to_discord: true })
-            .eq('id', announcementData.id);
-        } catch (discordError) {
-          console.error('Discord webhook error:', discordError);
-        }
-      }
-  
-      // Create notifications for ALL users
-      try {
-        const { data: allUsers, error: usersError } = await supabase
-          .from('users')
-          .select('id');
-  
-        if (allUsers && allUsers.length > 0) {
-          const notifications = allUsers.map(user => ({
-            user_id: user.id,
-            title: formData.title,
-            message: formData.message,
-            type: 'announcement',
-            read: false,
-          }));
-  
-          const { error: notifError } = await supabase
-            .from('notifications')
-            .insert(notifications);
-  
-          if (notifError) {
-            console.error('Notification creation error:', notifError);
-          } else {
-            console.log(`Created ${notifications.length} notifications`);
-          }
-        }
-      } catch (notifError) {
-        console.error('Error creating notifications:', notifError);
-      }
-  
-      // Log admin action
-      const adminSession = JSON.parse(localStorage.getItem('admin_session') || '{}');
-      await logAdminAction(adminSession.adminAccountId, 'announcement_create', {
-        title: formData.title,
-        priority: formData.priority,
-      });
-  
-      alert('Announcement created and sent to all users!');
-      onSuccess();
+        .select('*')
+        .order('priority', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setAnnouncements(data || []);
     } catch (error) {
-      console.error('Error creating announcement:', error);
-      alert('Error: ' + error.message);
+      console.error('Error loading announcements:', error);
+      alert('Error loading announcements');
     } finally {
       setLoading(false);
     }
   };
 
+  const toggleActive = async (id, currentStatus) => {
+    try {
+      const { error } = await supabase
+        .from('announcements')
+        .update({ is_active: !currentStatus })
+        .eq('id', id);
+
+      if (error) throw error;
+      loadAnnouncements();
+    } catch (error) {
+      console.error('Error toggling status:', error);
+      alert('Error updating announcement status');
+    }
+  };
+
+  const handleDelete = async (id, title) => {
+    if (!confirm(`Delete announcement: "${title}"?\n\nThis cannot be undone.`)) {
+      return;
+    }
+
+    setDeleting(id);
+    try {
+      const { error } = await supabase
+        .from('announcements')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      alert('Announcement deleted successfully!');
+      loadAnnouncements();
+    } catch (error) {
+      console.error('Error deleting:', error);
+      alert('Error deleting announcement');
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const getTypeIcon = (type) => {
+    switch (type) {
+      case 'warning': return <FaExclamationTriangle className="text-yellow-400" />;
+      case 'error': return <FaTimes className="text-red-400" />;
+      case 'success': return <FaCheckCircle className="text-green-400" />;
+      case 'tournament': return <FaBullhorn className="text-purple-400" />;
+      default: return <FaInfoCircle className="text-blue-400" />;
+    }
+  };
+
+  const getTypeBadge = (type) => {
+    const colors = {
+      info: 'bg-blue-600',
+      warning: 'bg-yellow-600',
+      error: 'bg-red-600',
+      success: 'bg-green-600',
+      tournament: 'bg-purple-600',
+      maintenance: 'bg-gray-600'
+    };
+    return colors[type] || 'bg-gray-600';
+  };
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-discord-dark rounded-xl w-full max-w-2xl p-6 border border-gray-800 max-h-[90vh] overflow-y-auto">
-        <h2 className="text-2xl font-bold text-white mb-6">Create Announcement</h2>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <AdminLayout>
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <label className="block text-sm font-medium text-discord-text mb-2">Title *</label>
-            <input
-              type="text"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              placeholder="Announcement title"
-              className="w-full px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-500"
-              required
-            />
+            <h1 className="text-3xl font-bold text-white mb-1">Announcements</h1>
+            <p className="text-discord-text">Manage platform announcements and notifications</p>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-discord-text mb-2">Message *</label>
-            <textarea
-              value={formData.message}
-              onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-              placeholder="Announcement message"
-              rows="4"
-              className="w-full px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-500"
-              required
-            ></textarea>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-discord-text mb-2">Type</label>
-              <select
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                className="w-full px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white focus:outline-none focus:border-red-500"
-              >
-                <option value="general">General</option>
-                <option value="tournament">Tournament</option>
-                <option value="maintenance">Maintenance</option>
-                <option value="update">Update</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-discord-text mb-2">Priority</label>
-              <select
-                value={formData.priority}
-                onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                className="w-full px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white focus:outline-none focus:border-red-500"
-              >
-                <option value="low">Low</option>
-                <option value="normal">Normal</option>
-                <option value="high">High</option>
-                <option value="urgent">Urgent</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="pt-4 border-t border-gray-700">
-            <div className="flex items-center gap-2 mb-3">
-              <input
-                type="checkbox"
-                id="sendToDiscord"
-                checked={formData.sendToDiscord}
-                onChange={(e) => setFormData({ ...formData, sendToDiscord: e.target.checked })}
-                className="w-4 h-4"
-              />
-              <label htmlFor="sendToDiscord" className="text-white font-medium">
-                Send to Discord
-              </label>
-            </div>
-
-            {formData.sendToDiscord && (
-              <div>
-                <label className="block text-sm font-medium text-discord-text mb-2">
-                  Discord Webhook URL
-                </label>
-                {loadingWebhook ? (
-                  <div className="w-full px-4 py-3 bg-discord-input border border-gray-700 rounded-lg">
-                    <span className="text-discord-text text-sm">Loading default webhook...</span>
-                  </div>
-                ) : (
-                  <input
-                    type="url"
-                    value={formData.discordWebhook}
-                    onChange={(e) => setFormData({ ...formData, discordWebhook: e.target.value })}
-                    placeholder="https://discord.com/api/webhooks/..."
-                    className="w-full px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
-                    required={formData.sendToDiscord}
-                  />
-                )}
-                <p className="text-xs text-green-400 mt-1">
-                  ✓ Default webhook loaded
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-bold transition-all"
-              disabled={loading}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading || loadingWebhook}
-              className="flex-1 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition-all disabled:opacity-50"
-            >
-              {loading ? 'Creating...' : 'Create Announcement'}
-            </button>
-          </div>
-        </form>
+          <button
+            onClick={() => router.push('/admin/announcements/create')}
+            className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold flex items-center gap-2 transition-all"
+          >
+            <FaPlus />
+            New Announcement
+          </button>
+        </div>
       </div>
-    </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
+          <p className="text-discord-text text-sm mb-1">Total</p>
+          <p className="text-2xl font-bold text-white">{announcements.length}</p>
+        </div>
+        <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
+          <p className="text-discord-text text-sm mb-1">Active</p>
+          <p className="text-2xl font-bold text-green-400">{announcements.filter(a => a.is_active).length}</p>
+        </div>
+        <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
+          <p className="text-discord-text text-sm mb-1">On Homepage</p>
+          <p className="text-2xl font-bold text-blue-400">{announcements.filter(a => a.show_on_homepage).length}</p>
+        </div>
+        <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
+          <p className="text-discord-text text-sm mb-1">Expired</p>
+          <p className="text-2xl font-bold text-gray-400">
+            {announcements.filter(a => a.expires_at && new Date(a.expires_at) < new Date()).length}
+          </p>
+        </div>
+      </div>
+
+      {/* Announcements List */}
+      <div className="bg-discord-dark border border-gray-800 rounded-xl overflow-hidden">
+        {announcements.length === 0 ? (
+          <div className="text-center py-12">
+            <FaBullhorn className="text-5xl text-gray-600 mx-auto mb-4" />
+            <p className="text-white text-lg mb-2">No announcements yet</p>
+            <p className="text-discord-text mb-4">Create your first announcement to get started</p>
+            <button
+              onClick={() => router.push('/admin/announcements/create')}
+              className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold inline-flex items-center gap-2"
+            >
+              <FaPlus />
+              Create Announcement
+            </button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-discord-darkest">
+                <tr>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-discord-text uppercase">Announcement</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-discord-text uppercase">Type</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-discord-text uppercase">Priority</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-discord-text uppercase">Display</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-discord-text uppercase">Status</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-discord-text uppercase">Created</th>
+                  <th className="px-6 py-4 text-right text-xs font-semibold text-discord-text uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800">
+                {announcements.map((announcement) => {
+                  const isExpired = announcement.expires_at && new Date(announcement.expires_at) < new Date();
+                  
+                  return (
+                    <tr key={announcement.id} className="hover:bg-gray-800 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-start gap-3">
+                          <div className="text-2xl mt-1">
+                            {getTypeIcon(announcement.type)}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-white mb-1">{announcement.title}</p>
+                            <p className="text-sm text-discord-text line-clamp-2">{announcement.message}</p>
+                            {isExpired && (
+                              <span className="inline-block mt-1 px-2 py-1 bg-red-900 bg-opacity-30 text-red-400 text-xs rounded">
+                                Expired
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-1 ${getTypeBadge(announcement.type)} text-white text-xs font-semibold rounded-full uppercase`}>
+                          {announcement.type}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-white font-bold">{announcement.priority}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-1">
+                          {announcement.show_on_homepage && (
+                            <span className="text-xs text-blue-400">📱 Homepage</span>
+                          )}
+                          {announcement.show_on_dashboard && (
+                            <span className="text-xs text-green-400">🎮 Dashboard</span>
+                          )}
+                          {!announcement.show_on_homepage && !announcement.show_on_dashboard && (
+                            <span className="text-xs text-gray-500">Hidden</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => toggleActive(announcement.id, announcement.is_active)}
+                          className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${
+                            announcement.is_active
+                              ? 'bg-green-900 bg-opacity-30 text-green-400'
+                              : 'bg-gray-700 text-gray-400'
+                          }`}
+                        >
+                          {announcement.is_active ? <FaEye /> : <FaEyeSlash />}
+                          {announcement.is_active ? 'Active' : 'Inactive'}
+                        </button>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-discord-text">
+                        {new Date(announcement.created_at).toLocaleDateString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => router.push(`/admin/announcements/edit/${announcement.id}`)}
+                            className="p-2 hover:bg-blue-600 hover:bg-opacity-20 text-blue-400 rounded-lg transition-all"
+                            title="Edit"
+                          >
+                            <FaEdit />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(announcement.id, announcement.title)}
+                            disabled={deleting === announcement.id}
+                            className="p-2 hover:bg-red-600 hover:bg-opacity-20 text-red-400 rounded-lg transition-all disabled:opacity-50"
+                            title="Delete"
+                          >
+                            {deleting === announcement.id ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-400"></div>
+                            ) : (
+                              <FaTrash />
+                            )}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </AdminLayout>
   );
-              }
+}
