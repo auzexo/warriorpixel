@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { useRouter } from 'next/navigation';
-import { FaTrophy, FaUsers, FaMoneyBillWave, FaChartLine, FaCalendar, FaClock, FaGamepad, FaBan, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
+import { FaTrophy, FaUsers, FaMoneyBillWave, FaChartLine, FaCalendar, FaClock, FaGamepad, FaCheckCircle, FaExclamationTriangle, FaBullhorn } from 'react-icons/fa';
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -21,6 +21,7 @@ export default function AdminDashboard() {
   });
   const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -28,80 +29,126 @@ export default function AdminDashboard() {
 
   const loadDashboardData = async () => {
     try {
-      // Get user stats
-      const { count: totalUsers } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true });
+      console.log('Loading dashboard data...');
 
-      const { count: activeUsers } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true })
-        .is('banned_until', null);
+      // Get user stats with error handling
+      let totalUsers = 0;
+      let activeUsers = 0;
+      let bannedUsers = 0;
 
-      const { count: bannedUsers } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true })
-        .not('banned_until', 'is', null);
+      try {
+        const { count: userCount, error: userError } = await supabase
+          .from('users')
+          .select('*', { count: 'exact', head: true });
+        
+        if (!userError) totalUsers = userCount || 0;
 
-      // Get tournament stats
-      const { count: totalTournaments } = await supabase
-        .from('tournaments')
-        .select('*', { count: 'exact', head: true });
+        const { count: activeCount, error: activeError } = await supabase
+          .from('users')
+          .select('*', { count: 'exact', head: true })
+          .is('banned_until', null);
+        
+        if (!activeError) activeUsers = activeCount || 0;
 
-      const { count: upcomingTournaments } = await supabase
-        .from('tournaments')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'upcoming');
+        const { count: bannedCount, error: bannedError } = await supabase
+          .from('users')
+          .select('*', { count: 'exact', head: true })
+          .not('banned_until', 'is', null);
+        
+        if (!bannedError) bannedUsers = bannedCount || 0;
+      } catch (err) {
+        console.error('Error loading user stats:', err);
+      }
 
-      const { count: liveTournaments } = await supabase
-        .from('tournaments')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'live');
+      // Get tournament stats with error handling
+      let totalTournaments = 0;
+      let upcomingTournaments = 0;
+      let liveTournaments = 0;
+      let completedTournaments = 0;
 
-      const { count: completedTournaments } = await supabase
-        .from('tournaments')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'completed');
+      try {
+        const { count: tournamentCount, error: tournamentError } = await supabase
+          .from('tournaments')
+          .select('*', { count: 'exact', head: true });
+        
+        if (!tournamentError) totalTournaments = tournamentCount || 0;
 
-      // Get financial stats
-      const { data: tournaments } = await supabase
-        .from('tournaments')
-        .select('entry_fee, prize_pool, status, max_participants')
-        .eq('status', 'completed');
+        const { count: upcomingCount, error: upcomingError } = await supabase
+          .from('tournaments')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'upcoming');
+        
+        if (!upcomingError) upcomingTournaments = upcomingCount || 0;
 
+        const { count: liveCount, error: liveError } = await supabase
+          .from('tournaments')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'live');
+        
+        if (!liveError) liveTournaments = liveCount || 0;
+
+        const { count: completedCount, error: completedError } = await supabase
+          .from('tournaments')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'completed');
+        
+        if (!completedError) completedTournaments = completedCount || 0;
+      } catch (err) {
+        console.error('Error loading tournament stats:', err);
+      }
+
+      // Get financial stats with error handling
       let totalRevenue = 0;
       let totalPrizes = 0;
 
-      if (tournaments) {
-        tournaments.forEach(t => {
-          const revenue = parseFloat(t.entry_fee || 0) * (t.max_participants || 0);
-          totalRevenue += revenue;
-          totalPrizes += parseFloat(t.prize_pool || 0);
-        });
+      try {
+        const { data: tournaments, error: financeError } = await supabase
+          .from('tournaments')
+          .select('entry_fee, prize_pool, status, max_participants')
+          .eq('status', 'completed');
+
+        if (!financeError && tournaments) {
+          tournaments.forEach(t => {
+            const revenue = parseFloat(t.entry_fee || 0) * (t.max_participants || 0);
+            totalRevenue += revenue;
+            totalPrizes += parseFloat(t.prize_pool || 0);
+          });
+        }
+      } catch (err) {
+        console.error('Error loading financial stats:', err);
       }
 
-      // Get recent admin logs
-      const { data: logs } = await supabase
-        .from('admin_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(10);
+      // Get recent admin logs with error handling
+      try {
+        const { data: logs, error: logsError } = await supabase
+          .from('admin_logs')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (!logsError && logs) {
+          setRecentActivity(logs);
+        }
+      } catch (err) {
+        console.error('Error loading admin logs:', err);
+      }
 
       setStats({
-        totalUsers: totalUsers || 0,
-        activeUsers: activeUsers || 0,
-        bannedUsers: bannedUsers || 0,
-        totalTournaments: totalTournaments || 0,
-        upcomingTournaments: upcomingTournaments || 0,
-        liveTournaments: liveTournaments || 0,
-        completedTournaments: completedTournaments || 0,
-        totalRevenue: totalRevenue,
-        totalPrizes: totalPrizes
+        totalUsers,
+        activeUsers,
+        bannedUsers,
+        totalTournaments,
+        upcomingTournaments,
+        liveTournaments,
+        completedTournaments,
+        totalRevenue,
+        totalPrizes
       });
 
-      setRecentActivity(logs || []);
+      console.log('Dashboard data loaded successfully');
     } catch (error) {
       console.error('Error loading dashboard:', error);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
@@ -111,7 +158,28 @@ export default function AdminDashboard() {
     return (
       <AdminLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AdminLayout>
+        <div className="bg-red-900 bg-opacity-20 border border-red-600 rounded-lg p-6">
+          <h2 className="text-xl font-bold text-white mb-2">Error Loading Dashboard</h2>
+          <p className="text-red-400">{error}</p>
+          <button
+            onClick={() => {
+              setError(null);
+              setLoading(true);
+              loadDashboardData();
+            }}
+            className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
+          >
+            Retry
+          </button>
         </div>
       </AdminLayout>
     );
@@ -163,7 +231,7 @@ export default function AdminDashboard() {
               <FaMoneyBillWave className="text-3xl text-green-400" />
               <span className="text-xs font-semibold text-green-300 uppercase">Revenue</span>
             </div>
-            <h3 className="text-3xl font-bold text-white mb-1">₹{stats.totalRevenue.toFixed(0)}</h3>
+            <h3 className="text-3xl font-bold text-white mb-1">₹{Math.floor(stats.totalRevenue)}</h3>
             <p className="text-sm text-green-300">Total Revenue</p>
             <div className="mt-3 text-xs text-green-400">
               From completed tournaments
@@ -176,7 +244,7 @@ export default function AdminDashboard() {
               <FaChartLine className="text-3xl text-orange-400" />
               <span className="text-xs font-semibold text-orange-300 uppercase">Prizes</span>
             </div>
-            <h3 className="text-3xl font-bold text-white mb-1">₹{stats.totalPrizes.toFixed(0)}</h3>
+            <h3 className="text-3xl font-bold text-white mb-1">₹{Math.floor(stats.totalPrizes)}</h3>
             <p className="text-sm text-orange-300">Total Distributed</p>
             <div className="mt-3 text-xs text-orange-400">
               All tournaments
@@ -206,7 +274,7 @@ export default function AdminDashboard() {
               onClick={() => router.push('/admin/announcements/create')}
               className="p-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-all flex flex-col items-center gap-2"
             >
-              <FaGamepad className="text-2xl" />
+              <FaBullhorn className="text-2xl" />
               <span className="text-sm">Announcement</span>
             </button>
             <button
@@ -229,7 +297,7 @@ export default function AdminDashboard() {
             </div>
           ) : (
             <div className="space-y-2">
-              {recentActivity.map((log, index) => (
+              {recentActivity.slice(0, 5).map((log, index) => (
                 <div
                   key={log.id || index}
                   className="flex items-center justify-between p-3 bg-discord-darkest rounded-lg hover:bg-gray-800 transition-colors"
@@ -237,17 +305,17 @@ export default function AdminDashboard() {
                   <div className="flex items-center gap-3">
                     <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
                     <div>
-                      <p className="text-sm text-white font-medium">{log.action}</p>
-                      <p className="text-xs text-discord-text">{log.details}</p>
+                      <p className="text-sm text-white font-medium">{log.action || 'Action'}</p>
+                      <p className="text-xs text-discord-text">{log.details || 'Details'}</p>
                     </div>
                   </div>
                   <span className="text-xs text-discord-text">
-                    {new Date(log.created_at).toLocaleDateString('en-IN', {
+                    {log.created_at ? new Date(log.created_at).toLocaleDateString('en-IN', {
                       month: 'short',
                       day: 'numeric',
                       hour: '2-digit',
                       minute: '2-digit'
-                    })}
+                    }) : 'N/A'}
                   </span>
                 </div>
               ))}
