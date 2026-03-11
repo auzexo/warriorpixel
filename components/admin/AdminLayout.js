@@ -279,7 +279,7 @@ export default function AdminLayout({ children }) {
                     {profile?.username?.charAt(0).toUpperCase() || 'A'}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-white truncate">{profile?.username || 'Admin'}</p>
+                    <p className="text-sm font-semibold text-white truncate">{adminSession?.admin_id || profile?.username || 'Admin'}</p>
                     <p className="text-xs text-discord-text flex items-center gap-1">
                       <FaUserShield className="text-red-400" />
                       {adminSession.permissions.includes('full_access') ? 'Super Admin' : 'Admin'}
