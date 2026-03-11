@@ -1,16 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { useRouter } from 'next/navigation';
-import { FaArrowLeft, FaSave, FaBullhorn } from 'react-icons/fa';
+import { FaArrowLeft, FaSave, FaBullhorn, FaBell, FaDiscord } from 'react-icons/fa';
 
 export default function CreateAnnouncementPage() {
   const { user } = useAuth();
   const router = useRouter();
   const [saving, setSaving] = useState(false);
+  const [discordWebhook, setDiscordWebhook] = useState('');
   const [formData, setFormData] = useState({
     title: '',
     message: '',
@@ -21,8 +22,109 @@ export default function CreateAnnouncementPage() {
     show_on_dashboard: false,
     expires_at: '',
     link_url: '',
-    link_text: ''
+    link_text: '',
+    send_notifications: false,
+    send_discord: false
   });
+
+  useEffect(() => {
+    loadDiscordWebhook();
+  }, []);
+
+  const loadDiscordWebhook = async () => {
+    try {
+      const { data } = await supabase
+        .from('admin_settings')
+        .select('setting_value')
+        .eq('setting_key', 'discord_webhook_url')
+        .single();
+      
+      if (data?.setting_value) {
+        setDiscordWebhook(data.setting_value);
+      }
+    } catch (error) {
+      console.error('Error loading Discord webhook:', error);
+    }
+  };
+
+  const sendToDiscord = async (title, message, type) => {
+    if (!discordWebhook) {
+      console.log('No Discord webhook configured');
+      return;
+    }
+
+    try {
+      const colorMap = {
+        info: 3447003,      // Blue
+        success: 3066993,   // Green
+        warning: 16776960,  // Yellow
+        error: 15158332,    // Red
+        tournament: 10181046, // Purple
+        maintenance: 9807270  // Gray
+      };
+
+      const embed = {
+        title: `📢 ${title}`,
+        description: message,
+        color: colorMap[type] || colorMap.info,
+        timestamp: new Date().toISOString(),
+        footer: {
+          text: 'WarriorPixel Announcement'
+        }
+      };
+
+      const response = await fetch(discordWebhook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ embeds: [embed] })
+      });
+
+      if (!response.ok) {
+        throw new Error('Discord webhook failed');
+      }
+
+      console.log('✅ Sent to Discord');
+    } catch (error) {
+      console.error('Discord webhook error:', error);
+      alert('Warning: Failed to send to Discord. Announcement created but not posted to Discord.');
+    }
+  };
+
+  const sendNotificationsToUsers = async (title, message) => {
+    try {
+      // Get all users
+      const { data: users, error: usersError } = await supabase
+        .from('users')
+        .select('id');
+
+      if (usersError) throw usersError;
+
+      if (!users || users.length === 0) {
+        console.log('No users to notify');
+        return;
+      }
+
+      // Create notifications for all users
+      const notifications = users.map(user => ({
+        user_id: user.id,
+        title: `📢 ${title}`,
+        message: message,
+        type: 'announcement',
+        read: false
+      }));
+
+      const { error: notifError } = await supabase
+        .from('notifications')
+        .insert(notifications);
+
+      if (notifError) throw notifError;
+
+      console.log(`✅ Sent notifications to ${users.length} users`);
+    } catch (error) {
+      console.error('Notifications error:', error);
+      alert('Warning: Failed to send notifications. Announcement created but users were not notified.');
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -36,7 +138,13 @@ export default function CreateAnnouncementPage() {
 
     try {
       const insertData = {
-        ...formData,
+        title: formData.title,
+        message: formData.message,
+        type: formData.type,
+        priority: formData.priority,
+        is_active: formData.is_active,
+        show_on_homepage: formData.show_on_homepage,
+        show_on_dashboard: formData.show_on_dashboard,
         created_by: user.id,
         expires_at: formData.expires_at || null,
         link_url: formData.link_url || null,
@@ -48,6 +156,16 @@ export default function CreateAnnouncementPage() {
         .insert(insertData);
 
       if (error) throw error;
+
+      // Send to Discord if enabled
+      if (formData.send_discord && discordWebhook) {
+        await sendToDiscord(formData.title, formData.message, formData.type);
+      }
+
+      // Send notifications if enabled
+      if (formData.send_notifications) {
+        await sendNotificationsToUsers(formData.title, formData.message);
+      }
 
       alert('✅ Announcement created successfully!');
       router.push('/admin/announcements');
@@ -186,7 +304,7 @@ export default function CreateAnnouncementPage() {
             </div>
           </div>
 
-          {/* Checkboxes */}
+          {/* Display Options */}
           <div className="space-y-3">
             <label className="flex items-center gap-3 cursor-pointer">
               <input
@@ -217,6 +335,48 @@ export default function CreateAnnouncementPage() {
               />
               <span className="text-white">Show on Dashboard</span>
             </label>
+          </div>
+
+          {/* Notifications & Discord */}
+          <div className="border-t border-gray-700 pt-6">
+            <h3 className="text-sm font-semibold text-white mb-3">Distribution Options</h3>
+            <div className="space-y-3">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.send_notifications}
+                  onChange={(e) => setFormData({...formData, send_notifications: e.target.checked})}
+                  className="w-5 h-5 bg-discord-darkest border-gray-700 rounded focus:ring-purple-600"
+                />
+                <div className="flex items-center gap-2">
+                  <FaBell className="text-blue-400" />
+                  <span className="text-white">Send in-app notifications to all users</span>
+                </div>
+              </label>
+
+              {discordWebhook && (
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.send_discord}
+                    onChange={(e) => setFormData({...formData, send_discord: e.target.checked})}
+                    className="w-5 h-5 bg-discord-darkest border-gray-700 rounded focus:ring-purple-600"
+                  />
+                  <div className="flex items-center gap-2">
+                    <FaDiscord className="text-purple-400" />
+                    <span className="text-white">Post to Discord</span>
+                  </div>
+                </label>
+              )}
+
+              {!discordWebhook && (
+                <div className="bg-yellow-900 bg-opacity-20 border border-yellow-600 rounded-lg p-3">
+                  <p className="text-xs text-yellow-400">
+                    💡 Discord webhook not configured. Go to Settings to add Discord integration.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Submit Button */}
