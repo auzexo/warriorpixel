@@ -3,8 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { formatISTDate } from '@/lib/timeUtils';
+import { updateTournamentStatuses } from '@/lib/tournamentStatusUpdater';
+import { logAdminAction } from '@/lib/adminLogger';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { FaTrophy, FaPlus, FaEdit, FaTrash, FaUsers, FaHashtag, FaCopy, FaMoneyBillWave, FaClock, FaFire } from 'react-icons/fa';
+import { FaTrophy, FaPlus, FaEdit, FaTrash, FaUsers, FaHashtag, FaCopy, FaMoneyBillWave, FaClock, FaFire, FaInfoCircle } from 'react-icons/fa';
 
 export default function AdminTournamentsPage() {
   const router = useRouter();
@@ -17,6 +20,9 @@ export default function AdminTournamentsPage() {
 
   const loadTournaments = async () => {
     try {
+      // FIRST: Auto-update tournament statuses
+      await updateTournamentStatuses();
+
       const { data, error } = await supabase
         .from('tournaments')
         .select('*, preset:tournament_presets(*)')
@@ -62,12 +68,22 @@ export default function AdminTournamentsPage() {
     if (!confirm(
       `⚠️ DELETE TOURNAMENT?\n\n` +
       `Title: ${tournament?.title || 'Unknown'}\n` +
-      `Participants: ${tournament?.participantCount || 0}\n\n` +
+      `Participants: ${tournament?.participantCount || 0}\n` +
+      `Status: ${tournament?.status || 'unknown'}\n\n` +
       `This will permanently remove the tournament and all participant data.\n` +
       `Transaction history will be preserved.\n\n` +
       `This action CANNOT be undone!\n\n` +
-      `Continue with deletion?`
+      `Type the tournament title to confirm deletion.`
     )) return;
+
+    // Extra confirmation for tournaments with participants
+    if (tournament.participantCount > 0) {
+      const confirmTitle = prompt(`⚠️ FINAL CONFIRMATION\n\nType "${tournament.title}" exactly to confirm deletion:`);
+      if (confirmTitle !== tournament.title) {
+        alert('❌ Deletion cancelled - title did not match');
+        return;
+      }
+    }
 
     try {
       const { error } = await supabase
@@ -76,6 +92,16 @@ export default function AdminTournamentsPage() {
         .eq('id', id);
 
       if (error) throw error;
+
+      // LOG THE DELETE ACTION
+      await logAdminAction('tournament_delete', {
+        tournament_id: id,
+        tournament_title: tournament.title,
+        participants_count: tournament.participantCount,
+        status: tournament.status,
+        prize_pool: tournament.prize_pool,
+        entry_fee: tournament.entry_fee
+      });
 
       alert('✅ Tournament deleted successfully!');
       loadTournaments();
@@ -86,8 +112,8 @@ export default function AdminTournamentsPage() {
   };
 
   const copyTournamentId = (id) => {
-    navigator.clipboard.writeText(`TID-${id}`);
-    alert('Tournament ID copied!');
+    navigator.clipboard.writeText(id);
+    alert('✅ Tournament ID copied to clipboard!');
   };
 
   if (loading) {
@@ -102,18 +128,33 @@ export default function AdminTournamentsPage() {
 
   return (
     <AdminLayout>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">Tournament Management</h1>
           <p className="text-discord-text">Manage all tournaments</p>
         </div>
         <button
           onClick={() => router.push('/admin/tournaments/create')}
-          className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold flex items-center gap-2 transition-all"
+          className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold flex items-center gap-2 transition-all shadow-lg"
         >
           <FaPlus />
-          Create
+          Create Tournament
         </button>
+      </div>
+
+      {/* Auto-Status Info Banner */}
+      <div className="bg-blue-900 bg-opacity-20 border border-blue-600 rounded-xl p-4 mb-6">
+        <div className="flex items-start gap-3">
+          <FaInfoCircle className="text-xl text-blue-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="font-bold text-white mb-1 text-sm">
+              ⚡ Auto-Status System Active
+            </h3>
+            <p className="text-xs text-blue-300">
+              Tournaments automatically switch from UPCOMING → LIVE when start time is reached. All times shown in IST.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Overall Stats */}
@@ -124,14 +165,14 @@ export default function AdminTournamentsPage() {
           <p className="text-2xl font-bold text-white">{tournaments.length}</p>
         </div>
         <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
-          <FaFire className="text-2xl text-green-400 mb-2" />
+          <FaFire className="text-2xl text-red-400 mb-2" />
           <p className="text-xs text-discord-text">Live Now</p>
-          <p className="text-2xl font-bold text-white">{tournaments.filter(t => t.status === 'live').length}</p>
+          <p className="text-2xl font-bold text-red-400">{tournaments.filter(t => t.status === 'live').length}</p>
         </div>
         <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
           <FaClock className="text-2xl text-blue-400 mb-2" />
           <p className="text-xs text-discord-text">Upcoming</p>
-          <p className="text-2xl font-bold text-white">{tournaments.filter(t => t.status === 'upcoming').length}</p>
+          <p className="text-2xl font-bold text-blue-400">{tournaments.filter(t => t.status === 'upcoming').length}</p>
         </div>
         <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
           <FaMoneyBillWave className="text-2xl text-green-400 mb-2" />
@@ -147,7 +188,7 @@ export default function AdminTournamentsPage() {
           <div className="bg-discord-dark border border-gray-800 rounded-xl p-12 text-center">
             <FaTrophy className="text-6xl text-gray-600 mx-auto mb-4" />
             <p className="text-xl text-white mb-2">No Tournaments</p>
-            <p className="text-discord-text mb-6">Create your first tournament</p>
+            <p className="text-discord-text mb-6">Create your first tournament to get started</p>
             <button
               onClick={() => router.push('/admin/tournaments/create')}
               className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold"
@@ -162,19 +203,20 @@ export default function AdminTournamentsPage() {
               className="bg-discord-dark border border-gray-800 rounded-xl p-6 hover:border-purple-600 transition-all"
             >
               <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-2 flex-wrap">
-                    <h3 className="text-xl font-bold text-white">{tournament.title}</h3>
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
+                    <h3 className="text-xl font-bold text-white break-words">{tournament.title}</h3>
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase flex-shrink-0 ${
                       tournament.status === 'upcoming' ? 'bg-blue-600' :
-                      tournament.status === 'live' ? 'bg-green-600 animate-pulse' :
+                      tournament.status === 'live' ? 'bg-red-600 animate-pulse' :
                       tournament.status === 'completed' ? 'bg-gray-600' :
                       'bg-purple-600'
                     } text-white`}>
+                      {tournament.status === 'live' && '🔴 '}
                       {tournament.status}
                     </span>
                     {tournament.preset && (
-                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-purple-600 text-white">
+                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-purple-600 text-white flex-shrink-0">
                         {tournament.preset.name}
                       </span>
                     )}
@@ -187,7 +229,7 @@ export default function AdminTournamentsPage() {
                       title="Copy Tournament ID"
                     >
                       <FaHashtag className="text-xs" />
-                      <span className="font-mono font-bold">TID-{tournament.id}</span>
+                      <span className="font-mono text-xs">ID-{tournament.id.slice(0, 8)}</span>
                       <FaCopy className="text-xs" />
                     </button>
                   </div>
@@ -210,7 +252,7 @@ export default function AdminTournamentsPage() {
                 </div>
                 <div className="bg-discord-darkest rounded-lg p-3">
                   <p className="text-xs text-discord-text mb-1">Spots Left</p>
-                  <p className={`text-lg font-bold ${tournament.spotsLeft === 0 ? 'text-red-400' : 'text-blue-400'}`}>
+                  <p className={`text-lg font-bold ${tournament.spotsLeft === 0 ? 'text-red-400' : tournament.spotsLeft <= 5 ? 'text-orange-400' : 'text-blue-400'}`}>
                     {tournament.spotsLeft}
                   </p>
                 </div>
@@ -235,7 +277,7 @@ export default function AdminTournamentsPage() {
                     <div>
                       <p className="text-purple-400 mb-1">Min Players</p>
                       <p className="font-bold text-white">{tournament.preset.min_players}</p>
-                   </div>
+                    </div>
                     <div>
                       <p className="text-purple-400 mb-1">Max Players</p>
                       <p className="font-bold text-white">{tournament.preset.max_players}</p>
@@ -244,16 +286,12 @@ export default function AdminTournamentsPage() {
                 </div>
               )}
 
-              {/* Start Time */}
+              {/* Start Time - IST FORMAT */}
               <div className="flex items-center gap-2 text-sm text-discord-text mb-4">
-                <FaClock />
-                <span>Start: {new Date(tournament.start_time).toLocaleString('en-IN', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}</span>
+                <FaClock className="flex-shrink-0" />
+                <span className="break-words">
+                  Start: {formatISTDate(tournament.start_time, true)}
+                </span>
               </div>
 
               {/* Room Details */}
@@ -262,11 +300,11 @@ export default function AdminTournamentsPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-xs text-yellow-400 mb-1">Room ID</p>
-                      <p className="font-mono font-bold text-white">{tournament.room_id}</p>
+                      <p className="font-mono font-bold text-white break-all">{tournament.room_id}</p>
                     </div>
                     <div>
                       <p className="text-xs text-yellow-400 mb-1">Password</p>
-                      <p className="font-mono font-bold text-white">{tournament.room_password}</p>
+                      <p className="font-mono font-bold text-white break-all">{tournament.room_password}</p>
                     </div>
                   </div>
                 </div>
@@ -276,7 +314,7 @@ export default function AdminTournamentsPage() {
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => router.push(`/admin/tournaments/${tournament.id}`)}
-                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold flex items-center justify-center gap-2 transition-all"
+                  className="flex-1 min-w-[140px] px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold flex items-center justify-center gap-2 transition-all"
                 >
                   <FaUsers />
                   Manage ({tournament.participantCount})
@@ -284,12 +322,14 @@ export default function AdminTournamentsPage() {
                 <button
                   onClick={() => router.push(`/admin/tournaments/edit/${tournament.id}`)}
                   className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-semibold transition-all"
+                  title="Edit Tournament"
                 >
                   <FaEdit />
                 </button>
                 <button
                   onClick={() => deleteTournament(tournament.id)}
                   className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-all"
+                  title="Delete Tournament"
                 >
                   <FaTrash />
                 </button>
