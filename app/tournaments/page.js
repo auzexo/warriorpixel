@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
+import { formatISTDate } from '@/lib/timeUtils';
+import { getEffectiveStatus } from '@/lib/tournamentUtils';
 import { FaTrophy, FaClock, FaFire, FaInfoCircle, FaTimes, FaCheckCircle, FaUsers, FaMoneyBillWave, FaSkull, FaCrown } from 'react-icons/fa';
 
 export default function TournamentsPage() {
@@ -16,6 +18,7 @@ export default function TournamentsPage() {
   const [showModal, setShowModal] = useState(false);
   const [joining, setJoining] = useState(false);
   const [userParticipation, setUserParticipation] = useState(null);
+  const [joinedTournamentIds, setJoinedTournamentIds] = useState(new Set());
   const [joinData, setJoinData] = useState({
     in_game_name: '',
     in_game_id: ''
@@ -23,7 +26,28 @@ export default function TournamentsPage() {
 
   useEffect(() => {
     loadTournaments();
-  }, [filter]);
+    if (user) {
+      loadUserJoinedTournaments();
+    }
+  }, [filter, user]);
+
+  const loadUserJoinedTournaments = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('tournament_participants')
+        .select('tournament_id')
+        .eq('user_id', user.id);
+      
+      if (error) throw error;
+      
+      const joinedIds = new Set((data || []).map(p => p.tournament_id));
+      setJoinedTournamentIds(joinedIds);
+    } catch (error) {
+      console.error('Error loading joined tournaments:', error);
+    }
+  };
 
   const loadTournaments = async () => {
     try {
@@ -182,262 +206,309 @@ export default function TournamentsPage() {
         }
       }
 
-      // Prepare participant data with ALL required fields
-      const participantData = {
-        tournament_id: selectedTournament.id,
-        user_id: user.id,
-        in_game_name: joinData.in_game_name.trim(),
-        in_game_id: joinData.in_game_id.trim(),
-        payment_amount: entryFee,
-        kills: 0,
-        got_booyah: false,
-        prize_won: 0,
-        joined_at: new Date().toISOString()
-      };
+      // Get next seat number
+      const { data: maxSeat } = await supabase
+        .from('tournament_participants')
+        .select('seat_number')
+        .eq('tournament_id', selectedTournament.id)
+        .order('seat_number', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      console.log('Joining tournament with data:', participantData);
+      const nextSeatNumber = maxSeat ? maxSeat.seat_number + 1 : 1;
 
       // Join tournament
-      const { error: insertError } = await supabase
+      const { error: joinError } = await supabase
         .from('tournament_participants')
-        .insert(participantData);
+        .insert({
+          tournament_id: selectedTournament.id,
+          user_id: user.id,
+          in_game_name: joinData.in_game_name.trim(),
+          in_game_id: joinData.in_game_id.trim(),
+          seat_number: nextSeatNumber
+        });
 
-      if (insertError) {
-        console.error('Insert error:', insertError);
+      if (joinError) {
+        console.error('Join error:', joinError);
         
-        // Refund entry fee if it was paid
+        // Refund if payment was made
         if (entryFee > 0) {
-          const { data: currentUser } = await supabase
+          const currentBalance = parseFloat(profile?.wallet_real || 0);
+          await supabase
             .from('users')
-            .select('wallet_real')
-            .eq('id', user.id)
-            .single();
-          
-          if (currentUser) {
-            await supabase
-              .from('users')
-              .update({ wallet_real: parseFloat(currentUser.wallet_real) + entryFee })
-              .eq('id', user.id);
-          }
+            .update({ wallet_real: currentBalance + entryFee })
+            .eq('id', user.id);
         }
         
-        throw new Error(insertError.message || 'Failed to join tournament');
+        throw new Error('Failed to join tournament');
       }
 
-      // INCREMENT TOURNAMENT JOIN STAT (NEW - FOR ACHIEVEMENTS)
-      console.log('Updating tournament join stat...');
-      const { error: statError } = await supabase
-        .from('users')
-        .update({
-          stat_tournaments_joined: (profile?.stat_tournaments_joined || 0) + 1
-        })
-        .eq('id', user.id);
-
-      if (statError) {
-        console.error('Stat update error:', statError);
-        // Don't fail the whole join if stat update fails
-      } else {
-        console.log('✅ Tournament join stat updated');
-      }
-
-      // Wait for trigger to assign seat number
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Fetch participant data
-      const { data: newParticipant } = await supabase
-        .from('tournament_participants')
-        .select('*')
-        .eq('tournament_id', selectedTournament.id)
-        .eq('user_id', user.id)
-        .single();
-
-      const seatNumber = newParticipant?.seat_number || 'pending';
-      
-      alert(`✅ Successfully Joined!\n\n` +
-            `Tournament: ${selectedTournament.title}\n` +
-            `Seat Number: ${seatNumber}\n` +
-            `In-Game Name: ${joinData.in_game_name}\n` +
-            `In-Game ID: ${joinData.in_game_id}\n` +
-            (entryFee > 0 ? `Entry Fee Paid: ₹${entryFee.toFixed(2)}` : 'Free Entry'));
-      
-      setUserParticipation(newParticipant);
-      setJoinData({ in_game_name: '', in_game_id: '' });
+      alert(`✅ Successfully joined!\n\nYour Seat: #${nextSeatNumber}\nIn-Game Name: ${joinData.in_game_name}`);
       closeModal();
-      loadTournaments();
-
+      await loadTournaments();
+      await loadUserJoinedTournaments();
+      
     } catch (error) {
       console.error('Join error:', error);
-      alert('❌ Error joining tournament:\n\n' + error.message + '\n\nPlease try again or contact support.');
+      alert('❌ ' + error.message);
     } finally {
       setJoining(false);
     }
   };
 
+  const getStatusBadge = (status) => {
+    const effectiveStatus = getEffectiveStatus({ status, start_time: status.start_time });
+    
+    switch (effectiveStatus) {
+      case 'live':
+        return { bg: 'bg-red-600', text: 'LIVE', icon: '🔴' };
+      case 'upcoming':
+        return { bg: 'bg-blue-600', text: 'UPCOMING', icon: '⏳' };
+      case 'completed':
+        return { bg: 'bg-gray-600', text: 'COMPLETED', icon: '✅' };
+      default:
+        return { bg: 'bg-gray-600', text: status.toUpperCase(), icon: '❓' };
+    }
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-discord-darkest p-4 md:p-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+          <p className="text-discord-text">Loading tournaments...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-discord-darkest p-4 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-6 md:mb-8">
-          <h1 className="text-2xl md:text-4xl font-bold text-white mb-2">Tournaments</h1>
-          <p className="text-sm md:text-base text-discord-text">Join competitive tournaments and win prizes</p>
-        </div>
-
-        <div className="flex gap-2 md:gap-4 mb-6 md:mb-8 overflow-x-auto pb-2">
-          {['all', 'upcoming', 'live', 'completed'].map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold capitalize whitespace-nowrap transition-all text-sm md:text-base ${
-                filter === f
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-discord-dark text-discord-text hover:bg-gray-800'
-              }`}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-          {tournaments.length === 0 ? (
-            <div className="col-span-full text-center py-12">
-              <FaTrophy className="text-5xl md:text-6xl text-gray-600 mx-auto mb-4" />
-              <p className="text-lg md:text-xl text-white mb-2">No tournaments found</p>
-              <p className="text-sm md:text-base text-discord-text">Check back later for new tournaments</p>
-            </div>
-          ) : (
-            tournaments.map((tournament) => (
-              <div
-                key={tournament.id}
-                onClick={() => viewDetails(tournament)}
-                className="bg-discord-dark border border-gray-800 rounded-xl p-4 md:p-6 hover:border-purple-600 transition-all cursor-pointer"
-              >
-                <div className="flex items-center justify-between mb-3 md:mb-4">
-                  <span className={`px-2 md:px-3 py-1 rounded-full text-xs font-bold uppercase ${
-                    tournament.status === 'upcoming' ? 'bg-blue-600' :
-                    tournament.status === 'live' ? 'bg-green-600 animate-pulse' :
-                    'bg-gray-600'
-                  } text-white`}>
-                    {tournament.status}
-                  </span>
-                  <FaTrophy className="text-xl md:text-2xl text-yellow-400" />
-                </div>
-
-                <h3 className="text-lg md:text-xl font-bold text-white mb-2 line-clamp-1">{tournament.title}</h3>
-                <p className="text-xs md:text-sm text-discord-text mb-3 md:mb-4">{tournament.game}</p>
-
-                {tournament.preset && (
-                  <div className="bg-purple-600 bg-opacity-10 border border-purple-600 rounded-lg p-2 mb-3">
-                    <p className="text-xs font-bold text-purple-400 truncate">{tournament.preset.name}</p>
-                  </div>
-                )}
-
-                <div className="space-y-2 mb-3 md:mb-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs md:text-sm text-discord-text">Prize Pool</span>
-                    <span className="text-sm md:text-base font-bold text-green-400">₹{parseFloat(tournament.prize_pool || 0).toFixed(0)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs md:text-sm text-discord-text">Entry Fee</span>
-                    <span className="text-sm md:text-base font-bold text-white">₹{parseFloat(tournament.entry_fee || 0).toFixed(0)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs md:text-sm text-discord-text">Players</span>
-                    <span className="text-sm md:text-base font-bold text-white">{tournament.participantCount}/{tournament.max_participants}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 text-xs md:text-sm text-discord-text mb-3">
-                  <FaClock />
-                  <span className="truncate">
-                    {new Date(tournament.start_time).toLocaleDateString('en-IN', {
-                      day: 'numeric',
-                      month: 'short',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </span>
-                </div>
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    viewDetails(tournament);
-                  }}
-                  className="w-full px-3 md:px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-all flex items-center justify-center gap-2 text-sm md:text-base"
-                >
-                  <FaInfoCircle />
-                  View Details
-                </button>
-              </div>
-            ))
-          )}
-        </div>
+    <div className="max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
+          <FaTrophy className="text-yellow-400" />
+          Tournaments
+        </h1>
+        <p className="text-discord-text">Join competitive tournaments and win prizes</p>
       </div>
 
-      {/* Tournament Details Modal */}
-      {showModal && selectedTournament && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-          <div className="bg-discord-dark border border-gray-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-discord-dark border-b border-gray-800 p-4 md:p-6 flex items-center justify-between z-10">
-              <h2 className="text-xl md:text-2xl font-bold text-white pr-4 line-clamp-2">{selectedTournament.title}</h2>
-              <button onClick={closeModal} className="p-2 hover:bg-gray-800 rounded-lg transition-all flex-shrink-0">
-                <FaTimes className="text-white text-lg md:text-xl" />
-              </button>
-            </div>
+      {/* Filters */}
+      <div className="flex gap-3 mb-6 overflow-x-auto pb-2">
+        <button
+          onClick={() => setFilter('all')}
+          className={`px-6 py-3 rounded-lg font-bold whitespace-nowrap transition-all ${
+            filter === 'all'
+              ? 'bg-purple-600 text-white shadow-lg'
+              : 'bg-discord-dark text-discord-text hover:bg-gray-700'
+          }`}
+        >
+          All
+        </button>
+        <button
+          onClick={() => setFilter('upcoming')}
+          className={`px-6 py-3 rounded-lg font-bold whitespace-nowrap transition-all ${
+            filter === 'upcoming'
+              ? 'bg-blue-600 text-white shadow-lg'
+              : 'bg-discord-dark text-discord-text hover:bg-gray-700'
+          }`}
+        >
+          Upcoming
+        </button>
+        <button
+          onClick={() => setFilter('live')}
+          className={`px-6 py-3 rounded-lg font-bold whitespace-nowrap transition-all ${
+            filter === 'live'
+              ? 'bg-red-600 text-white shadow-lg'
+              : 'bg-discord-dark text-discord-text hover:bg-gray-700'
+          }`}
+        >
+          Live
+        </button>
+        <button
+          onClick={() => setFilter('completed')}
+          className={`px-6 py-3 rounded-lg font-bold whitespace-nowrap transition-all ${
+            filter === 'completed'
+              ? 'bg-gray-600 text-white shadow-lg'
+              : 'bg-discord-dark text-discord-text hover:bg-gray-700'
+          }`}
+        >
+          Completed
+        </button>
+      </div>
 
-            <div className="p-4 md:p-6 space-y-4 md:space-y-6">
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className={`px-3 md:px-4 py-1 md:py-2 rounded-lg text-xs md:text-sm font-bold uppercase ${
-                  selectedTournament.status === 'upcoming' ? 'bg-blue-600' :
-                  selectedTournament.status === 'live' ? 'bg-green-600' :
-                  'bg-gray-600'
-                } text-white`}>
-                  {selectedTournament.status}
-                </span>
-                <span className="text-sm md:text-base text-discord-text">{selectedTournament.game}</span>
-              </div>
-
-              {userParticipation && (
-                <div className="bg-green-600 bg-opacity-10 border border-green-600 rounded-lg p-3 md:p-4">
-                  <div className="flex items-center gap-3">
-                    <FaCheckCircle className="text-xl md:text-2xl text-green-400 flex-shrink-0" />
-                    <div>
-                      <p className="font-bold text-white text-sm md:text-base">✅ You're Registered!</p>
-                      <p className="text-xs md:text-sm text-green-400">Seat #{userParticipation.seat_number}</p>
-                      <p className="text-xs md:text-sm text-green-400">IGN: {userParticipation.in_game_name}</p>
-                      <p className="text-xs md:text-sm text-green-400">UID: {userParticipation.in_game_id}</p>
-                    </div>
+      {/* Tournament Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {tournaments.map((tournament) => {
+          const statusBadge = getStatusBadge(tournament.status);
+          const isJoined = joinedTournamentIds.has(tournament.id);
+          const spotsLeft = tournament.max_participants - tournament.participantCount;
+          
+          return (
+            <div
+              key={tournament.id}
+              className={`rounded-xl p-6 transition-all hover:shadow-2xl ${
+                isJoined 
+                  ? 'bg-gradient-to-br from-green-900 to-emerald-900 border-2 border-green-400 shadow-green-500/20 shadow-xl'
+                  : 'bg-discord-dark border border-gray-800 hover:border-purple-600'
+              }`}
+            >
+              {/* Joined Badge */}
+              {isJoined && (
+                <div className="mb-4 bg-green-500 rounded-lg p-3 flex items-center gap-2 border-2 border-green-300">
+                  <FaCheckCircle className="text-2xl text-white" />
+                  <div>
+                    <p className="font-bold text-white text-lg">JOINED</p>
+                    <p className="text-green-100 text-sm">You're registered!</p>
                   </div>
                 </div>
               )}
 
-              {/* ENHANCED PRIZE STRUCTURE */}
-              {selectedTournament.preset && (
-                <div className="bg-gradient-to-br from-purple-600 to-purple-800 rounded-xl p-4 md:p-6">
-                  <h3 className="text-lg md:text-xl font-bold text-white mb-4 flex items-center gap-2">
-                    <FaTrophy className="text-yellow-400" />
-                    Prize Structure: {selectedTournament.preset.name}
-                  </h3>
-                  
-                  <div className="space-y-3">
-                    <div className="bg-white bg-opacity-10 rounded-lg p-3">
-                      <p className="text-xs text-purple-200 mb-1">Entry Fee</p>
-                      <p className="text-2xl font-bold text-white">₹{parseFloat(selectedTournament.entry_fee).toFixed(0)}</p>
-                    </div>
+              {/* Tournament Header */}
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex-1">
+                  <div className={`${statusBadge.bg} px-3 py-1 rounded-lg inline-flex items-center gap-2 mb-2`}>
+                    <span>{statusBadge.icon}</span>
+                    <span className="text-white font-bold text-sm">{statusBadge.text}</span>
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-1">{tournament.title}</h3>
+                  <p className="text-discord-text text-sm">{tournament.game}</p>
+                </div>
+                <FaTrophy className="text-3xl text-yellow-400" />
+              </div>
 
+              {/* Preset Badge */}
+              {tournament.preset && (
+                <div className="mb-4 bg-purple-900 bg-opacity-30 border border-purple-600 rounded-lg p-2 text-center">
+                  <p className="text-purple-300 font-semibold text-sm">{tournament.preset.name}</p>
+                </div>
+              )}
+
+              {/* Stats */}
+              <div className="space-y-3 mb-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-discord-text text-sm">Prize Pool</span>
+                  <span className="text-green-400 font-bold text-lg">₹{tournament.prize_pool}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-discord-text text-sm">Entry Fee</span>
+                  <span className="text-white font-bold">
+                    {tournament.entry_fee === 0 ? 'FREE' : `₹${tournament.entry_fee}`}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-discord-text text-sm">Players</span>
+                  <span className="text-white font-bold">
+                    {tournament.participantCount}/{tournament.max_participants}
+                  </span>
+                </div>
+                {spotsLeft <= 5 && spotsLeft > 0 && (
+                  <div className="bg-orange-900 bg-opacity-30 border border-orange-600 rounded p-2">
+                    <p className="text-orange-400 text-xs font-bold text-center">
+                      ⚠️ Only {spotsLeft} spots left!
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Time - FIXED IST */}
+              <div className="bg-discord-darkest rounded-lg p-3 mb-4 flex items-center gap-2">
+                <FaClock className="text-cyan-400" />
+                <div>
+                  <p className="text-xs text-discord-text">Start Time</p>
+                  <p className="text-white font-semibold text-sm">
+                    {formatISTDate(tournament.start_time, true)}
+                  </p>
+                </div>
+              </div>
+
+              {/* View Details Button */}
+              <button
+                onClick={() => viewDetails(tournament)}
+                className={`w-full py-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2 ${
+                  isJoined
+                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                    : 'bg-purple-600 hover:bg-purple-700 text-white'
+                }`}
+              >
+                <FaInfoCircle />
+                View Details
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {tournaments.length === 0 && (
+        <div className="text-center py-12">
+          <FaTrophy className="text-6xl text-gray-600 mx-auto mb-4" />
+          <p className="text-white font-bold text-xl mb-2">No tournaments found</p>
+          <p className="text-discord-text">Check back later for upcoming tournaments</p>
+        </div>
+      )}
+
+      {/* Modal - Keep existing modal code but fix time display */}
+      {showModal && selectedTournament && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" onClick={closeModal}>
+          <div className="bg-discord-dark rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-discord-dark border-b border-gray-800 p-4 md:p-6 flex items-start justify-between z-10">
+              <div className="flex-1">
+                <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">{selectedTournament.title}</h2>
+                <p className="text-discord-text text-sm md:text-base">{selectedTournament.game}</p>
+              </div>
+              <button
+                onClick={closeModal}
+                className="ml-4 p-2 hover:bg-gray-700 rounded-lg transition-all flex-shrink-0"
+              >
+                <FaTimes className="text-2xl text-discord-text hover:text-white" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+              {/* Status Badge */}
+              <div className="flex items-center gap-3">
+                <div className={`${getStatusBadge(selectedTournament.status).bg} px-4 py-2 rounded-lg font-bold text-white flex items-center gap-2`}>
+                  <span>{getStatusBadge(selectedTournament.status).icon}</span>
+                  {getStatusBadge(selectedTournament.status).text}
+                </div>
+                {selectedTournament.preset && (
+                  <div className="bg-purple-900 bg-opacity-30 border border-purple-600 rounded-lg px-4 py-2">
+                    <p className="text-purple-300 font-semibold text-sm">{selectedTournament.preset.name}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* User Participation Status */}
+              {userParticipation && (
+                <div className="bg-green-600 bg-opacity-20 border-2 border-green-500 rounded-xl p-4 md:p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <FaCheckCircle className="text-3xl text-green-400" />
+                    <div>
+                      <p className="font-bold text-white text-lg">You're Registered!</p>
+                      <p className="text-green-300">Seat #{userParticipation.seat_number}</p>
+                    </div>
+                  </div>
+                  <div className="bg-green-950 bg-opacity-50 rounded-lg p-3">
+                    <p className="text-green-200 text-sm">
+                      <span className="font-semibold">In-Game Name:</span> {userParticipation.in_game_name}
+                    </p>
+                    <p className="text-green-200 text-sm mt-1">
+                      <span className="font-semibold">In-Game ID:</span> {userParticipation.in_game_id}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Prize Breakdown */}
+              {selectedTournament.preset && (
+                <div>
+                  <h3 className="font-bold text-white mb-3 text-base md:text-lg">💰 Prize Distribution</h3>
+                  <div className="space-y-3">
                     {selectedTournament.preset.preset_number === 6 ? (
                       <>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-3 gap-3 md:gap-4">
                           <div className="bg-yellow-500 bg-opacity-20 rounded-lg p-3 text-center border border-yellow-400">
                             <p className="text-2xl mb-1">🥇</p>
                             <p className="text-xs text-yellow-200">1st Place</p>
@@ -509,13 +580,8 @@ export default function TournamentsPage() {
                 <div className="bg-discord-darkest rounded-lg p-3 md:p-4">
                   <FaClock className="text-2xl text-purple-400 mb-2" />
                   <p className="text-xs md:text-sm text-discord-text mb-1">Start Time</p>
-                  <p className="text-sm md:text-lg font-bold text-white">
-                    {new Date(selectedTournament.start_time).toLocaleDateString('en-IN', {
-                      day: 'numeric',
-                      month: 'short',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
+                  <p className="text-sm md:text-base font-bold text-white">
+                    {formatISTDate(selectedTournament.start_time, true)}
                   </p>
                 </div>
               </div>
