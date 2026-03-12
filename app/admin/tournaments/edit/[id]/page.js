@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { logAdminAction } from '@/lib/adminLogger';
+import { formatUTCToISTLocal, parseISTToUTC, formatISTDate } from '@/lib/timeUtils';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { FaTrophy, FaArrowLeft, FaCheckCircle, FaClock, FaInfoCircle, FaGamepad } from 'react-icons/fa';
 
@@ -41,8 +42,8 @@ export default function EditTournamentPage() {
 
       if (error) throw error;
 
-      // Format datetime for input
-      const startTime = data.start_time ? new Date(data.start_time).toISOString().slice(0, 16) : '';
+      // CRITICAL: Convert UTC time from database to IST for datetime-local input
+      const startTimeIST = data.start_time ? formatUTCToISTLocal(data.start_time) : '';
 
       const tournamentData = {
         title: data.title || '',
@@ -52,7 +53,7 @@ export default function EditTournamentPage() {
         prize_pool: String(data.prize_pool || 0),
         entry_fee: String(data.entry_fee || 0),
         max_participants: String(data.max_participants || 50),
-        start_time: startTime,
+        start_time: startTimeIST,
         status: data.status || 'upcoming',
         room_id: data.room_id || '',
         room_password: data.room_password || ''
@@ -85,6 +86,9 @@ export default function EditTournamentPage() {
     setSaving(true);
 
     try {
+      // CRITICAL: Convert IST time from input to UTC for database storage
+      const startTimeUTC = parseISTToUTC(formData.start_time);
+
       const updateData = {
         title: formData.title.trim(),
         game: formData.game,
@@ -93,12 +97,17 @@ export default function EditTournamentPage() {
         prize_pool: parseFloat(formData.prize_pool) || 0,
         entry_fee: parseFloat(formData.entry_fee) || 0,
         max_participants: parseInt(formData.max_participants) || 50,
-        start_time: formData.start_time,
+        start_time: startTimeUTC, // Store as UTC
         status: formData.status,
         room_id: formData.room_id.trim() || null,
         room_password: formData.room_password.trim() || null,
         updated_at: new Date().toISOString()
       };
+
+      console.log('Updating tournament:', {
+        input_time_ist: formData.start_time,
+        converted_time_utc: startTimeUTC
+      });
 
       const { error } = await supabase
         .from('tournaments')
@@ -107,20 +116,61 @@ export default function EditTournamentPage() {
 
       if (error) throw error;
 
-      // LOG THE EDIT ACTION
+      // LOG THE EDIT ACTION WITH DETAILED CHANGES
       const changes = {};
-      if (originalData.title !== formData.title) changes.title = { from: originalData.title, to: formData.title };
-      if (originalData.status !== formData.status) changes.status = { from: originalData.status, to: formData.status };
-      if (originalData.prize_pool !== formData.prize_pool) changes.prize_pool = { from: originalData.prize_pool, to: formData.prize_pool };
-      if (originalData.entry_fee !== formData.entry_fee) changes.entry_fee = { from: originalData.entry_fee, to: formData.entry_fee };
-      if (originalData.room_id !== formData.room_id) changes.room_id = 'updated';
-      if (originalData.room_password !== formData.room_password) changes.room_password = 'updated';
+      const fieldsChanged = [];
+
+      if (originalData.title !== formData.title) {
+        changes.title = { from: originalData.title, to: formData.title };
+        fieldsChanged.push('title');
+      }
+      if (originalData.status !== formData.status) {
+        changes.status = { from: originalData.status, to: formData.status };
+        fieldsChanged.push('status');
+      }
+      if (originalData.prize_pool !== formData.prize_pool) {
+        changes.prize_pool = { from: `₹${originalData.prize_pool}`, to: `₹${formData.prize_pool}` };
+        fieldsChanged.push('prize_pool');
+      }
+      if (originalData.entry_fee !== formData.entry_fee) {
+        changes.entry_fee = { from: `₹${originalData.entry_fee}`, to: `₹${formData.entry_fee}` };
+        fieldsChanged.push('entry_fee');
+      }
+      if (originalData.max_participants !== formData.max_participants) {
+        changes.max_participants = { from: originalData.max_participants, to: formData.max_participants };
+        fieldsChanged.push('max_participants');
+      }
+      if (originalData.start_time !== formData.start_time) {
+        changes.start_time = { from: originalData.start_time, to: formData.start_time };
+        fieldsChanged.push('start_time');
+      }
+      if (originalData.game !== formData.game) {
+        changes.game = { from: originalData.game, to: formData.game };
+        fieldsChanged.push('game');
+      }
+      if (originalData.description !== formData.description) {
+        changes.description = 'updated';
+        fieldsChanged.push('description');
+      }
+      if (originalData.rules !== formData.rules) {
+        changes.rules = 'updated';
+        fieldsChanged.push('rules');
+      }
+      if (originalData.room_id !== formData.room_id) {
+        changes.room_id = 'updated';
+        fieldsChanged.push('room_id');
+      }
+      if (originalData.room_password !== formData.room_password) {
+        changes.room_password = 'updated';
+        fieldsChanged.push('room_password');
+      }
 
       await logAdminAction('tournament_edit', {
         tournament_id: params.id,
         tournament_title: formData.title,
         changes: changes,
-        fields_changed: Object.keys(changes)
+        fields_changed: fieldsChanged,
+        total_changes: fieldsChanged.length
       });
 
       alert('✅ Tournament updated successfully!');
@@ -161,20 +211,31 @@ export default function EditTournamentPage() {
         <p className="text-discord-text">Update tournament details and settings</p>
       </div>
 
-      {/* Auto-Status Info Banner */}
-      <div className="bg-blue-900 bg-opacity-20 border border-blue-600 rounded-xl p-5 mb-6">
+      {/* IST Timezone Info Banner */}
+      <div className="bg-blue-900 bg-opacity-20 border border-blue-600 rounded-xl p-4 mb-6">
         <div className="flex items-start gap-3">
-          <FaInfoCircle className="text-2xl text-blue-400 flex-shrink-0 mt-1" />
+          <FaInfoCircle className="text-xl text-blue-400 flex-shrink-0 mt-0.5" />
           <div>
-            <h3 className="font-bold text-white mb-2 flex items-center gap-2">
-              <FaClock className="text-blue-400" />
-              Automatic Status Switching
+            <h3 className="font-bold text-white mb-1 text-sm">
+              🕐 Timezone: Indian Standard Time (IST)
             </h3>
-            <p className="text-sm text-blue-300 mb-2">
-              Tournaments automatically switch from <span className="font-bold text-yellow-400">UPCOMING</span> to <span className="font-bold text-red-400">LIVE</span> when the start time is reached.
+            <p className="text-xs text-blue-300">
+              All times are in IST. Tournaments auto-switch from UPCOMING → LIVE when start time is reached.
             </p>
-            <p className="text-xs text-blue-200">
-              💡 This prevents late entries and ensures only registered players can participate. Players cannot join once a tournament goes live.
+          </div>
+        </div>
+      </div>
+
+      {/* Auto-Status Info Banner */}
+      <div className="bg-yellow-900 bg-opacity-20 border border-yellow-600 rounded-xl p-4 mb-6">
+        <div className="flex items-start gap-3">
+          <FaClock className="text-xl text-yellow-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="font-bold text-white mb-1 text-sm">
+              ⚡ Automatic Status Switching
+            </h3>
+            <p className="text-xs text-yellow-300">
+              When start time is reached, status automatically changes from <span className="font-bold">UPCOMING</span> to <span className="font-bold text-red-400">LIVE</span>. This prevents late entries and ensures fair play.
             </p>
           </div>
         </div>
@@ -196,15 +257,14 @@ export default function EditTournamentPage() {
                 type="text"
                 value={formData.title}
                 onChange={(e) => setFormData({...formData, title: e.target.value})}
-                className="w-full px-4 py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-purple-500 transition-all"
-                placeholder="Friday Finals 2025"
+                placeholder="Friday Night Finals"
+                className="w-full px-4 py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-purple-500 font-semibold"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-white font-semibold mb-2 text-sm flex items-center gap-2">
-                <FaGamepad className="text-purple-400" />
+              <label className="block text-white font-semibold mb-2 text-sm">
                 Game
               </label>
               <select
@@ -302,7 +362,7 @@ export default function EditTournamentPage() {
             <div className="bg-orange-900 bg-opacity-10 border border-orange-600 rounded-lg p-4">
               <label className="block text-orange-400 font-bold mb-2 text-sm flex items-center gap-2">
                 <FaClock />
-                Start Time *
+                Start Time (IST) *
               </label>
               <input
                 type="datetime-local"
@@ -311,6 +371,9 @@ export default function EditTournamentPage() {
                 className="w-full px-4 py-3 bg-discord-darkest border border-orange-700 text-white rounded-lg focus:outline-none focus:border-orange-500 font-semibold"
                 required
               />
+              <p className="text-xs text-orange-300 mt-1">
+                🕐 Indian Standard Time (IST)
+              </p>
             </div>
 
             <div className="bg-red-900 bg-opacity-10 border border-red-600 rounded-lg p-4 md:col-span-2">
@@ -327,7 +390,7 @@ export default function EditTournamentPage() {
                 <option value="completed">✅ COMPLETED</option>
               </select>
               <p className="text-xs text-red-300 mt-2">
-                ⚠️ Manual override: Auto-switches to LIVE at start time if still UPCOMING
+                ⚠️ Manual override available. Auto-switches to LIVE at start time if set to UPCOMING.
               </p>
             </div>
           </div>
