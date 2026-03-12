@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { logAdminAction } from '@/lib/adminLogger';
+import { parseISTToUTC, getCurrentISTLocal } from '@/lib/timeUtils';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { FaTrophy, FaArrowLeft, FaCheckCircle } from 'react-icons/fa';
+import { FaTrophy, FaArrowLeft, FaCheckCircle, FaClock, FaInfoCircle } from 'react-icons/fa';
 
 export default function CreateTournamentPage() {
   const router = useRouter();
@@ -98,10 +99,13 @@ export default function CreateTournamentPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
+      // CRITICAL: Convert IST input to UTC for storage
+      const startTimeUTC = parseISTToUTC(formData.start_time);
+
       const tournamentData = {
         title: formData.title.trim(),
         game: formData.game,
-        start_time: formData.start_time,
+        start_time: startTimeUTC, // Store as UTC
         status: formData.status,
         prize_pool: parseFloat(formData.prize_pool) || 0,
         entry_fee: parseFloat(formData.entry_fee) || 0,
@@ -113,6 +117,12 @@ export default function CreateTournamentPage() {
         preset_id: usePreset && selectedPreset ? selectedPreset.id : null,
         created_by: user?.id || null
       };
+
+      console.log('Creating tournament with data:', {
+        title: tournamentData.title,
+        start_time_input: formData.start_time,
+        start_time_utc: startTimeUTC
+      });
 
       const { data, error } = await supabase
         .from('tournaments')
@@ -130,11 +140,12 @@ export default function CreateTournamentPage() {
         entry_fee: tournamentData.entry_fee,
         prize_pool: tournamentData.prize_pool,
         max_participants: tournamentData.max_participants,
+        start_time_ist: formData.start_time,
         preset_used: usePreset,
         preset_name: selectedPreset?.name || null
       });
 
-      alert('✅ Tournament created!');
+      alert('✅ Tournament created successfully!');
       router.push('/admin/tournaments');
       
     } catch (error) {
@@ -167,6 +178,16 @@ export default function CreateTournamentPage() {
         </button>
         <h1 className="text-3xl font-bold text-white mb-2">Create Tournament</h1>
         <p className="text-discord-text">Fill in the details</p>
+      </div>
+
+      {/* IST Timezone Info */}
+      <div className="mb-6 bg-blue-900 bg-opacity-20 border border-blue-600 rounded-lg p-4">
+        <div className="flex items-center gap-2">
+          <FaInfoCircle className="text-blue-400" />
+          <p className="text-blue-300 text-sm">
+            <strong>Timezone:</strong> All times are in Indian Standard Time (IST / Kolkata)
+          </p>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -325,15 +346,21 @@ export default function CreateTournamentPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-white font-semibold mb-2">Start Time *</label>
+            <div className="bg-orange-900 bg-opacity-20 border border-orange-600 rounded-lg p-4">
+              <label className="block text-orange-400 font-bold mb-2 flex items-center gap-2">
+                <FaClock />
+                Start Time (IST) *
+              </label>
               <input
                 type="datetime-local"
                 value={formData.start_time}
                 onChange={(e) => setFormData({...formData, start_time: e.target.value})}
-                className="w-full px-4 py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg"
+                className="w-full px-4 py-3 bg-discord-darkest border border-orange-700 text-white rounded-lg font-semibold"
                 required
               />
+              <p className="text-xs text-orange-300 mt-2">
+                ⏰ Enter time in IST (India Standard Time)
+              </p>
             </div>
 
             <div>
