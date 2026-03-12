@@ -3,22 +3,20 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
-import { FaHistory, FaFilter, FaDiscord, FaUser, FaTrophy, FaMoneyBillWave, FaBullhorn, FaSync, FaDownload, FaClock } from 'react-icons/fa';
+import { FaHistory, FaDiscord, FaSync } from 'react-icons/fa';
 
 export default function AdminLogsPage() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [actionFilter, setActionFilter] = useState('all');
   const [discordWebhook, setDiscordWebhook] = useState('');
   const [sendingToDiscord, setSendingToDiscord] = useState(false);
-  const [loadingWebhook, setLoadingWebhook] = useState(true);
 
   useEffect(() => {
     loadLogs();
-    loadDefaultWebhook();
-  }, [actionFilter]);
+    loadWebhook();
+  }, []);
 
-  const loadDefaultWebhook = async () => {
+  const loadWebhook = async () => {
     try {
       const { data } = await supabase
         .from('admin_settings')
@@ -31,29 +29,19 @@ export default function AdminLogsPage() {
       }
     } catch (error) {
       console.error('Error loading webhook:', error);
-    } finally {
-      setLoadingWebhook(false);
     }
   };
 
   const loadLogs = async () => {
     setLoading(true);
-
     try {
-      let query = supabase
+      const { data, error } = await supabase
         .from('admin_logs')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(100);
-
-      if (actionFilter !== 'all') {
-        query = query.eq('action', actionFilter);
-      }
-
-      const { data, error } = await query;
+        .limit(20);
 
       if (error) throw error;
-
       setLogs(data || []);
     } catch (error) {
       console.error('Error loading logs:', error);
@@ -63,42 +51,20 @@ export default function AdminLogsPage() {
     }
   };
 
-  const getActionIcon = (action) => {
-    const actionLower = (action || '').toLowerCase();
-    if (actionLower.includes('tournament')) return FaTrophy;
-    if (actionLower.includes('user') || actionLower.includes('ban')) return FaUser;
-    if (actionLower.includes('money') || actionLower.includes('prize') || actionLower.includes('wallet')) return FaMoneyBillWave;
-    if (actionLower.includes('announcement')) return FaBullhorn;
-    return FaHistory;
-  };
-
-  const getActionColor = (action) => {
-    const actionLower = (action || '').toLowerCase();
-    if (actionLower.includes('delete') || actionLower.includes('ban')) return 'text-red-400';
-    if (actionLower.includes('create') || actionLower.includes('reward') || actionLower.includes('login')) return 'text-green-400';
-    if (actionLower.includes('edit') || actionLower.includes('update')) return 'text-yellow-400';
-    if (actionLower.includes('money') || actionLower.includes('prize') || actionLower.includes('distribute')) return 'text-blue-400';
-    return 'text-purple-400';
-  };
-
-  const sendLogsToDiscord = async () => {
+  const sendToDiscord = async () => {
     if (!discordWebhook) {
       alert('Please enter a Discord webhook URL');
       return;
     }
 
-    if (!confirm('Send recent admin logs to Discord?')) return;
+    if (!confirm('Send logs to Discord?')) return;
 
     setSendingToDiscord(true);
 
     try {
-      const recentLogs = logs.slice(0, 10);
-      
-      const fields = recentLogs.map(log => ({
-        name: `${(log.action || 'Unknown').replace(/_/g, ' ').toUpperCase()}`,
-        value: `**Details:** ${log.details || 'No details'}\n` +
-               `**Time:** ${new Date(log.created_at).toLocaleString('en-IN')}\n` +
-               `**Admin:** ${log.admin_id?.substring(0, 8) || 'Unknown'}...`,
+      const fields = logs.slice(0, 10).map(log => ({
+        name: log.action || 'Unknown',
+        value: `**Details:** ${log.details || 'None'}\n**Time:** ${new Date(log.created_at).toLocaleString('en-IN')}`,
         inline: false,
       }));
 
@@ -107,218 +73,142 @@ export default function AdminLogsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           embeds: [{
-            title: '📋 Admin Activity Logs',
-            description: `Recent ${recentLogs.length} admin actions`,
+            title: '📋 Admin Logs',
+            description: `Last 10 admin actions`,
             color: 0xFF0000,
             fields: fields,
-            footer: { text: 'WarriorPixel Admin Logs' },
+            footer: { text: 'WarriorPixel' },
             timestamp: new Date().toISOString(),
           }]
         }),
       });
 
-      if (!response.ok) throw new Error('Discord webhook failed');
-      alert('✅ Logs sent to Discord successfully!');
+      if (response.ok) {
+        alert('✅ Sent to Discord!');
+      } else {
+        throw new Error('Failed');
+      }
     } catch (error) {
-      console.error('Error sending to Discord:', error);
-      alert('❌ Error sending to Discord: ' + error.message);
+      console.error('Discord error:', error);
+      alert('❌ Failed to send');
     } finally {
       setSendingToDiscord(false);
     }
   };
 
-  const exportLogs = () => {
-    try {
-      const csv = [
-        'Timestamp,Action,Details,Admin ID,IP Address',
-        ...logs.map(log => {
-          const timestamp = log.created_at ? new Date(log.created_at).toISOString() : '';
-          const action = (log.action || '').replace(/,/g, ' ');
-          const details = (log.details || '').replace(/,/g, ' ').replace(/"/g, '');
-          const adminId = log.admin_id || '';
-          const ip = log.ip_address || 'N/A';
-          return `${timestamp},${action},${details},${adminId},${ip}`;
-        })
-      ].join('\n');
-
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `admin-logs-${new Date().toISOString().split('T')[0]}.csv`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-      alert('✅ Logs exported successfully!');
-    } catch (error) {
-      console.error('Export error:', error);
-      alert('❌ Error exporting logs');
-    }
+  const getColor = (action) => {
+    const a = (action || '').toLowerCase();
+    if (a.includes('delete') || a.includes('ban')) return 'text-red-400';
+    if (a.includes('create') || a.includes('login')) return 'text-green-400';
+    if (a.includes('edit') || a.includes('update')) return 'text-yellow-400';
+    return 'text-purple-400';
   };
-
-  // Get unique actions for filter
-  const uniqueActions = [...new Set(logs.map(log => log.action))].filter(Boolean);
 
   return (
     <AdminLayout>
       <div className="space-y-6">
-        {/* Header with Actions */}
-        <div className="flex items-center justify-between flex-wrap gap-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-2">Admin Logs</h1>
-            <p className="text-discord-text">View all admin actions and activities</p>
+            <h1 className="text-3xl font-bold text-white">Admin Logs</h1>
+            <p className="text-discord-text">Last 20 admin actions</p>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={loadLogs}
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold flex items-center gap-2 transition-all"
-            >
-              <FaSync />
-              Refresh
-            </button>
-            <button
-              onClick={exportLogs}
-              disabled={logs.length === 0}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-700 text-white rounded-lg font-semibold flex items-center gap-2 transition-all"
-            >
-              <FaDownload />
-              Export
-            </button>
-          </div>
+          <button
+            onClick={loadLogs}
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold flex items-center gap-2"
+          >
+            <FaSync />
+            Refresh
+          </button>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-4">
           <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
             <FaHistory className="text-2xl text-purple-400 mb-2" />
-            <p className="text-xs text-discord-text mb-1">Total Logs</p>
+            <p className="text-xs text-discord-text">Total Shown</p>
             <p className="text-2xl font-bold text-white">{logs.length}</p>
           </div>
           <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
-            <FaClock className="text-2xl text-blue-400 mb-2" />
-            <p className="text-xs text-discord-text mb-1">Last 24h</p>
-            <p className="text-2xl font-bold text-white">
-              {logs.filter(log => new Date(log.created_at) > new Date(Date.now() - 86400000)).length}
-            </p>
-          </div>
-          <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
-            <FaFilter className="text-2xl text-green-400 mb-2" />
-            <p className="text-xs text-discord-text mb-1">Action Types</p>
-            <p className="text-2xl font-bold text-white">{uniqueActions.length}</p>
-          </div>
-          <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
             <FaDiscord className="text-2xl text-orange-400 mb-2" />
-            <p className="text-xs text-discord-text mb-1">Webhook</p>
-            <p className="text-sm font-bold text-white">{discordWebhook ? '✓ Active' : '✗ None'}</p>
+            <p className="text-xs text-discord-text">Webhook</p>
+            <p className="text-sm font-bold text-white">{discordWebhook ? '✓ Set' : '✗ None'}</p>
           </div>
         </div>
 
-        {/* Discord Integration */}
+        {/* Discord */}
         <div className="bg-discord-dark rounded-xl p-6 border border-gray-800">
           <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
             <FaDiscord className="text-purple-400" />
-            Send Logs to Discord
+            Send to Discord
           </h3>
-          <div className="flex flex-col md:flex-row gap-3">
-            {loadingWebhook ? (
-              <div className="flex-1 px-4 py-3 bg-discord-darkest border border-gray-700 rounded-lg">
-                <span className="text-discord-text text-sm">Loading webhook...</span>
-              </div>
-            ) : (
-              <input
-                type="url"
-                value={discordWebhook}
-                onChange={(e) => setDiscordWebhook(e.target.value)}
-                placeholder="Discord Webhook URL"
-                className="flex-1 px-4 py-3 bg-discord-darkest border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
-              />
-            )}
+          <div className="flex gap-3">
+            <input
+              type="url"
+              value={discordWebhook}
+              onChange={(e) => setDiscordWebhook(e.target.value)}
+              placeholder="Discord Webhook URL"
+              className="flex-1 px-4 py-3 bg-discord-darkest border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+            />
             <button
-              onClick={sendLogsToDiscord}
-              disabled={sendingToDiscord || !discordWebhook || loadingWebhook}
-              className="px-6 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 text-white rounded-lg font-bold transition-all"
+              onClick={sendToDiscord}
+              disabled={sendingToDiscord || !discordWebhook}
+              className="px-6 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 text-white rounded-lg font-bold"
             >
-              {sendingToDiscord ? 'Sending...' : 'Send to Discord'}
+              {sendingToDiscord ? 'Sending...' : 'Send'}
             </button>
           </div>
-          {!loadingWebhook && discordWebhook && (
-            <p className="text-xs text-green-400 mt-2">✓ Webhook loaded from settings</p>
-          )}
-          <p className="text-xs text-discord-text mt-2">
-            Sends the last 10 admin actions to your Discord channel
-          </p>
+          <p className="text-xs text-discord-text mt-2">Sends last 10 logs</p>
         </div>
 
-        {/* Filters */}
-        <div className="bg-discord-dark rounded-xl p-4 border border-gray-800">
-          <div className="flex items-center gap-2 mb-3">
-            <FaFilter className="text-purple-400" />
-            <h3 className="font-semibold text-white">Filter Logs</h3>
-          </div>
-          <select
-            value={actionFilter}
-            onChange={(e) => setActionFilter(e.target.value)}
-            className="w-full md:w-64 px-4 py-2 bg-discord-darkest border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500"
-          >
-            <option value="all">All Actions ({logs.length})</option>
-            {uniqueActions.map(action => (
-              <option key={action} value={action}>{action}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Logs List */}
+        {/* Logs */}
         <div className="bg-discord-dark rounded-xl border border-gray-800">
-          <div className="p-4 border-b border-gray-800 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-white">Recent Activity ({logs.length})</h2>
-            <p className="text-sm text-discord-text">Last 100 logs</p>
+          <div className="p-4 border-b border-gray-800">
+            <h2 className="text-xl font-bold text-white">Recent Activity</h2>
           </div>
 
-          <div className="divide-y divide-gray-800 max-h-[600px] overflow-y-auto">
+          <div className="divide-y divide-gray-800 max-h-[500px] overflow-y-auto">
             {loading ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto"></div>
-                <p className="text-discord-text mt-4">Loading logs...</p>
               </div>
             ) : logs.length > 0 ? (
-              logs.map((log) => {
-                const Icon = getActionIcon(log.action);
-                const colorClass = getActionColor(log.action);
-
-                return (
-                  <div key={log.id} className="p-4 hover:bg-gray-800 transition-all">
-                    <div className="flex items-start gap-4">
-                      <div className="p-3 rounded-lg bg-gray-800">
-                        <Icon className={`text-xl ${colorClass}`} />
+              logs.map((log) => (
+                <div key={log.id} className="p-4 hover:bg-gray-800">
+                  <div className="flex items-start gap-3">
+                    <div className="text-2xl">
+                      {log.action?.toLowerCase().includes('create') ? '✨' :
+                       log.action?.toLowerCase().includes('delete') ? '🗑️' :
+                       log.action?.toLowerCase().includes('ban') ? '🚫' :
+                       log.action?.toLowerCase().includes('login') ? '🔐' :
+                       log.action?.toLowerCase().includes('prize') ? '💰' : '📝'}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <h3 className={`font-bold ${getColor(log.action)}`}>
+                          {log.action || 'Unknown'}
+                        </h3>
+                        <span className="text-xs text-discord-text">
+                          {new Date(log.created_at).toLocaleString('en-IN', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
                       </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
-                          <h3 className={`font-bold ${colorClass}`}>
-                            {log.action || 'Unknown Action'}
-                          </h3>
-                          <span className="text-xs text-discord-text">
-                            {new Date(log.created_at).toLocaleString('en-IN')}
-                          </span>
-                        </div>
-                        
-                        <p className="text-sm text-white mb-2">
-                          {log.details || 'No details available'}
-                        </p>
-
-                        <div className="flex flex-wrap items-center gap-4 text-xs text-discord-text">
-                          <span>Admin: {log.admin_id?.substring(0, 8) || 'Unknown'}...</span>
-                          {log.ip_address && <span>IP: {log.ip_address}</span>}
-                        </div>
-                      </div>
+                      <p className="text-sm text-white mb-1">{log.details || 'No details'}</p>
+                      <p className="text-xs text-discord-text">
+                        Admin: {log.admin_id?.substring(0, 8) || 'Unknown'}...
+                      </p>
                     </div>
                   </div>
-                );
-              })
+                </div>
+              ))
             ) : (
               <div className="text-center py-12">
-                <FaHistory className="text-6xl text-gray-600 mx-auto mb-4" />
-                <p className="text-white font-semibold mb-2">No logs found</p>
-                <p className="text-discord-text">Admin actions will appear here</p>
+                <FaHistory className="text-5xl text-gray-600 mx-auto mb-3" />
+                <p className="text-white">No logs yet</p>
               </div>
             )}
           </div>
@@ -326,9 +216,9 @@ export default function AdminLogsPage() {
 
         {/* Info */}
         <div className="bg-blue-500 bg-opacity-10 border border-blue-500 rounded-lg p-4">
-          <p className="text-blue-400 text-sm font-semibold">ℹ️ About Logs</p>
-          <p className="text-discord-text text-sm mt-1">
-            All admin actions are automatically logged. Logs are kept for audit purposes and can be sent to Discord for team transparency.
+          <p className="text-blue-400 text-sm font-semibold">ℹ️ Info</p>
+          <p className="text-discord-text text-sm">
+            Showing the 20 most recent admin actions.
           </p>
         </div>
       </div>
