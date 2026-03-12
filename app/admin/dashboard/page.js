@@ -2,14 +2,33 @@
 
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { FaTrophy, FaUsers, FaBullhorn, FaShieldAlt, FaVideo, FaMoneyBillWave, FaChartLine, FaFileAlt, FaKey, FaCog, FaCrown } from 'react-icons/fa';
+import { logAdminAction } from '@/lib/adminLogger';
+import { FaTrophy, FaUsers, FaBullhorn, FaShieldAlt, FaVideo, FaMoneyBillWave, FaChartLine, FaFileAlt, FaKey, FaCog, FaCrown, FaFlask } from 'react-icons/fa';
 
 export default function AdminDashboard() {
   const [mounted, setMounted] = useState(false);
+  const [testingLog, setTestingLog] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleTestLog = async () => {
+    setTestingLog(true);
+    try {
+      await logAdminAction('test_action', { 
+        message: 'Testing admin logging system',
+        timestamp: new Date().toISOString(),
+        test_number: Math.floor(Math.random() * 1000)
+      });
+      alert('✅ Test log created! Check Admin Logs page to verify.');
+    } catch (error) {
+      console.error('Test log error:', error);
+      alert('❌ Failed to create test log. Check console.');
+    } finally {
+      setTestingLog(false);
+    }
+  };
 
   if (!mounted) {
     return (
@@ -121,6 +140,30 @@ export default function AdminDashboard() {
             {systemSections.map((item) => (
               <SectionCard key={item.path} item={item} />
             ))}
+          </div>
+        </div>
+
+        {/* Developer Tools - TEST LOGGING BUTTON */}
+        <div className="bg-yellow-900 bg-opacity-30 border border-yellow-600 rounded-xl p-6">
+          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+            <FaFlask className="text-yellow-400" />
+            Developer Tools
+          </h2>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-white font-semibold mb-1">Test Admin Logging System</p>
+              <p className="text-sm text-yellow-200">
+                Click to create a test log entry. Check Admin Logs page to verify it appears.
+              </p>
+            </div>
+            <button
+              onClick={handleTestLog}
+              disabled={testingLog}
+              className="px-6 py-3 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-700 text-white rounded-lg font-bold flex items-center gap-2 transition-all"
+            >
+              <FaFlask />
+              {testingLog ? 'Creating...' : 'Test Log'}
+            </button>
           </div>
         </div>
 
