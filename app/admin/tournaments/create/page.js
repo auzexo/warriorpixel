@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { logAdminAction } from '@/lib/adminLogger';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { FaTrophy, FaArrowLeft, FaCheckCircle } from 'react-icons/fa';
 
@@ -120,6 +121,18 @@ export default function CreateTournamentPage() {
         .single();
 
       if (error) throw error;
+
+      // LOG THE ADMIN ACTION
+      await logAdminAction('tournament_create', {
+        tournament_id: data.id,
+        title: formData.title,
+        game: formData.game,
+        entry_fee: tournamentData.entry_fee,
+        prize_pool: tournamentData.prize_pool,
+        max_participants: tournamentData.max_participants,
+        preset_used: usePreset,
+        preset_name: selectedPreset?.name || null
+      });
 
       alert('✅ Tournament created!');
       router.push('/admin/tournaments');
