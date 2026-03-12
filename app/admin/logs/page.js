@@ -44,7 +44,7 @@ export default function AdminLogsPage() {
         .from('admin_logs')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(50);
 
       if (actionFilter !== 'all') {
         query = query.eq('action_type', actionFilter);
