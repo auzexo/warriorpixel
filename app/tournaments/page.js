@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { formatISTDate } from '@/lib/timeUtils';
-import { getEffectiveStatus } from '@/lib/tournamentUtils';
+import { updateTournamentStatuses } from '@/lib/tournamentStatusUpdater';
 import { FaTrophy, FaClock, FaFire, FaInfoCircle, FaTimes, FaCheckCircle, FaUsers, FaMoneyBillWave, FaSkull, FaCrown } from 'react-icons/fa';
 
 export default function TournamentsPage() {
@@ -51,6 +51,9 @@ export default function TournamentsPage() {
 
   const loadTournaments = async () => {
     try {
+      // FIRST: Auto-update tournament statuses
+      await updateTournamentStatuses();
+
       let query = supabase
         .from('tournaments')
         .select('*, preset:tournament_presets(*)')
@@ -133,6 +136,12 @@ export default function TournamentsPage() {
 
     if (selectedTournament.participantCount >= selectedTournament.max_participants) {
       alert('Tournament is full!');
+      return;
+    }
+
+    // Check if tournament is still upcoming
+    if (selectedTournament.status !== 'upcoming') {
+      alert('Cannot join: Tournament has already started or ended!');
       return;
     }
 
@@ -256,10 +265,8 @@ export default function TournamentsPage() {
     }
   };
 
-  const getStatusBadge = (tournament) => {
-    const effectiveStatus = getEffectiveStatus(tournament);
-    
-    switch (effectiveStatus) {
+  const getStatusBadge = (status) => {
+    switch (status) {
       case 'live':
         return { bg: 'bg-red-600', text: 'LIVE', icon: '🔴' };
       case 'upcoming':
@@ -267,7 +274,7 @@ export default function TournamentsPage() {
       case 'completed':
         return { bg: 'bg-gray-600', text: 'COMPLETED', icon: '✅' };
       default:
-        return { bg: 'bg-gray-600', text: tournament.status.toUpperCase(), icon: '❓' };
+        return { bg: 'bg-gray-600', text: status.toUpperCase(), icon: '❓' };
     }
   };
 
@@ -337,87 +344,87 @@ export default function TournamentsPage() {
         </button>
       </div>
 
-      {/* Tournament Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Tournament Cards - FULLY RESPONSIVE */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {tournaments.map((tournament) => {
-          const statusBadge = getStatusBadge(tournament);
+          const statusBadge = getStatusBadge(tournament.status);
           const isJoined = joinedTournamentIds.has(tournament.id);
           const spotsLeft = tournament.max_participants - tournament.participantCount;
           
           return (
             <div
               key={tournament.id}
-              className={`rounded-xl p-5 transition-all hover:shadow-2xl ${
+              className={`rounded-xl p-4 transition-all hover:shadow-2xl w-full ${
                 isJoined 
                   ? 'bg-gradient-to-br from-green-900 to-emerald-900 border-2 border-green-400 shadow-green-500/20 shadow-xl'
                   : 'bg-discord-dark border border-gray-800 hover:border-purple-600'
               }`}
             >
-              {/* Joined Badge - FIXED RESPONSIVE */}
+              {/* Joined Badge - COMPACT */}
               {isJoined && (
-                <div className="mb-4 bg-green-500 rounded-lg p-3 flex items-center gap-3 border-2 border-green-300">
-                  <FaCheckCircle className="text-2xl text-white flex-shrink-0" />
+                <div className="mb-3 bg-green-500 rounded-lg p-2.5 flex items-center gap-2 border-2 border-green-300">
+                  <FaCheckCircle className="text-lg text-white flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-white text-lg">JOINED</p>
-                    <p className="text-green-100 text-sm">You're registered!</p>
+                    <p className="font-bold text-white text-sm">JOINED</p>
+                    <p className="text-green-100 text-xs truncate">You're registered!</p>
                   </div>
                 </div>
               )}
 
               {/* Tournament Header */}
-              <div className="flex items-start justify-between mb-4 gap-3">
+              <div className="flex items-start justify-between mb-3 gap-2">
                 <div className="flex-1 min-w-0">
-                  <div className={`${statusBadge.bg} px-3 py-1 rounded-lg inline-flex items-center gap-2 mb-2`}>
-                    <span>{statusBadge.icon}</span>
-                    <span className="text-white font-bold text-sm">{statusBadge.text}</span>
+                  <div className={`${statusBadge.bg} px-2.5 py-1 rounded-lg inline-flex items-center gap-1.5 mb-2`}>
+                    <span className="text-sm">{statusBadge.icon}</span>
+                    <span className="text-white font-bold text-xs">{statusBadge.text}</span>
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-1 break-words">{tournament.title}</h3>
-                  <p className="text-discord-text text-sm">{tournament.game}</p>
+                  <h3 className="text-lg font-bold text-white mb-1 break-words line-clamp-2">{tournament.title}</h3>
+                  <p className="text-discord-text text-xs truncate">{tournament.game}</p>
                 </div>
-                <FaTrophy className="text-3xl text-yellow-400 flex-shrink-0" />
+                <FaTrophy className="text-2xl text-yellow-400 flex-shrink-0" />
               </div>
 
               {/* Preset Badge */}
               {tournament.preset && (
-                <div className="mb-4 bg-purple-900 bg-opacity-30 border border-purple-600 rounded-lg p-2 text-center">
-                  <p className="text-purple-300 font-semibold text-sm break-words">{tournament.preset.name}</p>
+                <div className="mb-3 bg-purple-900 bg-opacity-30 border border-purple-600 rounded-lg p-1.5 text-center">
+                  <p className="text-purple-300 font-semibold text-xs truncate">{tournament.preset.name}</p>
                 </div>
               )}
 
-              {/* Stats */}
-              <div className="space-y-3 mb-4">
-                <div className="flex justify-between items-center gap-2">
-                  <span className="text-discord-text text-sm">Prize Pool</span>
-                  <span className="text-green-400 font-bold text-lg">₹{tournament.prize_pool}</span>
+              {/* Stats - COMPACT */}
+              <div className="space-y-2 mb-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-discord-text text-xs">Prize Pool</span>
+                  <span className="text-green-400 font-bold text-base">₹{tournament.prize_pool}</span>
                 </div>
-                <div className="flex justify-between items-center gap-2">
-                  <span className="text-discord-text text-sm">Entry Fee</span>
-                  <span className="text-white font-bold">
+                <div className="flex justify-between items-center">
+                  <span className="text-discord-text text-xs">Entry Fee</span>
+                  <span className="text-white font-bold text-sm">
                     {tournament.entry_fee === 0 ? 'FREE' : `₹${tournament.entry_fee}`}
                   </span>
                 </div>
-                <div className="flex justify-between items-center gap-2">
-                  <span className="text-discord-text text-sm">Players</span>
-                  <span className="text-white font-bold">
+                <div className="flex justify-between items-center">
+                  <span className="text-discord-text text-xs">Players</span>
+                  <span className="text-white font-bold text-sm">
                     {tournament.participantCount}/{tournament.max_participants}
                   </span>
                 </div>
                 {spotsLeft <= 5 && spotsLeft > 0 && (
-                  <div className="bg-orange-900 bg-opacity-30 border border-orange-600 rounded p-2">
+                  <div className="bg-orange-900 bg-opacity-30 border border-orange-600 rounded p-1.5">
                     <p className="text-orange-400 text-xs font-bold text-center">
-                      ⚠️ Only {spotsLeft} spots left!
+                      ⚠️ Only {spotsLeft} left!
                     </p>
                   </div>
                 )}
               </div>
 
-              {/* Time - FIXED IST DISPLAY */}
-              <div className="bg-discord-darkest rounded-lg p-3 mb-4">
+              {/* Time - COMPACT WITH IST */}
+              <div className="bg-discord-darkest rounded-lg p-2.5 mb-3">
                 <div className="flex items-start gap-2">
-                  <FaClock className="text-cyan-400 flex-shrink-0 mt-0.5" />
+                  <FaClock className="text-cyan-400 flex-shrink-0 mt-0.5 text-sm" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-discord-text">Start Time</p>
-                    <p className="text-white font-semibold text-sm break-words">
+                    <p className="text-xs text-discord-text mb-0.5">Start Time</p>
+                    <p className="text-white font-semibold text-xs break-words">
                       {formatISTDate(tournament.start_time, true)}
                     </p>
                   </div>
@@ -427,13 +434,13 @@ export default function TournamentsPage() {
               {/* View Details Button */}
               <button
                 onClick={() => viewDetails(tournament)}
-                className={`w-full py-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2 ${
+                className={`w-full py-2.5 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 ${
                   isJoined
                     ? 'bg-green-600 hover:bg-green-700 text-white'
                     : 'bg-purple-600 hover:bg-purple-700 text-white'
                 }`}
               >
-                <FaInfoCircle />
+                <FaInfoCircle className="text-sm" />
                 View Details
               </button>
             </div>
@@ -471,9 +478,9 @@ export default function TournamentsPage() {
             <div className="p-4 md:p-6 space-y-4 md:space-y-6">
               {/* Status Badge */}
               <div className="flex items-center gap-3 flex-wrap">
-                <div className={`${getStatusBadge(selectedTournament).bg} px-4 py-2 rounded-lg font-bold text-white flex items-center gap-2`}>
-                  <span>{getStatusBadge(selectedTournament).icon}</span>
-                  {getStatusBadge(selectedTournament).text}
+                <div className={`${getStatusBadge(selectedTournament.status).bg} px-4 py-2 rounded-lg font-bold text-white flex items-center gap-2`}>
+                  <span>{getStatusBadge(selectedTournament.status).icon}</span>
+                  {getStatusBadge(selectedTournament.status).text}
                 </div>
                 {selectedTournament.preset && (
                   <div className="bg-purple-900 bg-opacity-30 border border-purple-600 rounded-lg px-4 py-2">
