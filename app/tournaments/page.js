@@ -290,62 +290,62 @@ export default function TournamentsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4">
+    <div className="w-full max-w-6xl mx-auto px-3">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-2">
           <FaTrophy className="text-yellow-400" />
           Tournaments
         </h1>
-        <p className="text-discord-text">Join competitive tournaments and win prizes</p>
+        <p className="text-discord-text text-sm">Join competitive tournaments and win prizes</p>
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-3 mb-6 overflow-x-auto pb-2">
+      {/* Filters - MOBILE OPTIMIZED */}
+      <div className="flex gap-2 mb-5 overflow-x-auto pb-2 -mx-3 px-3">
         <button
           onClick={() => setFilter('all')}
-          className={`px-6 py-3 rounded-lg font-bold whitespace-nowrap transition-all ${
+          className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-all flex-shrink-0 ${
             filter === 'all'
-              ? 'bg-purple-600 text-white shadow-lg'
-              : 'bg-discord-dark text-discord-text hover:bg-gray-700'
+              ? 'bg-purple-600 text-white'
+              : 'bg-discord-dark text-discord-text'
           }`}
         >
           All
         </button>
         <button
           onClick={() => setFilter('upcoming')}
-          className={`px-6 py-3 rounded-lg font-bold whitespace-nowrap transition-all ${
+          className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-all flex-shrink-0 ${
             filter === 'upcoming'
-              ? 'bg-blue-600 text-white shadow-lg'
-              : 'bg-discord-dark text-discord-text hover:bg-gray-700'
+              ? 'bg-blue-600 text-white'
+              : 'bg-discord-dark text-discord-text'
           }`}
         >
           Upcoming
         </button>
         <button
           onClick={() => setFilter('live')}
-          className={`px-6 py-3 rounded-lg font-bold whitespace-nowrap transition-all ${
+          className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-all flex-shrink-0 ${
             filter === 'live'
-              ? 'bg-red-600 text-white shadow-lg'
-              : 'bg-discord-dark text-discord-text hover:bg-gray-700'
+              ? 'bg-red-600 text-white'
+              : 'bg-discord-dark text-discord-text'
           }`}
         >
           Live
         </button>
         <button
           onClick={() => setFilter('completed')}
-          className={`px-6 py-3 rounded-lg font-bold whitespace-nowrap transition-all ${
+          className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-all flex-shrink-0 ${
             filter === 'completed'
-              ? 'bg-gray-600 text-white shadow-lg'
-              : 'bg-discord-dark text-discord-text hover:bg-gray-700'
+              ? 'bg-gray-600 text-white'
+              : 'bg-discord-dark text-discord-text'
           }`}
         >
           Completed
         </button>
       </div>
 
-      {/* Tournament Cards - FULLY RESPONSIVE */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Tournament Cards - ULTRA COMPACT */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {tournaments.map((tournament) => {
           const statusBadge = getStatusBadge(tournament.status);
           const isJoined = joinedTournamentIds.has(tournament.id);
@@ -354,77 +354,77 @@ export default function TournamentsPage() {
           return (
             <div
               key={tournament.id}
-              className={`rounded-xl p-4 transition-all hover:shadow-2xl w-full ${
+              className={`rounded-xl p-3 transition-all max-w-full overflow-hidden ${
                 isJoined 
-                  ? 'bg-gradient-to-br from-green-900 to-emerald-900 border-2 border-green-400 shadow-green-500/20 shadow-xl'
-                  : 'bg-discord-dark border border-gray-800 hover:border-purple-600'
+                  ? 'bg-gradient-to-br from-green-900 to-emerald-900 border-2 border-green-400'
+                  : 'bg-discord-dark border border-gray-800'
               }`}
             >
-              {/* Joined Badge - COMPACT */}
+              {/* Joined Badge - ULTRA COMPACT */}
               {isJoined && (
-                <div className="mb-3 bg-green-500 rounded-lg p-2.5 flex items-center gap-2 border-2 border-green-300">
-                  <FaCheckCircle className="text-lg text-white flex-shrink-0" />
+                <div className="mb-2 bg-green-500 rounded-lg p-2 flex items-center gap-2 border border-green-300">
+                  <FaCheckCircle className="text-base text-white flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-white text-sm">JOINED</p>
-                    <p className="text-green-100 text-xs truncate">You're registered!</p>
+                    <p className="font-bold text-white text-xs">JOINED</p>
+                    <p className="text-green-100 text-xs truncate">Registered!</p>
                   </div>
                 </div>
               )}
 
-              {/* Tournament Header */}
-              <div className="flex items-start justify-between mb-3 gap-2">
+              {/* Header */}
+              <div className="flex items-start justify-between mb-2 gap-2">
                 <div className="flex-1 min-w-0">
-                  <div className={`${statusBadge.bg} px-2.5 py-1 rounded-lg inline-flex items-center gap-1.5 mb-2`}>
-                    <span className="text-sm">{statusBadge.icon}</span>
+                  <div className={`${statusBadge.bg} px-2 py-0.5 rounded inline-flex items-center gap-1 mb-1.5`}>
+                    <span className="text-xs">{statusBadge.icon}</span>
                     <span className="text-white font-bold text-xs">{statusBadge.text}</span>
                   </div>
-                  <h3 className="text-lg font-bold text-white mb-1 break-words line-clamp-2">{tournament.title}</h3>
+                  <h3 className="text-base font-bold text-white mb-0.5 break-words line-clamp-2 leading-tight">{tournament.title}</h3>
                   <p className="text-discord-text text-xs truncate">{tournament.game}</p>
                 </div>
-                <FaTrophy className="text-2xl text-yellow-400 flex-shrink-0" />
+                <FaTrophy className="text-xl text-yellow-400 flex-shrink-0" />
               </div>
 
               {/* Preset Badge */}
               {tournament.preset && (
-                <div className="mb-3 bg-purple-900 bg-opacity-30 border border-purple-600 rounded-lg p-1.5 text-center">
+                <div className="mb-2 bg-purple-900 bg-opacity-30 border border-purple-600 rounded p-1 text-center">
                   <p className="text-purple-300 font-semibold text-xs truncate">{tournament.preset.name}</p>
                 </div>
               )}
 
-              {/* Stats - COMPACT */}
-              <div className="space-y-2 mb-3">
+              {/* Stats - ULTRA COMPACT */}
+              <div className="space-y-1.5 mb-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-discord-text text-xs">Prize Pool</span>
-                  <span className="text-green-400 font-bold text-base">₹{tournament.prize_pool}</span>
+                  <span className="text-discord-text text-xs">Prize</span>
+                  <span className="text-green-400 font-bold text-sm">₹{tournament.prize_pool}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-discord-text text-xs">Entry Fee</span>
-                  <span className="text-white font-bold text-sm">
+                  <span className="text-discord-text text-xs">Entry</span>
+                  <span className="text-white font-bold text-xs">
                     {tournament.entry_fee === 0 ? 'FREE' : `₹${tournament.entry_fee}`}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-discord-text text-xs">Players</span>
-                  <span className="text-white font-bold text-sm">
+                  <span className="text-white font-bold text-xs">
                     {tournament.participantCount}/{tournament.max_participants}
                   </span>
                 </div>
                 {spotsLeft <= 5 && spotsLeft > 0 && (
-                  <div className="bg-orange-900 bg-opacity-30 border border-orange-600 rounded p-1.5">
+                  <div className="bg-orange-900 bg-opacity-30 border border-orange-600 rounded p-1">
                     <p className="text-orange-400 text-xs font-bold text-center">
-                      ⚠️ Only {spotsLeft} left!
+                      ⚠️ {spotsLeft} left!
                     </p>
                   </div>
                 )}
               </div>
 
-              {/* Time - COMPACT WITH IST */}
-              <div className="bg-discord-darkest rounded-lg p-2.5 mb-3">
-                <div className="flex items-start gap-2">
-                  <FaClock className="text-cyan-400 flex-shrink-0 mt-0.5 text-sm" />
+              {/* Time - ULTRA COMPACT */}
+              <div className="bg-discord-darkest rounded p-2 mb-2">
+                <div className="flex items-start gap-1.5">
+                  <FaClock className="text-cyan-400 flex-shrink-0 mt-0.5 text-xs" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-discord-text mb-0.5">Start Time</p>
-                    <p className="text-white font-semibold text-xs break-words">
+                    <p className="text-xs text-discord-text mb-0.5">Start</p>
+                    <p className="text-white font-semibold text-xs break-words leading-tight">
                       {formatISTDate(tournament.start_time, true)}
                     </p>
                   </div>
@@ -434,13 +434,13 @@ export default function TournamentsPage() {
               {/* View Details Button */}
               <button
                 onClick={() => viewDetails(tournament)}
-                className={`w-full py-2.5 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 ${
+                className={`w-full py-2 rounded-lg font-bold text-xs transition-all flex items-center justify-center gap-1.5 ${
                   isJoined
                     ? 'bg-green-600 hover:bg-green-700 text-white'
                     : 'bg-purple-600 hover:bg-purple-700 text-white'
                 }`}
               >
-                <FaInfoCircle className="text-sm" />
+                <FaInfoCircle className="text-xs" />
                 View Details
               </button>
             </div>
@@ -458,32 +458,32 @@ export default function TournamentsPage() {
 
       {/* Modal */}
       {showModal && selectedTournament && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" onClick={closeModal}>
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-3" onClick={closeModal}>
           <div className="bg-discord-dark rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             {/* Modal Header */}
-            <div className="sticky top-0 bg-discord-dark border-b border-gray-800 p-4 md:p-6 flex items-start justify-between z-10">
-              <div className="flex-1 min-w-0 pr-4">
-                <h2 className="text-2xl md:text-3xl font-bold text-white mb-2 break-words">{selectedTournament.title}</h2>
-                <p className="text-discord-text text-sm md:text-base">{selectedTournament.game}</p>
+            <div className="sticky top-0 bg-discord-dark border-b border-gray-800 p-4 flex items-start justify-between z-10">
+              <div className="flex-1 min-w-0 pr-3">
+                <h2 className="text-xl md:text-2xl font-bold text-white mb-1 break-words">{selectedTournament.title}</h2>
+                <p className="text-discord-text text-sm">{selectedTournament.game}</p>
               </div>
               <button
                 onClick={closeModal}
                 className="flex-shrink-0 p-2 hover:bg-gray-700 rounded-lg transition-all"
               >
-                <FaTimes className="text-2xl text-discord-text hover:text-white" />
+                <FaTimes className="text-xl text-discord-text hover:text-white" />
               </button>
             </div>
 
             {/* Modal Content */}
-            <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+            <div className="p-4 space-y-4">
               {/* Status Badge */}
-              <div className="flex items-center gap-3 flex-wrap">
-                <div className={`${getStatusBadge(selectedTournament.status).bg} px-4 py-2 rounded-lg font-bold text-white flex items-center gap-2`}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className={`${getStatusBadge(selectedTournament.status).bg} px-3 py-1.5 rounded-lg font-bold text-white flex items-center gap-2`}>
                   <span>{getStatusBadge(selectedTournament.status).icon}</span>
-                  {getStatusBadge(selectedTournament.status).text}
+                  <span className="text-sm">{getStatusBadge(selectedTournament.status).text}</span>
                 </div>
                 {selectedTournament.preset && (
-                  <div className="bg-purple-900 bg-opacity-30 border border-purple-600 rounded-lg px-4 py-2">
+                  <div className="bg-purple-900 bg-opacity-30 border border-purple-600 rounded-lg px-3 py-1.5">
                     <p className="text-purple-300 font-semibold text-sm">{selectedTournament.preset.name}</p>
                   </div>
                 )}
@@ -491,12 +491,12 @@ export default function TournamentsPage() {
 
               {/* User Participation Status */}
               {userParticipation && (
-                <div className="bg-green-600 bg-opacity-20 border-2 border-green-500 rounded-xl p-4 md:p-5">
+                <div className="bg-green-600 bg-opacity-20 border-2 border-green-500 rounded-xl p-4">
                   <div className="flex items-center gap-3 mb-3">
-                    <FaCheckCircle className="text-3xl text-green-400 flex-shrink-0" />
+                    <FaCheckCircle className="text-2xl text-green-400 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-white text-lg">You're Registered!</p>
-                      <p className="text-green-300">Seat #{userParticipation.seat_number}</p>
+                      <p className="font-bold text-white text-base">You're Registered!</p>
+                      <p className="text-green-300 text-sm">Seat #{userParticipation.seat_number}</p>
                     </div>
                   </div>
                   <div className="bg-green-950 bg-opacity-50 rounded-lg p-3">
@@ -513,25 +513,25 @@ export default function TournamentsPage() {
               {/* Prize Breakdown */}
               {selectedTournament.preset && (
                 <div>
-                  <h3 className="font-bold text-white mb-3 text-base md:text-lg">💰 Prize Distribution</h3>
+                  <h3 className="font-bold text-white mb-3 text-base">💰 Prize Distribution</h3>
                   <div className="space-y-3">
                     {selectedTournament.preset.preset_number === 6 ? (
                       <>
-                        <div className="grid grid-cols-3 gap-3 md:gap-4">
-                          <div className="bg-yellow-500 bg-opacity-20 rounded-lg p-3 text-center border border-yellow-400">
-                            <p className="text-2xl mb-1">🥇</p>
-                            <p className="text-xs text-yellow-200">1st Place</p>
-                            <p className="text-lg font-bold text-white">₹20</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="bg-yellow-500 bg-opacity-20 rounded-lg p-2 text-center border border-yellow-400">
+                            <p className="text-xl mb-0.5">🥇</p>
+                            <p className="text-xs text-yellow-200">1st</p>
+                            <p className="text-base font-bold text-white">₹20</p>
                           </div>
-                          <div className="bg-gray-400 bg-opacity-20 rounded-lg p-3 text-center border border-gray-400">
-                            <p className="text-2xl mb-1">🥈</p>
-                            <p className="text-xs text-gray-200">2nd Place</p>
-                            <p className="text-lg font-bold text-white">₹15</p>
+                          <div className="bg-gray-400 bg-opacity-20 rounded-lg p-2 text-center border border-gray-400">
+                            <p className="text-xl mb-0.5">🥈</p>
+                            <p className="text-xs text-gray-200">2nd</p>
+                            <p className="text-base font-bold text-white">₹15</p>
                           </div>
-                          <div className="bg-orange-500 bg-opacity-20 rounded-lg p-3 text-center border border-orange-400">
-                            <p className="text-2xl mb-1">🥉</p>
-                            <p className="text-xs text-orange-200">3rd Place</p>
-                            <p className="text-lg font-bold text-white">₹10</p>
+                          <div className="bg-orange-500 bg-opacity-20 rounded-lg p-2 text-center border border-orange-400">
+                            <p className="text-xl mb-0.5">🥉</p>
+                            <p className="text-xs text-orange-200">3rd</p>
+                            <p className="text-base font-bold text-white">₹10</p>
                           </div>
                         </div>
                         <div className="bg-yellow-600 bg-opacity-20 rounded-lg p-3 border border-yellow-400">
@@ -539,8 +539,7 @@ export default function TournamentsPage() {
                             <FaCrown className="text-yellow-400" />
                             <p className="text-xs text-yellow-200">Booyah Winner Bonus</p>
                           </div>
-                          <p className="text-xl font-bold text-white">+₹{selectedTournament.preset.booyah_reward}</p>
-                          <p className="text-xs text-yellow-200 mt-1">Win Tag + Additional Prize</p>
+                          <p className="text-lg font-bold text-white">+₹{selectedTournament.preset.booyah_reward}</p>
                         </div>
                       </>
                     ) : (
@@ -551,7 +550,7 @@ export default function TournamentsPage() {
                               <FaSkull className="text-red-400" />
                               <p className="text-xs text-red-200">Per Kill Reward</p>
                             </div>
-                            <p className="text-xl font-bold text-white">₹{selectedTournament.preset.per_kill_reward} each</p>
+                            <p className="text-lg font-bold text-white">₹{selectedTournament.preset.per_kill_reward} each</p>
                             <p className="text-xs text-red-200 mt-1">Example: 10 kills = ₹{selectedTournament.preset.per_kill_reward * 10}</p>
                           </div>
                         )}
@@ -562,8 +561,7 @@ export default function TournamentsPage() {
                               <FaCrown className="text-yellow-400" />
                               <p className="text-xs text-yellow-200">Booyah Winner (Win Tag)</p>
                             </div>
-                            <p className="text-xl font-bold text-white">₹{selectedTournament.preset.booyah_reward}</p>
-                            <p className="text-xs text-yellow-200 mt-1">Only 1 person wins the match</p>
+                            <p className="text-lg font-bold text-white">₹{selectedTournament.preset.booyah_reward}</p>
                           </div>
                         )}
                       </>
@@ -574,22 +572,22 @@ export default function TournamentsPage() {
                         <FaMoneyBillWave className="text-green-400" />
                         <p className="text-xs text-green-200">Total Prize Pool</p>
                       </div>
-                      <p className="text-3xl font-bold text-white">₹{parseFloat(selectedTournament.prize_pool).toFixed(0)}</p>
+                      <p className="text-2xl font-bold text-white">₹{parseFloat(selectedTournament.prize_pool).toFixed(0)}</p>
                     </div>
                   </div>
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3 md:gap-4">
-                <div className="bg-discord-darkest rounded-lg p-3 md:p-4">
-                  <FaUsers className="text-2xl text-blue-400 mb-2" />
-                  <p className="text-xs md:text-sm text-discord-text mb-1">Players</p>
-                  <p className="text-lg md:text-2xl font-bold text-white">{selectedTournament.participantCount}/{selectedTournament.max_participants}</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-discord-darkest rounded-lg p-3">
+                  <FaUsers className="text-xl text-blue-400 mb-2" />
+                  <p className="text-xs text-discord-text mb-1">Players</p>
+                  <p className="text-lg font-bold text-white">{selectedTournament.participantCount}/{selectedTournament.max_participants}</p>
                 </div>
-                <div className="bg-discord-darkest rounded-lg p-3 md:p-4">
-                  <FaClock className="text-2xl text-purple-400 mb-2" />
-                  <p className="text-xs md:text-sm text-discord-text mb-1">Start Time</p>
-                  <p className="text-sm md:text-base font-bold text-white break-words">
+                <div className="bg-discord-darkest rounded-lg p-3">
+                  <FaClock className="text-xl text-purple-400 mb-2" />
+                  <p className="text-xs text-discord-text mb-1">Start Time</p>
+                  <p className="text-sm font-bold text-white break-words">
                     {formatISTDate(selectedTournament.start_time, true)}
                   </p>
                 </div>
@@ -597,31 +595,31 @@ export default function TournamentsPage() {
 
               {selectedTournament.description && (
                 <div>
-                  <h3 className="font-bold text-white mb-2 text-sm md:text-base">Description</h3>
-                  <p className="text-xs md:text-sm text-discord-text break-words">{selectedTournament.description}</p>
+                  <h3 className="font-bold text-white mb-2 text-sm">Description</h3>
+                  <p className="text-xs text-discord-text break-words">{selectedTournament.description}</p>
                 </div>
               )}
 
               {selectedTournament.rules && (
                 <div>
-                  <h3 className="font-bold text-white mb-2 text-sm md:text-base">Rules</h3>
-                  <div className="bg-discord-darkest rounded-lg p-3 md:p-4">
-                    <pre className="text-discord-text whitespace-pre-wrap text-xs md:text-sm break-words font-sans">{selectedTournament.rules}</pre>
+                  <h3 className="font-bold text-white mb-2 text-sm">Rules</h3>
+                  <div className="bg-discord-darkest rounded-lg p-3">
+                    <pre className="text-discord-text whitespace-pre-wrap text-xs break-words font-sans">{selectedTournament.rules}</pre>
                   </div>
                 </div>
               )}
 
               {userParticipation && selectedTournament.room_id && (
-                <div className="bg-yellow-600 bg-opacity-10 border border-yellow-600 rounded-lg p-3 md:p-4">
-                  <h3 className="font-bold text-white mb-3 text-sm md:text-base">🎮 Room Details</h3>
-                  <div className="grid grid-cols-2 gap-3 md:gap-4">
+                <div className="bg-yellow-600 bg-opacity-10 border border-yellow-600 rounded-lg p-3">
+                  <h3 className="font-bold text-white mb-3 text-sm">🎮 Room Details</h3>
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
                       <p className="text-xs text-yellow-400 mb-1">Room ID</p>
-                      <p className="font-mono font-bold text-white text-sm md:text-base break-all">{selectedTournament.room_id}</p>
+                      <p className="font-mono font-bold text-white text-sm break-all">{selectedTournament.room_id}</p>
                     </div>
                     <div>
                       <p className="text-xs text-yellow-400 mb-1">Password</p>
-                      <p className="font-mono font-bold text-white text-sm md:text-base break-all">{selectedTournament.room_password}</p>
+                      <p className="font-mono font-bold text-white text-sm break-all">{selectedTournament.room_password}</p>
                     </div>
                   </div>
                 </div>
@@ -629,36 +627,36 @@ export default function TournamentsPage() {
 
               {!userParticipation && selectedTournament.status === 'upcoming' && (
                 <div>
-                  <h3 className="font-bold text-white mb-3 text-sm md:text-base">Join Tournament</h3>
+                  <h3 className="font-bold text-white mb-3 text-sm">Join Tournament</h3>
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-xs md:text-sm text-discord-text mb-1">In-Game Name *</label>
+                      <label className="block text-xs text-discord-text mb-1">In-Game Name *</label>
                       <input
                         type="text"
                         value={joinData.in_game_name}
                         onChange={(e) => setJoinData({...joinData, in_game_name: e.target.value})}
                         placeholder="Your IGN"
-                        className="w-full px-3 md:px-4 py-2 md:py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-purple-600 text-sm md:text-base"
+                        className="w-full px-3 py-2 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-purple-600 text-sm"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs md:text-sm text-discord-text mb-1">In-Game ID *</label>
+                      <label className="block text-xs text-discord-text mb-1">In-Game ID *</label>
                       <input
                         type="text"
                         value={joinData.in_game_id}
                         onChange={(e) => setJoinData({...joinData, in_game_id: e.target.value})}
                         placeholder="Your UID"
-                        className="w-full px-3 md:px-4 py-2 md:py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-purple-600 text-sm md:text-base"
+                        className="w-full px-3 py-2 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-purple-600 text-sm"
                       />
                     </div>
                     <button
                       onClick={handleJoin}
                       disabled={joining || selectedTournament.participantCount >= selectedTournament.max_participants}
-                      className="w-full px-4 md:px-6 py-3 md:py-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-lg font-bold transition-all text-sm md:text-base flex items-center justify-center gap-2"
+                      className="w-full px-4 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-lg font-bold transition-all text-sm flex items-center justify-center gap-2"
                     >
                       {joining ? (
                         <>
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                           Joining...
                         </>
                       ) : selectedTournament.participantCount >= selectedTournament.max_participants ? (
@@ -676,17 +674,17 @@ export default function TournamentsPage() {
 
               {selectedTournament.status === 'live' && !userParticipation && (
                 <div className="bg-red-600 bg-opacity-10 border border-red-600 rounded-lg p-4 text-center">
-                  <FaFire className="text-3xl text-red-400 mx-auto mb-2" />
-                  <p className="font-bold text-white text-sm md:text-base">Tournament is Live</p>
-                  <p className="text-xs md:text-sm text-red-400">Registration closed</p>
+                  <FaFire className="text-2xl text-red-400 mx-auto mb-2" />
+                  <p className="font-bold text-white text-sm">Tournament is Live</p>
+                  <p className="text-xs text-red-400">Registration closed</p>
                 </div>
               )}
 
               {selectedTournament.status === 'completed' && (
                 <div className="bg-gray-600 bg-opacity-10 border border-gray-600 rounded-lg p-4 text-center">
-                  <FaTrophy className="text-3xl text-gray-400 mx-auto mb-2" />
-                  <p className="font-bold text-white text-sm md:text-base">Tournament Completed</p>
-                  <p className="text-xs md:text-sm text-discord-text">Results finalized</p>
+                  <FaTrophy className="text-2xl text-gray-400 mx-auto mb-2" />
+                  <p className="font-bold text-white text-sm">Tournament Completed</p>
+                  <p className="text-xs text-discord-text">Results finalized</p>
                 </div>
               )}
             </div>
