@@ -3,25 +3,27 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
-import { FaHistory, FaDiscord, FaSync } from 'react-icons/fa';
+import { FaHistory, FaFilter, FaDiscord, FaUser, FaTrophy, FaMoneyBillWave, FaBullhorn } from 'react-icons/fa';
 
 export default function AdminLogsPage() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [actionFilter, setActionFilter] = useState('all');
   const [discordWebhook, setDiscordWebhook] = useState('');
   const [sendingToDiscord, setSendingToDiscord] = useState(false);
+  const [loadingWebhook, setLoadingWebhook] = useState(true);
 
   useEffect(() => {
     loadLogs();
-    loadWebhook();
-  }, []);
+    loadDefaultWebhook();
+  }, [actionFilter]);
 
-  const loadWebhook = async () => {
+  const loadDefaultWebhook = async () => {
     try {
       const { data } = await supabase
         .from('admin_settings')
         .select('setting_value')
-        .eq('setting_key', 'discord_webhook_logs')
+        .eq('setting_key', 'discord_logs_webhook_url')
         .single();
 
       if (data?.setting_value) {
@@ -29,20 +31,66 @@ export default function AdminLogsPage() {
       }
     } catch (error) {
       console.error('Error loading webhook:', error);
+    } finally {
+      setLoadingWebhook(false);
     }
   };
 
   const loadLogs = async () => {
     setLoading(true);
+
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('admin_logs')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(100);
+
+      if (actionFilter !== 'all') {
+        query = query.eq('action_type', actionFilter);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
-      setLogs(data || []);
+
+      if (data && data.length > 0) {
+        // Manually fetch admin info for each log
+        const logsWithAdmin = await Promise.all(
+          data.map(async (log) => {
+            if (log.admin_id) {
+              try {
+                const { data: adminData } = await supabase
+                  .from('admin_accounts')
+                  .select('admin_id, user_id')
+                  .eq('id', log.admin_id)
+                  .single();
+
+                if (adminData) {
+                  const { data: userData } = await supabase
+                    .from('users')
+                    .select('username')
+                    .eq('id', adminData.user_id)
+                    .single();
+
+                  return {
+                    ...log,
+                    admin_username: userData?.username || 'Unknown',
+                    admin_account_id: adminData.admin_id,
+                  };
+                }
+              } catch (err) {
+                console.error('Error loading admin for log:', err);
+              }
+            }
+            return { ...log, admin_username: 'Unknown', admin_account_id: 'Unknown' };
+          })
+        );
+
+        setLogs(logsWithAdmin);
+      } else {
+        setLogs([]);
+      }
     } catch (error) {
       console.error('Error loading logs:', error);
       setLogs([]);
@@ -51,164 +99,194 @@ export default function AdminLogsPage() {
     }
   };
 
-  const sendToDiscord = async () => {
+  const getActionIcon = (actionType) => {
+    if (actionType.includes('tournament')) return FaTrophy;
+    if (actionType.includes('user')) return FaUser;
+    if (actionType.includes('money')) return FaMoneyBillWave;
+    if (actionType.includes('announcement')) return FaBullhorn;
+    return FaHistory;
+  };
+
+  const getActionColor = (actionType) => {
+    if (actionType.includes('delete') || actionType.includes('ban')) return 'text-red-400';
+    if (actionType.includes('create') || actionType.includes('reward')) return 'text-green-400';
+    if (actionType.includes('edit') || actionType.includes('update')) return 'text-yellow-400';
+    if (actionType.includes('money')) return 'text-blue-400';
+    return 'text-purple-400';
+  };
+
+  const sendLogsToDiscord = async () => {
     if (!discordWebhook) {
       alert('Please enter a Discord webhook URL');
       return;
     }
 
-    if (!confirm('Send logs to Discord?')) return;
+    if (!confirm('Send recent admin logs to Discord?')) return;
 
     setSendingToDiscord(true);
 
     try {
-      const fields = logs.slice(0, 10).map(log => ({
-        name: log.action || 'Unknown',
-        value: `**Details:** ${log.details || 'None'}\n**Time:** ${new Date(log.created_at).toLocaleString('en-IN')}`,
+      const recentLogs = logs.slice(0, 10); // Last 10 logs
+      
+      const fields = recentLogs.map(log => ({
+        name: `${log.action_type.replace(/_/g, ' ').toUpperCase()}`,
+        value: `**Admin:** ${log.admin_username || 'Unknown'}\n` +
+               `**Time:** ${new Date(log.created_at).toLocaleString('en-IN')}\n` +
+               `**Details:** ${JSON.stringify(log.details || {})}`,
         inline: false,
       }));
 
-      const response = await fetch(discordWebhook, {
+      await fetch(discordWebhook, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           embeds: [{
-            title: '📋 Admin Logs',
-            description: `Last 10 admin actions`,
+            title: '📋 Admin Activity Logs',
+            description: `Recent ${recentLogs.length} admin actions`,
             color: 0xFF0000,
             fields: fields,
-            footer: { text: 'WarriorPixel' },
+            footer: { text: 'WarriorPixel Admin Logs' },
             timestamp: new Date().toISOString(),
           }]
         }),
       });
 
-      if (response.ok) {
-        alert('✅ Sent to Discord!');
-      } else {
-        throw new Error('Failed');
-      }
+      alert('Logs sent to Discord successfully!');
     } catch (error) {
-      console.error('Discord error:', error);
-      alert('❌ Failed to send');
+      console.error('Error sending to Discord:', error);
+      alert('Error sending to Discord: ' + error.message);
     } finally {
       setSendingToDiscord(false);
     }
-  };
-
-  const getColor = (action) => {
-    const a = (action || '').toLowerCase();
-    if (a.includes('delete') || a.includes('ban')) return 'text-red-400';
-    if (a.includes('create') || a.includes('login')) return 'text-green-400';
-    if (a.includes('edit') || a.includes('update')) return 'text-yellow-400';
-    return 'text-purple-400';
   };
 
   return (
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Admin Logs</h1>
-            <p className="text-discord-text">Last 20 admin actions</p>
-          </div>
-          <button
-            onClick={loadLogs}
-            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold flex items-center gap-2"
-          >
-            <FaSync />
-            Refresh
-          </button>
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2">Admin Logs</h1>
+          <p className="text-discord-text">View all admin actions and activities</p>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
-            <FaHistory className="text-2xl text-purple-400 mb-2" />
-            <p className="text-xs text-discord-text">Total Shown</p>
-            <p className="text-2xl font-bold text-white">{logs.length}</p>
-          </div>
-          <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
-            <FaDiscord className="text-2xl text-orange-400 mb-2" />
-            <p className="text-xs text-discord-text">Webhook</p>
-            <p className="text-sm font-bold text-white">{discordWebhook ? '✓ Set' : '✗ None'}</p>
-          </div>
-        </div>
-
-        {/* Discord */}
+        {/* Discord Integration */}
         <div className="bg-discord-dark rounded-xl p-6 border border-gray-800">
           <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
             <FaDiscord className="text-purple-400" />
-            Send to Discord
+            Send Logs to Discord
           </h3>
-          <div className="flex gap-3">
-            <input
-              type="url"
-              value={discordWebhook}
-              onChange={(e) => setDiscordWebhook(e.target.value)}
-              placeholder="Discord Webhook URL"
-              className="flex-1 px-4 py-3 bg-discord-darkest border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
-            />
+          <div className="flex flex-col md:flex-row gap-3">
+            {loadingWebhook ? (
+              <div className="flex-1 px-4 py-3 bg-discord-input border border-gray-700 rounded-lg">
+                <span className="text-discord-text text-sm">Loading default webhook...</span>
+              </div>
+            ) : (
+              <input
+                type="url"
+                value={discordWebhook}
+                onChange={(e) => setDiscordWebhook(e.target.value)}
+                placeholder="Discord Webhook URL"
+                className="flex-1 px-4 py-3 bg-discord-input border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+              />
+            )}
             <button
-              onClick={sendToDiscord}
-              disabled={sendingToDiscord || !discordWebhook}
-              className="px-6 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 text-white rounded-lg font-bold"
+              onClick={sendLogsToDiscord}
+              disabled={sendingToDiscord || !discordWebhook || loadingWebhook}
+              className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition-all disabled:opacity-50"
             >
-              {sendingToDiscord ? 'Sending...' : 'Send'}
+              {sendingToDiscord ? 'Sending...' : 'Send to Discord'}
             </button>
           </div>
-          <p className="text-xs text-discord-text mt-2">Sends last 10 logs</p>
+          {!loadingWebhook && discordWebhook && (
+            <p className="text-xs text-green-400 mt-2">✓ Default webhook loaded</p>
+          )}
+          <p className="text-xs text-discord-text mt-2">
+            This will send the last 10 admin actions to your Discord channel
+          </p>
         </div>
 
-        {/* Logs */}
+        {/* Filters */}
+        <div className="bg-discord-dark rounded-xl p-4 border border-gray-800">
+          <div className="flex items-center gap-2 mb-3">
+            <FaFilter className="text-purple-400" />
+            <h3 className="font-semibold text-white">Filter Logs</h3>
+          </div>
+          <select
+            value={actionFilter}
+            onChange={(e) => setActionFilter(e.target.value)}
+            className="w-full md:w-64 px-4 py-2 bg-discord-input border border-gray-700 rounded-lg text-white focus:outline-none focus:border-red-500"
+          >
+            <option value="all">All Actions</option>
+            <option value="tournament_create">Tournament Created</option>
+            <option value="tournament_edit">Tournament Edited</option>
+            <option value="tournament_delete">Tournament Deleted</option>
+            <option value="user_ban">User Banned</option>
+            <option value="user_suspend">User Suspended</option>
+            <option value="user_activate">User Activated</option>
+            <option value="user_currency_edit">Currency Edited</option>
+            <option value="reward_given">Reward Given</option>
+            <option value="money_sent">Money Sent</option>
+            <option value="money_taken">Money Taken</option>
+            <option value="announcement_create">Announcement Created</option>
+          </select>
+        </div>
+
+        {/* Logs List */}
         <div className="bg-discord-dark rounded-xl border border-gray-800">
           <div className="p-4 border-b border-gray-800">
-            <h2 className="text-xl font-bold text-white">Recent Activity</h2>
+            <h2 className="text-xl font-bold text-white">Recent Activity ({logs.length})</h2>
           </div>
 
-          <div className="divide-y divide-gray-800 max-h-[500px] overflow-y-auto">
+          <div className="divide-y divide-gray-800 max-h-[600px] overflow-y-auto">
             {loading ? (
               <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500 mx-auto"></div>
               </div>
             ) : logs.length > 0 ? (
-              logs.map((log) => (
-                <div key={log.id} className="p-4 hover:bg-gray-800">
-                  <div className="flex items-start gap-3">
-                    <div className="text-2xl">
-                      {log.action?.toLowerCase().includes('create') ? '✨' :
-                       log.action?.toLowerCase().includes('delete') ? '🗑️' :
-                       log.action?.toLowerCase().includes('ban') ? '🚫' :
-                       log.action?.toLowerCase().includes('login') ? '🔐' :
-                       log.action?.toLowerCase().includes('prize') ? '💰' : '📝'}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <h3 className={`font-bold ${getColor(log.action)}`}>
-                          {log.action || 'Unknown'}
-                        </h3>
-                        <span className="text-xs text-discord-text">
-                          {new Date(log.created_at).toLocaleString('en-IN', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </span>
+              logs.map((log) => {
+                const Icon = getActionIcon(log.action_type);
+                const colorClass = getActionColor(log.action_type);
+
+                return (
+                  <div key={log.id} className="p-4 hover:bg-white hover:bg-opacity-5 transition-all">
+                    <div className="flex items-start gap-4">
+                      <div className="p-3 rounded-lg bg-white bg-opacity-5">
+                        <Icon className={`text-xl ${colorClass}`} />
                       </div>
-                      <p className="text-sm text-white mb-1">{log.details || 'No details'}</p>
-                      <p className="text-xs text-discord-text">
-                        Admin: {log.admin_id?.substring(0, 8) || 'Unknown'}...
-                      </p>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold text-white">
+                            {log.action_type.replace(/_/g, ' ').toUpperCase()}
+                          </h3>
+                          <span className="text-xs text-discord-text">
+                            {new Date(log.created_at).toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                        
+                        <p className="text-sm text-discord-text mb-2">
+                          Admin: <span className="text-purple-400 font-semibold">
+                            {log.admin_username || 'Unknown'}
+                          </span>
+                        </p>
+
+                        {log.details && Object.keys(log.details).length > 0 && (
+                          <div className="bg-white bg-opacity-5 rounded-lg p-3 mt-2">
+                            <p className="text-xs text-discord-text font-semibold mb-1">Details:</p>
+                            <pre className="text-xs text-white overflow-x-auto">
+                              {JSON.stringify(log.details, null, 2)}
+                            </pre>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             ) : (
               <div className="text-center py-12">
-                <FaHistory className="text-5xl text-gray-600 mx-auto mb-3" />
-                <p className="text-white">No logs yet</p>
+                <FaHistory className="text-6xl text-gray-600 mx-auto mb-4" />
+                <p className="text-discord-text">No logs found</p>
               </div>
             )}
           </div>
@@ -216,12 +294,12 @@ export default function AdminLogsPage() {
 
         {/* Info */}
         <div className="bg-blue-500 bg-opacity-10 border border-blue-500 rounded-lg p-4">
-          <p className="text-blue-400 text-sm font-semibold">ℹ️ Info</p>
-          <p className="text-discord-text text-sm">
-            Showing the 20 most recent admin actions.
+          <p className="text-blue-400 text-sm font-semibold">ℹ️ About Logs</p>
+          <p className="text-discord-text text-sm mt-1">
+            All admin actions are automatically logged. Logs are kept for audit purposes and can be sent to Discord for team transparency.
           </p>
         </div>
       </div>
     </AdminLayout>
   );
-}
+                    }
