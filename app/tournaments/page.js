@@ -256,8 +256,8 @@ export default function TournamentsPage() {
     }
   };
 
-  const getStatusBadge = (status) => {
-    const effectiveStatus = getEffectiveStatus({ status, start_time: status.start_time });
+  const getStatusBadge = (tournament) => {
+    const effectiveStatus = getEffectiveStatus(tournament);
     
     switch (effectiveStatus) {
       case 'live':
@@ -267,7 +267,7 @@ export default function TournamentsPage() {
       case 'completed':
         return { bg: 'bg-gray-600', text: 'COMPLETED', icon: '✅' };
       default:
-        return { bg: 'bg-gray-600', text: status.toUpperCase(), icon: '❓' };
+        return { bg: 'bg-gray-600', text: tournament.status.toUpperCase(), icon: '❓' };
     }
   };
 
@@ -283,7 +283,7 @@ export default function TournamentsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-6xl mx-auto px-4">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
@@ -340,24 +340,24 @@ export default function TournamentsPage() {
       {/* Tournament Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {tournaments.map((tournament) => {
-          const statusBadge = getStatusBadge(tournament.status);
+          const statusBadge = getStatusBadge(tournament);
           const isJoined = joinedTournamentIds.has(tournament.id);
           const spotsLeft = tournament.max_participants - tournament.participantCount;
           
           return (
             <div
               key={tournament.id}
-              className={`rounded-xl p-6 transition-all hover:shadow-2xl ${
+              className={`rounded-xl p-5 transition-all hover:shadow-2xl ${
                 isJoined 
                   ? 'bg-gradient-to-br from-green-900 to-emerald-900 border-2 border-green-400 shadow-green-500/20 shadow-xl'
                   : 'bg-discord-dark border border-gray-800 hover:border-purple-600'
               }`}
             >
-              {/* Joined Badge */}
+              {/* Joined Badge - FIXED RESPONSIVE */}
               {isJoined && (
-                <div className="mb-4 bg-green-500 rounded-lg p-3 flex items-center gap-2 border-2 border-green-300">
-                  <FaCheckCircle className="text-2xl text-white" />
-                  <div>
+                <div className="mb-4 bg-green-500 rounded-lg p-3 flex items-center gap-3 border-2 border-green-300">
+                  <FaCheckCircle className="text-2xl text-white flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
                     <p className="font-bold text-white text-lg">JOINED</p>
                     <p className="text-green-100 text-sm">You're registered!</p>
                   </div>
@@ -365,38 +365,38 @@ export default function TournamentsPage() {
               )}
 
               {/* Tournament Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
+              <div className="flex items-start justify-between mb-4 gap-3">
+                <div className="flex-1 min-w-0">
                   <div className={`${statusBadge.bg} px-3 py-1 rounded-lg inline-flex items-center gap-2 mb-2`}>
                     <span>{statusBadge.icon}</span>
                     <span className="text-white font-bold text-sm">{statusBadge.text}</span>
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-1">{tournament.title}</h3>
+                  <h3 className="text-xl font-bold text-white mb-1 break-words">{tournament.title}</h3>
                   <p className="text-discord-text text-sm">{tournament.game}</p>
                 </div>
-                <FaTrophy className="text-3xl text-yellow-400" />
+                <FaTrophy className="text-3xl text-yellow-400 flex-shrink-0" />
               </div>
 
               {/* Preset Badge */}
               {tournament.preset && (
                 <div className="mb-4 bg-purple-900 bg-opacity-30 border border-purple-600 rounded-lg p-2 text-center">
-                  <p className="text-purple-300 font-semibold text-sm">{tournament.preset.name}</p>
+                  <p className="text-purple-300 font-semibold text-sm break-words">{tournament.preset.name}</p>
                 </div>
               )}
 
               {/* Stats */}
               <div className="space-y-3 mb-4">
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center gap-2">
                   <span className="text-discord-text text-sm">Prize Pool</span>
                   <span className="text-green-400 font-bold text-lg">₹{tournament.prize_pool}</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center gap-2">
                   <span className="text-discord-text text-sm">Entry Fee</span>
                   <span className="text-white font-bold">
                     {tournament.entry_fee === 0 ? 'FREE' : `₹${tournament.entry_fee}`}
                   </span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center gap-2">
                   <span className="text-discord-text text-sm">Players</span>
                   <span className="text-white font-bold">
                     {tournament.participantCount}/{tournament.max_participants}
@@ -411,14 +411,16 @@ export default function TournamentsPage() {
                 )}
               </div>
 
-              {/* Time - FIXED IST */}
-              <div className="bg-discord-darkest rounded-lg p-3 mb-4 flex items-center gap-2">
-                <FaClock className="text-cyan-400" />
-                <div>
-                  <p className="text-xs text-discord-text">Start Time</p>
-                  <p className="text-white font-semibold text-sm">
-                    {formatISTDate(tournament.start_time, true)}
-                  </p>
+              {/* Time - FIXED IST DISPLAY */}
+              <div className="bg-discord-darkest rounded-lg p-3 mb-4">
+                <div className="flex items-start gap-2">
+                  <FaClock className="text-cyan-400 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-discord-text">Start Time</p>
+                    <p className="text-white font-semibold text-sm break-words">
+                      {formatISTDate(tournament.start_time, true)}
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -447,19 +449,19 @@ export default function TournamentsPage() {
         </div>
       )}
 
-      {/* Modal - Keep existing modal code but fix time display */}
+      {/* Modal */}
       {showModal && selectedTournament && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" onClick={closeModal}>
           <div className="bg-discord-dark rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             {/* Modal Header */}
             <div className="sticky top-0 bg-discord-dark border-b border-gray-800 p-4 md:p-6 flex items-start justify-between z-10">
-              <div className="flex-1">
-                <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">{selectedTournament.title}</h2>
+              <div className="flex-1 min-w-0 pr-4">
+                <h2 className="text-2xl md:text-3xl font-bold text-white mb-2 break-words">{selectedTournament.title}</h2>
                 <p className="text-discord-text text-sm md:text-base">{selectedTournament.game}</p>
               </div>
               <button
                 onClick={closeModal}
-                className="ml-4 p-2 hover:bg-gray-700 rounded-lg transition-all flex-shrink-0"
+                className="flex-shrink-0 p-2 hover:bg-gray-700 rounded-lg transition-all"
               >
                 <FaTimes className="text-2xl text-discord-text hover:text-white" />
               </button>
@@ -468,10 +470,10 @@ export default function TournamentsPage() {
             {/* Modal Content */}
             <div className="p-4 md:p-6 space-y-4 md:space-y-6">
               {/* Status Badge */}
-              <div className="flex items-center gap-3">
-                <div className={`${getStatusBadge(selectedTournament.status).bg} px-4 py-2 rounded-lg font-bold text-white flex items-center gap-2`}>
-                  <span>{getStatusBadge(selectedTournament.status).icon}</span>
-                  {getStatusBadge(selectedTournament.status).text}
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className={`${getStatusBadge(selectedTournament).bg} px-4 py-2 rounded-lg font-bold text-white flex items-center gap-2`}>
+                  <span>{getStatusBadge(selectedTournament).icon}</span>
+                  {getStatusBadge(selectedTournament).text}
                 </div>
                 {selectedTournament.preset && (
                   <div className="bg-purple-900 bg-opacity-30 border border-purple-600 rounded-lg px-4 py-2">
@@ -484,17 +486,17 @@ export default function TournamentsPage() {
               {userParticipation && (
                 <div className="bg-green-600 bg-opacity-20 border-2 border-green-500 rounded-xl p-4 md:p-5">
                   <div className="flex items-center gap-3 mb-3">
-                    <FaCheckCircle className="text-3xl text-green-400" />
-                    <div>
+                    <FaCheckCircle className="text-3xl text-green-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
                       <p className="font-bold text-white text-lg">You're Registered!</p>
                       <p className="text-green-300">Seat #{userParticipation.seat_number}</p>
                     </div>
                   </div>
                   <div className="bg-green-950 bg-opacity-50 rounded-lg p-3">
-                    <p className="text-green-200 text-sm">
+                    <p className="text-green-200 text-sm break-words">
                       <span className="font-semibold">In-Game Name:</span> {userParticipation.in_game_name}
                     </p>
-                    <p className="text-green-200 text-sm mt-1">
+                    <p className="text-green-200 text-sm mt-1 break-all">
                       <span className="font-semibold">In-Game ID:</span> {userParticipation.in_game_id}
                     </p>
                   </div>
@@ -580,7 +582,7 @@ export default function TournamentsPage() {
                 <div className="bg-discord-darkest rounded-lg p-3 md:p-4">
                   <FaClock className="text-2xl text-purple-400 mb-2" />
                   <p className="text-xs md:text-sm text-discord-text mb-1">Start Time</p>
-                  <p className="text-sm md:text-base font-bold text-white">
+                  <p className="text-sm md:text-base font-bold text-white break-words">
                     {formatISTDate(selectedTournament.start_time, true)}
                   </p>
                 </div>
@@ -589,7 +591,7 @@ export default function TournamentsPage() {
               {selectedTournament.description && (
                 <div>
                   <h3 className="font-bold text-white mb-2 text-sm md:text-base">Description</h3>
-                  <p className="text-xs md:text-sm text-discord-text">{selectedTournament.description}</p>
+                  <p className="text-xs md:text-sm text-discord-text break-words">{selectedTournament.description}</p>
                 </div>
               )}
 
@@ -597,7 +599,7 @@ export default function TournamentsPage() {
                 <div>
                   <h3 className="font-bold text-white mb-2 text-sm md:text-base">Rules</h3>
                   <div className="bg-discord-darkest rounded-lg p-3 md:p-4">
-                    <pre className="text-discord-text whitespace-pre-wrap text-xs md:text-sm">{selectedTournament.rules}</pre>
+                    <pre className="text-discord-text whitespace-pre-wrap text-xs md:text-sm break-words font-sans">{selectedTournament.rules}</pre>
                   </div>
                 </div>
               )}
