@@ -3,13 +3,16 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import { useBanCheck } from '@/hooks/useBanCheck';
 import { useRouter } from 'next/navigation';
 import { formatISTDate } from '@/lib/timeUtils';
 import { updateTournamentStatuses } from '@/lib/tournamentStatusUpdater';
-import { FaTrophy, FaClock, FaFire, FaInfoCircle, FaTimes, FaCheckCircle, FaUsers, FaMoneyBillWave, FaSkull, FaCrown } from 'react-icons/fa';
+import { FaTrophy, FaClock, FaFire, FaInfoCircle, FaTimes, FaCheckCircle, FaUsers, FaMoneyBillWave, FaSkull, FaCrown, FaBan, FaExclamationTriangle } from 'react-icons/fa';
+import Link from 'next/link';
 
 export default function TournamentsPage() {
   const { user, profile } = useAuth();
+  const { banStatus, loading: banLoading, checked: banChecked } = useBanCheck();
   const router = useRouter();
   const [tournaments, setTournaments] = useState([]);
   const [filter, setFilter] = useState('all');
@@ -93,6 +96,7 @@ export default function TournamentsPage() {
   };
 
   const viewDetails = async (tournament) => {
+    // Banned users can view but not join
     setSelectedTournament(tournament);
     setShowModal(true);
 
@@ -118,6 +122,12 @@ export default function TournamentsPage() {
   };
 
   const handleJoin = async () => {
+    // BAN CHECK: Prevent banned/suspended users from joining
+    if (banStatus) {
+      alert(`❌ Cannot Join Tournament\n\nYour account is currently ${banStatus.ban_type === 'permanent' ? 'banned' : 'suspended'}.\n\nReason: ${banStatus.reason}\n\nYou cannot participate in tournaments at this time.`);
+      return;
+    }
+
     if (!user) {
       alert('Please login to join tournaments');
       router.push('/');
@@ -278,6 +288,217 @@ export default function TournamentsPage() {
     }
   };
 
+  // Show loading while checking ban status
+  if (banLoading || !banChecked) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+          <p className="text-discord-text">Checking access permissions...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show ban warning if user is banned
+  if (banStatus) {
+    return (
+      <div className="w-full max-w-6xl mx-auto px-3">
+        {/* Ban Warning */}
+        <div className="bg-red-900 bg-opacity-20 border border-red-600 rounded-xl p-6 mb-6">
+          <div className="flex items-start gap-4">
+            <FaBan className="text-4xl text-red-400 flex-shrink-0 mt-1 animate-pulse" />
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-white mb-3">
+                {banStatus.ban_type === 'permanent' ? '🚫 Account Banned' : '⏸️ Account Suspended'}
+              </h2>
+              <div className="bg-red-600 bg-opacity-10 border border-red-600 rounded-lg p-4 mb-4">
+                <p className="text-red-300 mb-2"><strong>Reason:</strong> {banStatus.reason}</p>
+                {banStatus.ban_type === 'temporary' && banStatus.expires_at && (
+                  <p className="text-red-300">
+                    <strong>Expires:</strong> {formatISTDate(banStatus.expires_at, true)}
+                  </p>
+                )}
+              </div>
+              <p className="text-discord-text mb-4">
+                You can browse tournaments but cannot join them while your account has restricted access.
+              </p>
+              <Link 
+                href="/restricted"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-all"
+              >
+                <FaInfoCircle />
+                View Restriction Details
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Tournament list (view only) - continues below... */}
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-2">
+            <FaTrophy className="text-yellow-400" />
+            Tournaments (View Only)
+          </h1>
+          <p className="text-discord-text text-sm">You can view tournaments but cannot participate</p>
+        </div>
+
+        {/* Rest of tournament display continues normally... */}
+        {loading ? (
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+              <p className="text-discord-text">Loading tournaments...</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Filters */}
+            <div className="flex gap-2 mb-5 overflow-x-auto pb-2 -mx-3 px-3">
+              <button
+                onClick={() => setFilter('all')}
+                className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-all flex-shrink-0 ${
+                  filter === 'all'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-discord-dark text-discord-text'
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setFilter('upcoming')}
+                className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-all flex-shrink-0 ${
+                  filter === 'upcoming'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-discord-dark text-discord-text'
+                }`}
+              >
+                Upcoming
+              </button>
+              <button
+                onClick={() => setFilter('live')}
+                className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-all flex-shrink-0 ${
+                  filter === 'live'
+                    ? 'bg-red-600 text-white'
+                    : 'bg-discord-dark text-discord-text'
+                }`}
+              >
+                Live
+              </button>
+              <button
+                onClick={() => setFilter('completed')}
+                className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-all flex-shrink-0 ${
+                  filter === 'completed'
+                    ? 'bg-gray-600 text-white'
+                    : 'bg-discord-dark text-discord-text'
+                }`}
+              >
+                Completed
+              </button>
+            </div>
+
+            {/* Tournament Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {tournaments.map((tournament) => {
+                const statusBadge = getStatusBadge(tournament.status);
+                const isJoined = joinedTournamentIds.has(tournament.id);
+                const spotsLeft = tournament.max_participants - tournament.participantCount;
+                
+                return (
+                  <div
+                    key={tournament.id}
+                    className={`rounded-xl p-3 transition-all max-w-full overflow-hidden opacity-60 ${
+                      isJoined 
+                        ? 'bg-gradient-to-br from-green-900 to-emerald-900 border-2 border-green-400'
+                        : 'bg-discord-dark border border-gray-800'
+                    }`}
+                  >
+                    {/* Same card content as original, just with opacity-60 for disabled state */}
+                    {isJoined && (
+                      <div className="mb-2 bg-green-500 rounded-lg p-2 flex items-center gap-2 border border-green-300">
+                        <FaCheckCircle className="text-base text-white flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-white text-xs">JOINED</p>
+                          <p className="text-green-100 text-xs truncate">Registered!</p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-start justify-between mb-2 gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className={`${statusBadge.bg} px-2 py-0.5 rounded inline-flex items-center gap-1 mb-1.5`}>
+                          <span className="text-xs">{statusBadge.icon}</span>
+                          <span className="text-white font-bold text-xs">{statusBadge.text}</span>
+                        </div>
+                        <h3 className="text-base font-bold text-white mb-0.5 break-words line-clamp-2 leading-tight">{tournament.title}</h3>
+                        <p className="text-discord-text text-xs truncate">{tournament.game}</p>
+                      </div>
+                      <FaTrophy className="text-xl text-yellow-400 flex-shrink-0" />
+                    </div>
+
+                    {tournament.preset && (
+                      <div className="mb-2 bg-purple-900 bg-opacity-30 border border-purple-600 rounded p-1 text-center">
+                        <p className="text-purple-300 font-semibold text-xs truncate">{tournament.preset.name}</p>
+                      </div>
+                    )}
+
+                    <div className="space-y-1.5 mb-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-discord-text text-xs">Prize</span>
+                        <span className="text-green-400 font-bold text-sm">₹{tournament.prize_pool}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-discord-text text-xs">Entry</span>
+                        <span className="text-white font-bold text-xs">
+                          {tournament.entry_fee === 0 ? 'FREE' : `₹${tournament.entry_fee}`}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-discord-text text-xs">Players</span>
+                        <span className="text-white font-bold text-xs">
+                          {tournament.participantCount}/{tournament.max_participants}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="bg-discord-darkest rounded p-2 mb-2">
+                      <div className="flex items-start gap-1.5">
+                        <FaClock className="text-cyan-400 flex-shrink-0 mt-0.5 text-xs" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-discord-text mb-0.5">Start</p>
+                          <p className="text-white font-semibold text-xs break-words leading-tight">
+                            {formatISTDate(tournament.start_time, true)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => viewDetails(tournament)}
+                      className="w-full py-2 rounded-lg font-bold text-xs transition-all flex items-center justify-center gap-1.5 bg-gray-600 hover:bg-gray-700 text-white"
+                    >
+                      <FaInfoCircle className="text-xs" />
+                      View Only
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {tournaments.length === 0 && (
+              <div className="text-center py-12">
+                <FaTrophy className="text-6xl text-gray-600 mx-auto mb-4" />
+                <p className="text-white font-bold text-xl mb-2">No tournaments found</p>
+                <p className="text-discord-text">Check back later for upcoming tournaments</p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // NORMAL ACCESS (User not banned/suspended) - Show full functionality
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -456,7 +677,7 @@ export default function TournamentsPage() {
         </div>
       )}
 
-      {/* Modal */}
+      {/* Modal - CONTINUES WITH SAME MODAL CODE AS ORIGINAL... */}
       {showModal && selectedTournament && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-3" onClick={closeModal}>
           <div className="bg-discord-dark rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
