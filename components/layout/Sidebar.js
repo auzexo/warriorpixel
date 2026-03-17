@@ -2,7 +2,9 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { useBanCheck } from '@/hooks/useBanCheck';
 import { supabase } from '@/lib/supabase';
+import { formatISTDate } from '@/lib/timeUtils';
 import {
   FaHome,
   FaTrophy,
@@ -17,27 +19,40 @@ import {
   FaCrown,
   FaSignOutAlt,
   FaTimes,
+  FaBan,
+  FaExclamationTriangle,
 } from 'react-icons/fa';
+import Link from 'next/link';
 
 export default function Sidebar({ isOpen, onClose }) {
   const pathname = usePathname();
   const router = useRouter();
   const { profile } = useAuth();
+  const { banStatus, isBanned } = useBanCheck();
+
+  // Pages that banned users CAN access
+  const allowedForBanned = ['/', '/videos', '/info', '/download', '/help', '/about', '/contact', '/restricted'];
 
   const menuItems = [
-    { icon: FaHome, label: 'Home', path: '/', color: 'text-purple-400' },
-    { icon: FaTrophy, label: 'Tournaments', path: '/tournaments', requireAuth: true, color: 'text-purple-400' },
-    { icon: FaFire, label: 'Free Fire Guilds', path: '/freefire', requireAuth: true, color: 'text-blue-400' },
-    { icon: FaCube, label: 'Minecraft Shop', path: '/minecraft', requireAuth: true, color: 'text-green-400' },
-    { icon: FaVideo, label: 'Videos', path: '/videos', color: 'text-purple-400' },
-    { icon: FaGamepad, label: 'Games', path: '/games', requireAuth: true, color: 'text-purple-400' },
-    { icon: FaAchievement, label: 'Achievements', path: '/achievements', requireAuth: true, color: 'text-orange-400' },
-    { icon: FaWallet, label: 'Wallet', path: '/wallet', requireAuth: true, color: 'text-purple-400' },
-    { icon: FaInfoCircle, label: 'Info & Help', path: '/info', color: 'text-purple-400' },
-    { icon: FaDownload, label: 'Download App', path: '/download', color: 'text-purple-400' },
+    { icon: FaHome, label: 'Home', path: '/', color: 'text-purple-400', allowedWhenBanned: true },
+    { icon: FaTrophy, label: 'Tournaments', path: '/tournaments', requireAuth: true, color: 'text-purple-400', allowedWhenBanned: false },
+    { icon: FaFire, label: 'Free Fire Guilds', path: '/freefire', requireAuth: true, color: 'text-blue-400', allowedWhenBanned: false },
+    { icon: FaCube, label: 'Minecraft Shop', path: '/minecraft', requireAuth: true, color: 'text-green-400', allowedWhenBanned: false },
+    { icon: FaVideo, label: 'Videos', path: '/videos', color: 'text-purple-400', allowedWhenBanned: true },
+    { icon: FaGamepad, label: 'Games', path: '/games', requireAuth: true, color: 'text-purple-400', allowedWhenBanned: false },
+    { icon: FaAchievement, label: 'Achievements', path: '/achievements', requireAuth: true, color: 'text-orange-400', allowedWhenBanned: false },
+    { icon: FaWallet, label: 'Wallet', path: '/wallet', requireAuth: true, color: 'text-purple-400', allowedWhenBanned: false },
+    { icon: FaInfoCircle, label: 'Info & Help', path: '/info', color: 'text-purple-400', allowedWhenBanned: true },
+    { icon: FaDownload, label: 'Download App', path: '/download', color: 'text-purple-400', allowedWhenBanned: true },
   ];
 
-  const handleNavigation = (path) => {
+  const handleNavigation = (path, isRestricted) => {
+    // Block navigation to restricted pages for banned users
+    if (isBanned && isRestricted) {
+      alert('❌ Access Restricted\n\nThis feature is not available while your account is restricted.\n\nAllowed pages: Home, Videos, Info, Downloads');
+      return;
+    }
+    
     router.push(path);
     if (onClose) onClose();
   };
@@ -86,26 +101,64 @@ export default function Sidebar({ isOpen, onClose }) {
           </div>
         </div>
 
+        {/* BAN STATUS INDICATOR */}
+        {isBanned && banStatus && (
+          <div className="mx-4 mt-4 mb-2">
+            <div className="bg-red-900 bg-opacity-30 border border-red-600 rounded-lg p-3">
+              <div className="flex items-start gap-2 mb-2">
+                <FaBan className="text-red-400 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-red-400 font-bold text-xs mb-1">
+                    {banStatus.ban_type === 'permanent' ? 'BANNED' : 'SUSPENDED'}
+                  </p>
+                  <p className="text-red-300 text-xs break-words">
+                    Limited access mode
+                  </p>
+                  {banStatus.ban_type === 'temporary' && banStatus.expires_at && (
+                    <p className="text-red-400 text-xs mt-1">
+                      Until: {formatISTDate(banStatus.expires_at, true)}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <Link 
+                href="/restricted"
+                onClick={onClose}
+                className="block text-center text-xs text-blue-400 hover:text-blue-300 font-semibold mt-2"
+              >
+                View Details →
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* Navigation */}
         <nav className="flex-1 p-4 overflow-y-auto">
           <div className="space-y-2">
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.path;
+              const isRestricted = isBanned && !item.allowedWhenBanned;
 
               return (
                 <button
                   key={item.path}
-                  onClick={() => handleNavigation(item.path)}
+                  onClick={() => handleNavigation(item.path, isRestricted)}
+                  disabled={isRestricted}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                     isActive
                       ? 'bg-purple-600 text-white'
+                      : isRestricted
+                      ? 'text-gray-600 cursor-not-allowed opacity-50'
                       : 'text-gray-300 hover:bg-gray-800'
                   }`}
                 >
-                  <Icon className={`text-lg ${isActive ? 'text-white' : item.color}`} />
-                  <span className="font-medium">{item.label}</span>
-                  {item.requireAuth && !profile && (
+                  <Icon className={`text-lg ${isActive ? 'text-white' : isRestricted ? 'text-gray-600' : item.color}`} />
+                  <span className="font-medium text-sm">{item.label}</span>
+                  {isRestricted && (
+                    <FaBan className="ml-auto text-xs text-red-400" />
+                  )}
+                  {!isRestricted && item.requireAuth && !profile && (
                     <span className="ml-auto text-xs bg-yellow-500 bg-opacity-20 text-yellow-500 px-2 py-0.5 rounded">
                       Login
                     </span>
@@ -117,7 +170,7 @@ export default function Sidebar({ isOpen, onClose }) {
             {/* Admin Panel */}
             {profile?.is_admin && (
               <button
-                onClick={() => handleNavigation('/admin')}
+                onClick={() => handleNavigation('/admin', false)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                   pathname === '/admin'
                     ? 'bg-red-600 text-white'
