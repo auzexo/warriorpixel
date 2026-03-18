@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { FaTrophy, FaCrown, FaSkull, FaMoneyBillWave, FaLock, FaCheckCircle, FaStar, FaCoins, FaGift, FaSync } from 'react-icons/fa';
 
 export default function AchievementsPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [achievements, setAchievements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState(null);
@@ -100,7 +100,7 @@ export default function AchievementsPage() {
   const claimableCount = achievements.filter(a => a.is_unlocked && !a.is_claimed).length;
   const claimedCount = achievements.filter(a => a.is_claimed).length;
   const totalPoints = achievements.filter(a => a.is_claimed).reduce((sum, a) => sum + a.points, 0);
-  const { user, profile } = useAuth();
+  
 
   const currentStats = {
     tournaments: achievements.find(a => a.requirement_type === 'tournament_join')?.current_progress || 0,
