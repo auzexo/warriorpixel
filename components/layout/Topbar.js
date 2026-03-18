@@ -161,7 +161,7 @@ export default function Topbar({ onMenuClick }) {
               <div className="flex items-center gap-1 md:gap-2 bg-discord-darkest px-2 md:px-3 py-1.5 md:py-2 rounded-lg border border-gray-700">
                 <FaCoins className="text-yellow-400 text-xs md:text-sm" />
                 <span className="text-white font-semibold text-xs md:text-sm">
-                  {parseInt(profile.wallet_coins || 0)}
+                  {parseInt(profile.coins || profile.wallet_coins || 0)}
                 </span>
               </div>
 
