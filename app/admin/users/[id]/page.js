@@ -521,7 +521,7 @@ export default function UserDetailPage() {
               <FaStickyNote />
               Add Note
             </button>
-            {activeBan ? (
+            {isBanActuallyActive ? (
               <button
                 onClick={() => handleUnbanUser(activeBan.id)}
                 className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold flex items-center gap-2 transition-all"
