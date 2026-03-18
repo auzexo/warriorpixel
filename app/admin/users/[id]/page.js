@@ -198,13 +198,10 @@ export default function UserDetailPage() {
         const { data: { user: adminUser } } = await supabase.auth.getUser();
 
         const durationDays = parseInt(suspendForm.duration);
-      
-      // CRITICAL FIX: Calculate expiration in IST timezone
-        const now = new Date();
-        const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
-        const nowIST = new Date(now.getTime() + istOffset);
-        const expiresAtIST = new Date(nowIST.getTime() + (durationDays * 24 * 60 * 60 * 1000));
-        const expiresAt = new Date(expiresAtIST.getTime() - istOffset); // Convert back to UTC for storage
+
+// Simple date math - JavaScript handles timezone automatically
+        const now = new Date(); // Current time in IST
+        const expiresAt = new Date(now.getTime() + (durationDays * 24 * 60 * 60 * 1000));
 
       const { data: suspendData } = await supabase
         .from('user_bans')
