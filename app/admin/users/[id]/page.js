@@ -471,10 +471,16 @@ export default function UserDetailPage() {
   }
 
   const activeBan = getActiveBan();
-  const isFlagged = notes.some(note => note.is_flagged);
+    const isFlagged = notes.some(note => note.is_flagged);
+  
+  // Check if active ban is actually expired
+    const isBanActuallyActive = activeBan && (
+      activeBan.ban_type === 'permanent' || 
+      (activeBan.ban_type === 'temporary' && activeBan.expires_at && new Date(activeBan.expires_at) > new Date())
+    );
 
-  return (
-    <AdminLayout>
+    return (
+      <AdminLayout>
       {/* Header */}
       <div className="mb-6">
         <button
