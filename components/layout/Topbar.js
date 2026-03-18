@@ -96,7 +96,11 @@ export default function Topbar({ onMenuClick }) {
         .delete()
         .eq('user_id', user.id);
 
-      loadNotifications();
+    // Immediately clear state
+      setNotifications([]);
+      setUnreadCount(0);
+      setShowNotifications(false);
+    
       alert('✅ All notifications deleted');
     } catch (error) {
       console.error('Error deleting notifications:', error);
