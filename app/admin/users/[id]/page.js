@@ -560,11 +560,29 @@ export default function UserDetailPage() {
               <p className="text-red-300 mb-2"><strong>Reason:</strong> {activeBan.reason}</p>
               {activeBan.ban_type === 'temporary' && activeBan.expires_at && (
                 <p className="text-red-300 mb-2">
-                  <strong>Expires:</strong> {formatISTDate(activeBan.expires_at, true)}
+                  <strong>Expires:</strong> {(() => {
+                    const d = new Date(activeBan.expires_at);
+                    const ist = new Date(d.getTime() + 19800000);
+                    const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                    let h = ist.getUTCHours();
+                    const m = String(ist.getUTCMinutes()).padStart(2,'0');
+                    const ap = h >= 12 ? 'pm' : 'am';
+                    h = h % 12 || 12;
+                    return `${ist.getUTCDate()} ${mon[ist.getUTCMonth()]} ${ist.getUTCFullYear()}, ${h}:${m} ${ap} IST`;
+                  })()}
                 </p>
               )}
               <p className="text-xs text-red-400">
-                Banned on: {formatISTDate(activeBan.created_at, true)}
+                Banned on: {(() => {
+                  const d = new Date(activeBan.created_at);
+                  const ist = new Date(d.getTime() + 19800000);
+                  const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                  let h = ist.getUTCHours();
+                  const m = String(ist.getUTCMinutes()).padStart(2,'0');
+                  const ap = h >= 12 ? 'pm' : 'am';
+                  h = h % 12 || 12;
+                  return `${ist.getUTCDate()} ${mon[ist.getUTCMonth()]} ${ist.getUTCFullYear()}, ${h}:${m} ${ap} IST`;
+                })()}
               </p>
               <div className="mt-3">
                 <button
