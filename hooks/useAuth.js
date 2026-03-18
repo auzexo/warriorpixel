@@ -101,6 +101,13 @@ export function useAuth() {
     }
   };
 
+  // PUBLIC FUNCTION: Manually refresh profile
+  const refreshProfile = async () => {
+    if (user?.id) {
+      await loadProfile(user.id);
+    }
+  };
+
   const logout = async () => {
     try {
       // Clear all storage first
@@ -124,5 +131,6 @@ export function useAuth() {
     profile,
     loading,
     logout,
+    refreshProfile, // ← ADDED THIS!
   };
 }
