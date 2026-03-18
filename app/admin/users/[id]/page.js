@@ -1144,3 +1144,6 @@ export default function UserDetailPage() {
           </div>
         </div>
       )}
+    </AdminLayout>
+  );
+                  }
