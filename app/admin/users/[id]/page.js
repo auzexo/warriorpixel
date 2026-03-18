@@ -375,8 +375,8 @@ export default function UserDetailPage() {
         wallet_real: parseFloat(user.wallet_real || 0),
         wallet_bonus: parseFloat(user.wallet_bonus || 0),
         wallet_gems: parseFloat(user.wallet_gems || 0),
-        wallet_vouchers_10: parseInt(user.wallet_vouchers_10 || 0),
         wallet_vouchers_20: parseInt(user.wallet_vouchers_20 || 0),
+        wallet_vouchers_30: parseInt(user.wallet_vouchers_30 || 0),
         wallet_vouchers_50: parseInt(user.wallet_vouchers_50 || 0)
       };
 
@@ -384,8 +384,8 @@ export default function UserDetailPage() {
         wallet_real: parseFloat(walletForm.wallet_real || 0),
         wallet_bonus: parseFloat(walletForm.wallet_bonus || 0),
         wallet_gems: parseFloat(walletForm.wallet_gems || 0),
-        wallet_vouchers_10: parseInt(walletForm.wallet_vouchers_10 || 0),
         wallet_vouchers_20: parseInt(walletForm.wallet_vouchers_20 || 0),
+        wallet_vouchers_30: parseInt(walletForm.wallet_vouchers_30 || 0),
         wallet_vouchers_50: parseInt(walletForm.wallet_vouchers_50 || 0)
       };
 
