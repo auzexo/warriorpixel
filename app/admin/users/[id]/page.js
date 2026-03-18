@@ -569,7 +569,7 @@ export default function UserDetailPage() {
               {activeBan.ban_type === 'temporary' && activeBan.expires_at && (
                 <p className="text-red-300 mb-2">
                   <strong>Expires:</strong> {(() => {
-                    const d = new Date(activeBan.expires_at);
+                    const d = new Date(activeBan.expires_at + 'Z');
                     const ist = new Date(d.getTime() + 19800000);
                     const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
                     let h = ist.getUTCHours();
@@ -582,7 +582,7 @@ export default function UserDetailPage() {
               )}
               <p className="text-xs text-red-400">
                 Banned on: {(() => {
-                  const d = new Date(activeBan.created_at);
+                  const d = new Date(activeBan.created_at + 'Z');
                   const ist = new Date(d.getTime() + 19800000);
                   const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
                   let h = ist.getUTCHours();
