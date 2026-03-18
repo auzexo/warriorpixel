@@ -498,11 +498,11 @@ export default function UserDetailPage() {
               {isFlagged && (
                 <FaFlag className="text-2xl text-yellow-400" title="Flagged User" />
               )}
-              {activeBan && (
-                <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-600 text-white">
-                  {activeBan.ban_type === 'permanent' ? 'BANNED' : 'SUSPENDED'}
-                </span>
-              )}
+              {isBanActuallyActive && (
+                              <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-600 text-white">
+                                {activeBan.ban_type === 'permanent' ? 'BANNED' : 'SUSPENDED'}
+                              </span>
+                            )}
             </div>
             <p className="text-discord-text font-mono text-sm">ID: {user.id}</p>
           </div>
