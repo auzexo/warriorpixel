@@ -385,7 +385,7 @@ export default function Topbar({ onMenuClick }) {
                       <button
                         onClick={() => {
                           setShowProfile(false);
-                          router.push('/profile');
+                          router.push('/app/profile');
                         }}
                         className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
                       >
