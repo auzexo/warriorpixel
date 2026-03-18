@@ -22,7 +22,9 @@ import {
   FaIdCard,
   FaCheckCircle,
   FaTimes,
-  FaSave
+  FaSave,
+  FaExclamationTriangle,
+  FaStar
 } from 'react-icons/fa';
 
 export default function ProfilePage() {
@@ -127,21 +129,70 @@ export default function ProfilePage() {
 
     setProcessing(true);
     try {
+      // Check if discord_id already exists (if changing)
+      if (editForm.discord_id && editForm.discord_id !== profile.discord_id) {
+        const { data: existingDiscord } = await supabase
+          .from('users')
+          .select('id')
+          .eq('discord_id', editForm.discord_id)
+          .neq('id', user.id)
+          .single();
+
+        if (existingDiscord) {
+          alert('❌ This Discord ID is already in use by another account');
+          setProcessing(false);
+          return;
+        }
+      }
+
+      // Check if phone already exists (if changing)
+      if (editForm.phone && editForm.phone !== profile.phone) {
+        const { data: existingPhone } = await supabase
+          .from('users')
+          .select('id')
+          .eq('phone', editForm.phone)
+          .neq('id', user.id)
+          .single();
+
+        if (existingPhone) {
+          alert('❌ This phone number is already in use by another account');
+          setProcessing(false);
+          return;
+        }
+      }
+
+      // Check if profile is now complete
+      const profileComplete = !!(
+        editForm.username &&
+        editForm.email &&
+        editForm.phone &&
+        editForm.discord_id
+      );
+
+      const updateData = {
+        username: editForm.username,
+        email: editForm.email,
+        phone: editForm.phone,
+        discord_id: editForm.discord_id,
+        is_verified: profileComplete,
+        profile_completed_at: profileComplete && !profile.is_verified ? new Date().toISOString() : profile.profile_completed_at
+      };
+
       const { error } = await supabase
         .from('users')
-        .update({
-          username: editForm.username,
-          email: editForm.email,
-          phone: editForm.phone,
-          discord_id: editForm.discord_id
-        })
+        .update(updateData)
         .eq('id', user.id);
 
       if (error) throw error;
 
       await refreshProfile();
       setShowEditModal(false);
-      alert('✅ Profile updated successfully!');
+      
+      if (profileComplete && !profile.is_verified) {
+        alert('✅ Profile completed! You now have a verified badge! 🎉');
+      } else {
+        alert('✅ Profile updated successfully!');
+      }
     } catch (error) {
       console.error('Error updating profile:', error);
       alert('❌ Failed to update profile: ' + error.message);
@@ -174,11 +225,27 @@ export default function ProfilePage() {
     return profile.username?.charAt(0).toUpperCase() || 'U';
   };
 
+  const getXPProgress = () => {
+    const currentXP = profile.xp || 0;
+    const requiredXP = profile.xp_to_next_level || 100;
+    return (currentXP / requiredXP) * 100;
+  };
+
   return (
     <div className="min-h-screen bg-discord-darkest p-3 md:p-8">
       <div className="max-w-6xl mx-auto">
         {/* Profile Header */}
         <div className="bg-gradient-to-br from-purple-900 to-purple-800 rounded-xl p-4 md:p-6 mb-4 border border-purple-600">
+          {/* Profile Completion Warning */}
+          {!profile.is_verified && (
+            <div className="bg-yellow-600 bg-opacity-20 border border-yellow-600 rounded-lg px-3 py-2 mb-4">
+              <p className="text-yellow-400 text-xs md:text-sm flex items-center gap-2">
+                <FaExclamationTriangle />
+                <span>Complete your profile (email, phone, Discord ID) to get a verified badge!</span>
+              </p>
+            </div>
+          )}
+
           <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6">
             {/* Avatar */}
             <div className="w-24 h-24 md:w-32 md:h-32 bg-gradient-to-br from-purple-600 to-purple-800 rounded-full flex items-center justify-center font-bold text-white text-4xl md:text-5xl border-4 border-purple-400 shadow-lg">
@@ -187,8 +254,11 @@ export default function ProfilePage() {
 
             {/* User Info */}
             <div className="flex-1 text-center md:text-left">
-              <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
+              <h1 className="text-2xl md:text-3xl font-bold text-white mb-2 flex items-center justify-center md:justify-start gap-2">
                 {profile.username}
+                {profile.is_verified && (
+                  <FaCheckCircle className="text-blue-400 text-xl md:text-2xl" title="Verified Profile" />
+                )}
               </h1>
               <div className="space-y-1 text-sm md:text-base">
                 <div className="flex items-center justify-center md:justify-start gap-2 text-purple-200">
@@ -224,6 +294,25 @@ export default function ProfilePage() {
               <FaEdit />
               <span className="hidden md:inline">Edit Profile</span>
             </button>
+          </div>
+
+          {/* Level & XP Bar */}
+          <div className="mt-4 bg-purple-900 bg-opacity-40 rounded-lg p-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <FaStar className="text-yellow-400" />
+                <span className="text-white font-bold">Level {profile.level || 1}</span>
+              </div>
+              <span className="text-purple-200 text-sm">
+                {profile.xp || 0} / {profile.xp_to_next_level || 100} XP
+              </span>
+            </div>
+            <div className="w-full bg-purple-950 rounded-full h-3">
+              <div 
+                className="bg-gradient-to-r from-yellow-400 to-purple-400 h-full rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(100, getXPProgress())}%` }}
+              />
+            </div>
           </div>
         </div>
 
@@ -377,8 +466,8 @@ export default function ProfilePage() {
 
       {/* Edit Profile Modal */}
       {showEditModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-          <div className="bg-discord-dark border border-purple-600 rounded-xl max-w-md w-full p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-discord-dark border border-purple-600 rounded-xl max-w-md w-full p-6 my-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                 <FaEdit className="text-purple-400" />
@@ -435,6 +524,13 @@ export default function ProfilePage() {
                   className="w-full px-4 py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-purple-600"
                   placeholder="username#1234 or Discord ID"
                 />
+              </div>
+
+              <div className="bg-blue-600 bg-opacity-10 border border-blue-600 rounded-lg p-3">
+                <p className="text-blue-400 text-xs flex items-start gap-2">
+                  <FaCheckCircle className="flex-shrink-0 mt-0.5" />
+                  <span>Fill all fields to get a verified badge on your profile!</span>
+                </p>
               </div>
             </div>
 
