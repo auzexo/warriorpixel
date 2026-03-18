@@ -552,7 +552,7 @@ export default function UserDetailPage() {
       </div>
 
       {/* Active Ban Warning */}
-      {activeBan && (
+      {isBanActuallyActive && (
         <div className="bg-red-900 bg-opacity-20 border border-red-600 rounded-xl p-5 mb-6">
           <div className="flex items-start gap-3">
             <FaExclamationTriangle className="text-2xl text-red-400 flex-shrink-0 mt-1" />
