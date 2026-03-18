@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { FaTrophy, FaCrown, FaSkull, FaMoneyBillWave, FaLock, FaCheckCircle, FaStar, FaCoins, FaGift, FaSync } from 'react-icons/fa';
 
 export default function AchievementsPage() {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const [achievements, setAchievements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState(null);
@@ -59,6 +59,7 @@ export default function AchievementsPage() {
       if (result.success) {
         alert(`🎉 Achievement Claimed!\n\n${achievementName}\n\n+${result.points_earned} Points\n+${result.coins_earned} Coins`);
         await loadAchievements();
+        await refreshProfile();
       } else {
         alert('❌ ' + result.message);
       }
