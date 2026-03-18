@@ -38,8 +38,8 @@ export default function UserDetailPage() {
     wallet_real: '0',
     wallet_bonus: '0',
     wallet_gems: '0',
-    wallet_vouchers_10: '0',
     wallet_vouchers_20: '0',
+    wallet_vouchers_30: '0',
     wallet_vouchers_50: '0',
     reason: ''
   });
@@ -67,8 +67,8 @@ export default function UserDetailPage() {
         wallet_real: String(userData.wallet_real || 0),
         wallet_bonus: String(userData.wallet_bonus || 0),
         wallet_gems: String(userData.wallet_gems || 0),
-        wallet_vouchers_10: String(userData.wallet_vouchers_10 || 0),
         wallet_vouchers_20: String(userData.wallet_vouchers_20 || 0),
+        wallet_vouchers_30: String(userData.wallet_vouchers_30 || 0),
         wallet_vouchers_50: String(userData.wallet_vouchers_50 || 0),
         reason: ''
       });
@@ -655,13 +655,13 @@ export default function UserDetailPage() {
           </div>
           <div className="bg-discord-dark rounded-lg p-4 text-center">
             <FaTicketAlt className="text-2xl text-blue-400 mx-auto mb-2" />
-            <p className="text-xs text-discord-text mb-1">₹10 Voucher</p>
-            <p className="text-xl font-bold text-blue-400">{parseInt(user.wallet_vouchers_10 || 0)}</p>
+            <p className="text-xs text-discord-text mb-1">₹20 Voucher</p>
+            <p className="text-xl font-bold text-blue-400">{parseInt(user.wallet_vouchers_20 || 0)}</p>
           </div>
           <div className="bg-discord-dark rounded-lg p-4 text-center">
             <FaTicketAlt className="text-2xl text-orange-400 mx-auto mb-2" />
-            <p className="text-xs text-discord-text mb-1">₹20 Voucher</p>
-            <p className="text-xl font-bold text-orange-400">{parseInt(user.wallet_vouchers_20 || 0)}</p>
+            <p className="text-xs text-discord-text mb-1">₹30 Voucher</p>
+            <p className="text-xl font-bold text-orange-400">{parseInt(user.wallet_vouchers_30 || 0)}</p>
           </div>
           <div className="bg-discord-dark rounded-lg p-4 text-center">
             <FaTicketAlt className="text-2xl text-red-400 mx-auto mb-2" />
@@ -1083,20 +1083,20 @@ export default function UserDetailPage() {
                 />
               </div>
               <div>
-                <label className="block text-white font-semibold mb-2 text-sm">₹10 Vouchers</label>
-                <input
-                  type="number"
-                  value={walletForm.wallet_vouchers_10}
-                  onChange={(e) => setWalletForm({...walletForm, wallet_vouchers_10: e.target.value})}
-                  className="w-full px-4 py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-green-600 font-bold"
-                />
-              </div>
-              <div>
                 <label className="block text-white font-semibold mb-2 text-sm">₹20 Vouchers</label>
                 <input
                   type="number"
                   value={walletForm.wallet_vouchers_20}
                   onChange={(e) => setWalletForm({...walletForm, wallet_vouchers_20: e.target.value})}
+                  className="w-full px-4 py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-green-600 font-bold"
+                />
+              </div>
+              <div>
+                <label className="block text-white font-semibold mb-2 text-sm">₹30 Vouchers</label>
+                <input
+                  type="number"
+                  value={walletForm.wallet_vouchers_30}
+                  onChange={(e) => setWalletForm({...walletForm, wallet_vouchers_30: e.target.value})}
                   className="w-full px-4 py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-green-600 font-bold"
                 />
               </div>
