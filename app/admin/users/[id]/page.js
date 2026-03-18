@@ -1040,7 +1040,7 @@ export default function UserDetailPage() {
           </div>
         </div>
       )}
-
+      
       {/* Wallet Edit Modal */}
       {showWalletModal && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 overflow-y-auto">
@@ -1055,7 +1055,7 @@ export default function UserDetailPage() {
                 <span>Changes are immediate and logged. Ensure accuracy before saving!</span>
               </p>
             </div>
-            
+      
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-white font-semibold mb-2 text-sm">Real Money (₹)</label>
@@ -1068,12 +1068,11 @@ export default function UserDetailPage() {
                 />
               </div>
               <div>
-                <label className="block text-white font-semibold mb-2 text-sm">Bonus (₹)</label>
+                <label className="block text-white font-semibold mb-2 text-sm">Coins</label>
                 <input
                   type="number"
-                  step="0.01"
-                  value={walletForm.wallet_bonus}
-                  onChange={(e) => setWalletForm({...walletForm, wallet_bonus: e.target.value})}
+                  value={walletForm.wallet_coins}
+                  onChange={(e) => setWalletForm({...walletForm, wallet_coins: e.target.value})}
                   className="w-full px-4 py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-green-600 font-bold"
                 />
               </div>
@@ -1145,6 +1144,3 @@ export default function UserDetailPage() {
           </div>
         </div>
       )}
-    </AdminLayout>
-  );
-}
