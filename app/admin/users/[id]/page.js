@@ -649,8 +649,8 @@ export default function UserDetailPage() {
           </div>
           <div className="bg-discord-dark rounded-lg p-4 text-center">
             <FaCoins className="text-2xl text-yellow-400 mx-auto mb-2" />
-            <p className="text-xs text-discord-text mb-1">Bonus</p>
-            <p className="text-xl font-bold text-yellow-400">₹{parseFloat(user.wallet_bonus || 0).toFixed(2)}</p>
+            <p className="text-xs text-discord-text mb-1">Coins</p>
+            <p className="text-xl font-bold text-yellow-400">{parseInt(user.wallet_coins || 0)}</p>
           </div>
           <div className="bg-discord-dark rounded-lg p-4 text-center">
             <FaGem className="text-2xl text-purple-400 mx-auto mb-2" />
