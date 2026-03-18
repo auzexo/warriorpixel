@@ -25,6 +25,7 @@ import {
   FaSave
 } from 'react-icons/fa';
 
+
 export default function ProfilePage() {
   const { user, profile, refreshProfile } = useAuth();
   const [loading, setLoading] = useState(true);
