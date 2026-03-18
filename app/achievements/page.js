@@ -100,7 +100,7 @@ export default function AchievementsPage() {
   const claimableCount = achievements.filter(a => a.is_unlocked && !a.is_claimed).length;
   const claimedCount = achievements.filter(a => a.is_claimed).length;
   const totalPoints = achievements.filter(a => a.is_claimed).reduce((sum, a) => sum + a.points, 0);
-  const totalCoins = achievements.filter(a => a.is_claimed).reduce((sum, a) => sum + a.coin_reward, 0);
+  const { user, profile } = useAuth();
 
   const currentStats = {
     tournaments: achievements.find(a => a.requirement_type === 'tournament_join')?.current_progress || 0,
@@ -188,7 +188,7 @@ export default function AchievementsPage() {
           <div className="bg-gradient-to-br from-yellow-900 to-yellow-800 border border-yellow-600 rounded-lg p-3">
             <FaCoins className="text-xl md:text-2xl text-yellow-400 mb-1" />
             <p className="text-xs text-yellow-200">Coins</p>
-            <p className="text-lg md:text-xl font-bold text-white">{totalCoins}</p>
+            <p className="text-lg md:text-xl font-bold text-white">{parseInt(profile?.wallet_coins || 0)}</p>
           </div>
           <div className="bg-discord-dark border border-gray-800 rounded-lg p-3">
             <FaGift className="text-xl md:text-2xl text-blue-400 mb-1" />
