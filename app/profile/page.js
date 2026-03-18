@@ -37,7 +37,7 @@ export default function ProfilePage() {
     username: '',
     email: '',
     phone: '',
-    discord_username: ''
+    discord_id: ''
   });
 
   useEffect(() => {
@@ -53,11 +53,26 @@ export default function ProfilePage() {
         username: profile.username || '',
         email: profile.email || '',
         phone: profile.phone || '',
-        discord_username: profile.discord_username || ''
+        discord_id: profile.discord_id || ''
       });
 
-      // Load tournament history
-      const { data: tournamentData } = await supabase
+      setLoading(false);
+
+      // Load tournament history in background (non-blocking)
+      loadTournamentHistory();
+      
+      // Load transactions in background (non-blocking)
+      loadTransactions();
+
+    } catch (error) {
+      console.error('Error loading profile data:', error);
+      setLoading(false);
+    }
+  };
+
+  const loadTournamentHistory = async () => {
+    try {
+      const { data: tournamentData, error } = await supabase
         .from('tournament_registrations')
         .select(`
           *,
@@ -72,10 +87,20 @@ export default function ProfilePage() {
         .order('registered_at', { ascending: false })
         .limit(10);
 
-      setTournamentHistory(tournamentData || []);
+      if (error) {
+        console.error('Tournament history error:', error);
+        return;
+      }
 
-      // Load recent transactions (from admin_logs where it affects this user's wallet)
-      const { data: transactionData } = await supabase
+      setTournamentHistory(tournamentData || []);
+    } catch (error) {
+      console.error('Error loading tournament history:', error);
+    }
+  };
+
+  const loadTransactions = async () => {
+    try {
+      const { data: transactionData, error } = await supabase
         .from('admin_logs')
         .select('*')
         .eq('user_id', user.id)
@@ -83,12 +108,14 @@ export default function ProfilePage() {
         .order('created_at', { ascending: false })
         .limit(20);
 
-      setTransactions(transactionData || []);
+      if (error) {
+        console.error('Transactions error:', error);
+        return;
+      }
 
+      setTransactions(transactionData || []);
     } catch (error) {
-      console.error('Error loading profile data:', error);
-    } finally {
-      setLoading(false);
+      console.error('Error loading transactions:', error);
     }
   };
 
@@ -106,7 +133,7 @@ export default function ProfilePage() {
           username: editForm.username,
           email: editForm.email,
           phone: editForm.phone,
-          discord_username: editForm.discord_username
+          discord_id: editForm.discord_id
         })
         .eq('id', user.id);
 
@@ -180,10 +207,10 @@ export default function ProfilePage() {
                     <span>{profile.phone}</span>
                   </div>
                 )}
-                {profile.discord_username && (
+                {profile.discord_id && (
                   <div className="flex items-center justify-center md:justify-start gap-2 text-purple-200">
                     <FaDiscord className="text-purple-400" />
-                    <span>{profile.discord_username}</span>
+                    <span>{profile.discord_id}</span>
                   </div>
                 )}
               </div>
@@ -400,13 +427,13 @@ export default function ProfilePage() {
               </div>
 
               <div>
-                <label className="block text-white font-semibold mb-2 text-sm">Discord Username</label>
+                <label className="block text-white font-semibold mb-2 text-sm">Discord ID</label>
                 <input
                   type="text"
-                  value={editForm.discord_username}
-                  onChange={(e) => setEditForm({...editForm, discord_username: e.target.value})}
+                  value={editForm.discord_id}
+                  onChange={(e) => setEditForm({...editForm, discord_id: e.target.value})}
                   className="w-full px-4 py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-purple-600"
-                  placeholder="username#1234"
+                  placeholder="username#1234 or Discord ID"
                 />
               </div>
             </div>
