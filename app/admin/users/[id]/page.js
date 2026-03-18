@@ -547,7 +547,15 @@ export default function UserDetailPage() {
           </div>
         </div>
       </div>
-
+      {/* DEBUG INFO */}
+      {isBanActuallyActive && (
+        <div className="bg-yellow-900 bg-opacity-20 border border-yellow-600 rounded-xl p-4 mb-4">
+          <p className="text-yellow-300 text-xs">DEBUG INFO:</p>
+          <p className="text-yellow-300 text-xs">Raw UTC: {activeBan.expires_at}</p>
+          <p className="text-yellow-300 text-xs">Raw Date Object: {new Date(activeBan.expires_at).toString()}</p>
+          <p className="text-yellow-300 text-xs">IST Converted: {new Date(new Date(activeBan.expires_at).getTime() + 19800000).toUTCString()}</p>
+        </div>
+      )}
       {/* Active Ban Warning */}
       {isBanActuallyActive && (
         <div className="bg-red-900 bg-opacity-20 border border-red-600 rounded-xl p-5 mb-6">
