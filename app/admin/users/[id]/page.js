@@ -187,19 +187,24 @@ export default function UserDetailPage() {
   };
 
   const handleSuspendUser = async () => {
-    if (!suspendForm.reason.trim()) {
-      alert('❌ Please provide a reason for suspension');
-      return;
-    }
+      if (!suspendForm.reason.trim()) {
+        alert('❌ Please provide a reason for suspension');
+        return;
+      }
 
-    setProcessing(true);
+      setProcessing(true);
 
-    try {
-      const { data: { user: adminUser } } = await supabase.auth.getUser();
+      try {
+        const { data: { user: adminUser } } = await supabase.auth.getUser();
 
-      const durationDays = parseInt(suspendForm.duration);
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + durationDays);
+        const durationDays = parseInt(suspendForm.duration);
+      
+      // CRITICAL FIX: Calculate expiration in IST timezone
+        const now = new Date();
+        const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
+        const nowIST = new Date(now.getTime() + istOffset);
+        const expiresAtIST = new Date(nowIST.getTime() + (durationDays * 24 * 60 * 60 * 1000));
+        const expiresAt = new Date(expiresAtIST.getTime() - istOffset); // Convert back to UTC for storage
 
       const { data: suspendData } = await supabase
         .from('user_bans')
