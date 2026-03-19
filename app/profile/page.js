@@ -52,7 +52,6 @@ export default function ProfilePage() {
 
   const loadProfileData = async () => {
     try {
-      // Initialize edit form with current values
       setEditForm({
         username: profile.username || '',
         email: profile.email || '',
@@ -62,13 +61,8 @@ export default function ProfilePage() {
       });
 
       setLoading(false);
-
-      // Load tournament history in background (non-blocking)
       loadTournamentHistory();
-      
-      // Load transactions in background (non-blocking)
       loadTransactions();
-
     } catch (error) {
       console.error('Error loading profile data:', error);
       setLoading(false);
@@ -130,9 +124,32 @@ export default function ProfilePage() {
       return;
     }
 
+    // Validate email format
+    if (editForm.email && editForm.email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(editForm.email)) {
+        alert('❌ Please enter a valid email address\n\nExample: user@example.com');
+        return;
+      }
+    }
+
+    // Validate phone number
+    if (editForm.phone && editForm.phone.trim()) {
+      const phoneRegex = /^[0-9]+$/;
+      if (!phoneRegex.test(editForm.phone)) {
+        alert('❌ Phone number must contain only digits');
+        return;
+      }
+      const maxLength = getCountryByCode(editForm.country_code).maxLength;
+      if (editForm.phone.length !== maxLength) {
+        alert(`❌ Phone number must be exactly ${maxLength} digits for ${getCountryByCode(editForm.country_code).name}`);
+        return;
+      }
+    }
+
     setProcessing(true);
     try {
-      // Check if discord_id already exists (if changing)
+      // Check if discord_id already exists
       if (editForm.discord_id && editForm.discord_id !== profile.discord_id) {
         const { data: existingDiscord } = await supabase
           .from('users')
@@ -148,7 +165,7 @@ export default function ProfilePage() {
         }
       }
 
-      // Check if phone already exists (if changing)
+      // Check if phone already exists
       if (editForm.phone && 
           (editForm.phone !== profile.phone || editForm.country_code !== profile.country_code)) {
         const { data: existingPhone } = await supabase
@@ -166,7 +183,6 @@ export default function ProfilePage() {
         }
       }
 
-      // Check if profile is now complete
       const profileComplete = !!(
         editForm.username &&
         editForm.email &&
@@ -176,10 +192,10 @@ export default function ProfilePage() {
 
       const updateData = {
         username: editForm.username,
-        email: editForm.email,
-        phone: editForm.phone,
+        email: editForm.email || null,
+        phone: editForm.phone || null,
         country_code: editForm.country_code,
-        discord_id: editForm.discord_id,
+        discord_id: editForm.discord_id || null,
         is_verified: profileComplete,
         profile_completed_at: profileComplete && !profile.is_verified ? new Date().toISOString() : profile.profile_completed_at
       };
@@ -242,7 +258,6 @@ export default function ProfilePage() {
       <div className="max-w-6xl mx-auto">
         {/* Profile Header */}
         <div className="bg-gradient-to-br from-purple-900 to-purple-800 rounded-xl p-4 md:p-6 mb-4 border border-purple-600">
-          {/* Profile Completion Warning */}
           {!profile.is_verified && (
             <div className="bg-yellow-600 bg-opacity-20 border border-yellow-600 rounded-lg px-3 py-2 mb-4">
               <p className="text-yellow-400 text-xs md:text-sm flex items-center gap-2">
@@ -253,12 +268,10 @@ export default function ProfilePage() {
           )}
 
           <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6">
-            {/* Avatar */}
             <div className="w-24 h-24 md:w-32 md:h-32 bg-gradient-to-br from-purple-600 to-purple-800 rounded-full flex items-center justify-center font-bold text-white text-4xl md:text-5xl border-4 border-purple-400 shadow-lg">
               {getInitial()}
             </div>
 
-            {/* User Info */}
             <div className="flex-1 text-center md:text-left">
               <h1 className="text-2xl md:text-3xl font-bold text-white mb-2 flex items-center justify-center md:justify-start gap-2">
                 {profile.username}
@@ -292,7 +305,6 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Edit Button */}
             <button
               onClick={() => setShowEditModal(true)}
               className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-all flex items-center gap-2"
@@ -302,7 +314,6 @@ export default function ProfilePage() {
             </button>
           </div>
 
-          {/* Level & XP Bar */}
           <div className="mt-4 bg-purple-900 bg-opacity-40 rounded-lg p-3">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -388,7 +399,6 @@ export default function ProfilePage() {
 
         {/* Tournament History & Transactions */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Tournament History */}
           <div className="bg-discord-dark border border-gray-800 rounded-xl p-4 md:p-6">
             <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
               <FaHistory className="text-blue-400" />
@@ -431,7 +441,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Transaction History */}
           <div className="bg-discord-dark border border-gray-800 rounded-xl p-4 md:p-6">
             <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
               <FaExchangeAlt className="text-purple-400" />
@@ -506,7 +515,7 @@ export default function ProfilePage() {
                   value={editForm.email}
                   onChange={(e) => setEditForm({...editForm, email: e.target.value})}
                   className="w-full px-4 py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-purple-600"
-                  placeholder="your@email.com"
+                  placeholder="your@example.com"
                 />
               </div>
 
