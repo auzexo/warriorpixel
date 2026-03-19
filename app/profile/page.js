@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
+import { countryCodes, getCountryByCode } from '@/lib/countryCodes';
 import { 
   FaUser, 
   FaEdit, 
@@ -39,6 +40,7 @@ export default function ProfilePage() {
     username: '',
     email: '',
     phone: '',
+    country_code: '+91',
     discord_id: ''
   });
 
@@ -55,6 +57,7 @@ export default function ProfilePage() {
         username: profile.username || '',
         email: profile.email || '',
         phone: profile.phone || '',
+        country_code: profile.country_code || '+91',
         discord_id: profile.discord_id || ''
       });
 
@@ -75,7 +78,7 @@ export default function ProfilePage() {
   const loadTournamentHistory = async () => {
     try {
       const { data: tournamentData, error } = await supabase
-        .from('tournament_registrations')
+        .from('tournament_participants')
         .select(`
           *,
           tournaments (
@@ -146,16 +149,18 @@ export default function ProfilePage() {
       }
 
       // Check if phone already exists (if changing)
-      if (editForm.phone && editForm.phone !== profile.phone) {
+      if (editForm.phone && 
+          (editForm.phone !== profile.phone || editForm.country_code !== profile.country_code)) {
         const { data: existingPhone } = await supabase
           .from('users')
           .select('id')
           .eq('phone', editForm.phone)
+          .eq('country_code', editForm.country_code)
           .neq('id', user.id)
           .single();
 
         if (existingPhone) {
-          alert('❌ This phone number is already in use by another account');
+          alert(`❌ This phone number is already in use\n\n${editForm.country_code} ${editForm.phone}`);
           setProcessing(false);
           return;
         }
@@ -173,6 +178,7 @@ export default function ProfilePage() {
         username: editForm.username,
         email: editForm.email,
         phone: editForm.phone,
+        country_code: editForm.country_code,
         discord_id: editForm.discord_id,
         is_verified: profileComplete,
         profile_completed_at: profileComplete && !profile.is_verified ? new Date().toISOString() : profile.profile_completed_at
@@ -274,7 +280,7 @@ export default function ProfilePage() {
                 {profile.phone && (
                   <div className="flex items-center justify-center md:justify-start gap-2 text-purple-200">
                     <FaPhone className="text-purple-400" />
-                    <span>{profile.phone}</span>
+                    <span>{profile.country_code || '+91'} {profile.phone}</span>
                   </div>
                 )}
                 {profile.discord_id && (
@@ -505,14 +511,45 @@ export default function ProfilePage() {
               </div>
 
               <div>
-                <label className="block text-white font-semibold mb-2 text-sm">Phone</label>
-                <input
-                  type="tel"
-                  value={editForm.phone}
-                  onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
-                  className="w-full px-4 py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-purple-600"
-                  placeholder="+91 1234567890"
-                />
+                <label className="block text-white font-semibold mb-2 text-sm">Phone Number</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <select
+                      value={editForm.country_code || '+91'}
+                      onChange={(e) => {
+                        const newCode = e.target.value;
+                        setEditForm({
+                          ...editForm, 
+                          country_code: newCode,
+                          phone: ''
+                        });
+                      }}
+                      className="w-full px-3 py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-purple-600 text-sm"
+                    >
+                      {countryCodes.map(country => (
+                        <option key={country.code} value={country.code}>
+                          {country.flag} {country.code}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-2">
+                    <input
+                      type="tel"
+                      maxLength={getCountryByCode(editForm.country_code).maxLength}
+                      value={editForm.phone}
+                      onChange={(e) => {
+                        const cleaned = e.target.value.replace(/\D/g, '');
+                        setEditForm({...editForm, phone: cleaned});
+                      }}
+                      className="w-full px-4 py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-purple-600"
+                      placeholder={`${getCountryByCode(editForm.country_code).maxLength} digits`}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {getCountryByCode(editForm.country_code).name} - {getCountryByCode(editForm.country_code).maxLength} digits
+                </p>
               </div>
 
               <div>
