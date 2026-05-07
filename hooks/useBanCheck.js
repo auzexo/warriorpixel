@@ -22,6 +22,8 @@ export function useBanCheck() {
     '/downloads',
     '/contact',
     '/about',
+    '/terms',      // Legal pages
+    '/privacy',    // Legal pages
     '/restricted'
   ];
 
