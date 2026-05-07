@@ -17,14 +17,13 @@ const allowedForBannedUsers = [
   '/', 
   '/videos', 
   '/info', 
-  '/download', 
+  '/downloads', 
   '/help', 
   '/about', 
   '/contact', 
   '/terms', 
   '/privacy',
   '/restricted',
-  '/home'
 ];
 
 export default function ClientLayout({ children }) {
