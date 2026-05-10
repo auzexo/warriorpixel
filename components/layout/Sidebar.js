@@ -31,8 +31,7 @@ export default function Sidebar({ isOpen, onClose }) {
   const { banStatus, isBanned } = useBanCheck();
 
   // Pages that banned users CAN access
-  const allowedForBanned = ['/', '/videos', '/info', '/downloads', '/help', '/about', '/contact', '/terms', '/privacy', '/restricted'];
-
+  const allowedForBanned = ['/', '/videos', '/info', '/download', '/downloads', '/help', '/about', '/contact', '/terms', '/privacy', '/restricted'];
   const menuItems = [
     { icon: FaHome, label: 'Home', path: '/', color: 'text-purple-400', allowedWhenBanned: true },
     { icon: FaTrophy, label: 'Tournaments', path: '/tournaments', requireAuth: true, color: 'text-purple-400', allowedWhenBanned: false },
@@ -43,7 +42,7 @@ export default function Sidebar({ isOpen, onClose }) {
     { icon: FaAchievement, label: 'Achievements', path: '/achievements', requireAuth: true, color: 'text-orange-400', allowedWhenBanned: false },
     { icon: FaWallet, label: 'Wallet', path: '/wallet', requireAuth: true, color: 'text-purple-400', allowedWhenBanned: false },
     { icon: FaInfoCircle, label: 'Info & Help', path: '/info', color: 'text-purple-400', allowedWhenBanned: true },
-    { icon: FaDownload, label: 'Download App', path: '/downloads', color: 'text-purple-400', allowedWhenBanned: true },
+    { icon: FaDownload, label: 'Download App', path: '/download', color: 'text-purple-400', allowedWhenBanned: true },
   ];
 
   const handleNavigation = (path, isRestricted) => {
