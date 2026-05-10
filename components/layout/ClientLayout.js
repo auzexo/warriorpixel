@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { useBanCheck } from '@/hooks/useBanCheck';
+import { BanProvider } from '@/context/BanContext';
+import { useBanContext } from '@/context/BanContext';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import AuthModal from '../auth/AuthModal';
@@ -15,26 +16,11 @@ const publicRoutes = [
   '/home', '/terms', '/privacy', '/help', '/about', '/contact'
 ];
 
-// Pages that banned/suspended users CAN access
-const allowedForBannedUsers = [
-  '/',
-  '/videos',
-  '/info',
-  '/help',
-  '/download',
-  '/downloads',
-  '/about',
-  '/contact',
-  '/terms',
-  '/privacy',
-  '/restricted',
-];
-
-export default function ClientLayout({ children }) {
+// Inner layout that can use BanContext
+function InnerLayout({ children }) {
   const pathname = usePathname();
-  const router = useRouter();
   const { user, profile, loading } = useAuth();
-  const { banStatus, isBanned, loading: banLoading, checked: banChecked } = useBanCheck();
+  const { banLoading, checked: banChecked } = useBanContext();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
@@ -44,12 +30,6 @@ export default function ClientLayout({ children }) {
   const isAuthCallback = pathname?.startsWith('/auth/callback');
   const requiresAuth = !isPublicRoute && !isAdminRoute && !isAuthCallback;
 
-  // Check if current page is allowed for banned users
-  const isAllowedForBanned = allowedForBannedUsers.some(route =>
-    pathname === route || pathname.startsWith(route + '/')
-  );
-
-  // Auth check
   useEffect(() => {
     if (!loading) {
       setAuthChecked(true);
@@ -61,12 +41,10 @@ export default function ClientLayout({ children }) {
     }
   }, [loading, requiresAuth, user]);
 
-  // Close sidebar on navigation
   useEffect(() => {
     setSidebarOpen(false);
   }, [pathname]);
 
-  // Show loading while checking auth or ban status
   if (loading || !authChecked || (user && banLoading)) {
     return <LoadingScreen />;
   }
@@ -78,17 +56,23 @@ export default function ClientLayout({ children }) {
   return (
     <div className="min-h-screen bg-discord-darkest text-white">
       <Topbar onMenuClick={() => setSidebarOpen(true)} />
-
       <div className="flex">
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <main className="flex-1 p-4 md:p-6 lg:p-8">{children}</main>
       </div>
-
       {showAuthModal && !user && requiresAuth && authChecked && (
         <AuthModal />
       )}
-
       <CookieConsent />
     </div>
   );
-        }
+}
+
+// Outer layout wraps with BanProvider
+export default function ClientLayout({ children }) {
+  return (
+    <BanProvider>
+      <InnerLayout>{children}</InnerLayout>
+    </BanProvider>
+  );
+}
