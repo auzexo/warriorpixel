@@ -30,14 +30,38 @@ export default function Topbar({ onMenuClick }) {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    if (user) {
-      loadNotifications();
-      // Refresh profile every 30 seconds to catch admin changes
-      const interval = setInterval(() => {
-        refreshProfile();
-      }, 30000);
-      return () => clearInterval(interval);
-    }
+    if (!user) return;
+
+  // Initial load
+    loadNotifications();
+  
+  // Refresh profile every 30 seconds
+    const profileInterval = setInterval(() => {
+      refreshProfile();
+    }, 30000);
+
+  // REAL-TIME: Subscribe to new notifications
+    const channel = supabase
+      .channel(`notifications:${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+        // Reload notifications on any change
+          loadNotifications();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      clearInterval(profileInterval);
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   const loadNotifications = async () => {
