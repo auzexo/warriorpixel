@@ -13,20 +13,22 @@ export function useBanCheck() {
   const [loading, setLoading] = useState(true);
   const [checked, setChecked] = useState(false);
 
-  // Pages banned/suspended users CAN access (read-only access)
+  // Pages banned/suspended users CAN access
   const ALLOWED_PATHS = [
     '/',
     '/videos',
     '/info',
     '/help',
+    '/download',
     '/downloads',
     '/contact',
     '/about',
-    '/terms',      // Legal pages
-    '/privacy',    // Legal pages
+    '/terms',
+    '/privacy',
     '/restricted'
   ];
 
+  // Re-run ban check on EVERY page navigation
   useEffect(() => {
     if (user) {
       checkBanStatus();
@@ -34,7 +36,7 @@ export function useBanCheck() {
       setLoading(false);
       setChecked(true);
     }
-  }, [user]);
+  }, [user, pathname]); // ← KEY FIX: pathname added
 
   const checkBanStatus = async () => {
     if (!user) {
@@ -44,9 +46,6 @@ export function useBanCheck() {
     }
 
     try {
-      // Check for active ban/suspension
-      const now = new Date().toISOString();
-      
       const { data: bans, error } = await supabase
         .from('user_bans')
         .select('*')
@@ -66,14 +65,13 @@ export function useBanCheck() {
 
       setBanStatus(activeBan || null);
 
-      // If user is banned/suspended and trying to access restricted page
+      // Redirect if banned and on protected page
       if (activeBan) {
-        const isAllowedPath = ALLOWED_PATHS.some(path => 
+        const isAllowedPath = ALLOWED_PATHS.some(path =>
           pathname === path || pathname.startsWith(path + '/')
         );
 
-        // Redirect to restricted page if trying to access forbidden area
-        if (!isAllowedPath && pathname !== '/restricted') {
+        if (!isAllowedPath && !pathname.startsWith('/admin')) {
           router.push('/restricted');
         }
       }
