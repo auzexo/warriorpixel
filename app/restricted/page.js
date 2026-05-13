@@ -3,9 +3,22 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
-import { formatISTDate } from '@/lib/timeUtils';
 import { FaBan, FaHome, FaVideo, FaInfoCircle, FaQuestionCircle, FaDownload, FaExclamationTriangle } from 'react-icons/fa';
 import Link from 'next/link';
+
+// IST formatter — always correct
+const toIST = (utcString) => {
+  if (!utcString) return 'Unknown';
+  return new Date(utcString).toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  }) + ' IST';
+};
 
 export default function RestrictedPage() {
   const { user } = useAuth();
@@ -22,15 +35,12 @@ export default function RestrictedPage() {
 
   const loadBanStatus = async () => {
     try {
-      const now = new Date().toISOString();
-      
       const { data: bans } = await supabase
         .from('user_bans')
         .select('*')
         .eq('user_id', user.id)
         .eq('is_active', true);
 
-      // Find active ban
       const activeBan = bans?.find(ban => {
         if (ban.ban_type === 'permanent') return true;
         if (ban.ban_type === 'temporary' && ban.expires_at) {
@@ -104,7 +114,7 @@ export default function RestrictedPage() {
             {banStatus.ban_type === 'temporary' && banStatus.expires_at && (
               <div className="mb-3">
                 <p className="text-red-300 text-lg">
-                  <strong>Expires:</strong> {formatISTDate(banStatus.expires_at, true)}
+                  <strong>Expires:</strong> {toIST(banStatus.expires_at)}
                 </p>
                 <p className="text-xs text-red-400 mt-2">
                   Your access will be automatically restored after this date.
@@ -113,7 +123,7 @@ export default function RestrictedPage() {
             )}
             
             <p className="text-sm text-red-400 mt-3">
-              Banned on: {formatISTDate(banStatus.created_at, true)}
+              Banned on: {toIST(banStatus.created_at)}
             </p>
           </div>
 
@@ -146,55 +156,32 @@ export default function RestrictedPage() {
           </p>
           
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <Link 
-              href="/" 
-              className="p-5 bg-discord-darkest hover:bg-gray-700 rounded-lg transition-all text-center border border-gray-700 hover:border-purple-600"
-            >
+            <Link href="/" className="p-5 bg-discord-darkest hover:bg-gray-700 rounded-lg transition-all text-center border border-gray-700 hover:border-purple-600">
               <FaHome className="text-3xl text-blue-400 mx-auto mb-3" />
               <p className="text-white font-semibold text-sm mb-1">Home</p>
               <p className="text-discord-text text-xs">Main page</p>
             </Link>
-            
-            <Link 
-              href="/videos" 
-              className="p-5 bg-discord-darkest hover:bg-gray-700 rounded-lg transition-all text-center border border-gray-700 hover:border-purple-600"
-            >
+            <Link href="/videos" className="p-5 bg-discord-darkest hover:bg-gray-700 rounded-lg transition-all text-center border border-gray-700 hover:border-purple-600">
               <FaVideo className="text-3xl text-red-400 mx-auto mb-3" />
               <p className="text-white font-semibold text-sm mb-1">Videos</p>
               <p className="text-discord-text text-xs">Watch content</p>
             </Link>
-            
-            <Link 
-              href="/info" 
-              className="p-5 bg-discord-darkest hover:bg-gray-700 rounded-lg transition-all text-center border border-gray-700 hover:border-purple-600"
-            >
+            <Link href="/info" className="p-5 bg-discord-darkest hover:bg-gray-700 rounded-lg transition-all text-center border border-gray-700 hover:border-purple-600">
               <FaInfoCircle className="text-3xl text-green-400 mx-auto mb-3" />
               <p className="text-white font-semibold text-sm mb-1">Info</p>
               <p className="text-discord-text text-xs">Platform info</p>
             </Link>
-            
-            <Link 
-              href="/help" 
-              className="p-5 bg-discord-darkest hover:bg-gray-700 rounded-lg transition-all text-center border border-gray-700 hover:border-purple-600"
-            >
+            <Link href="/help" className="p-5 bg-discord-darkest hover:bg-gray-700 rounded-lg transition-all text-center border border-gray-700 hover:border-purple-600">
               <FaQuestionCircle className="text-3xl text-yellow-400 mx-auto mb-3" />
               <p className="text-white font-semibold text-sm mb-1">Help</p>
               <p className="text-discord-text text-xs">Support center</p>
             </Link>
-            
-            <Link 
-              href="/downloads" 
-              className="p-5 bg-discord-darkest hover:bg-gray-700 rounded-lg transition-all text-center border border-gray-700 hover:border-purple-600"
-            >
+            <Link href="/downloads" className="p-5 bg-discord-darkest hover:bg-gray-700 rounded-lg transition-all text-center border border-gray-700 hover:border-purple-600">
               <FaDownload className="text-3xl text-purple-400 mx-auto mb-3" />
               <p className="text-white font-semibold text-sm mb-1">Downloads</p>
               <p className="text-discord-text text-xs">Get files</p>
             </Link>
-            
-            <Link 
-              href="/about" 
-              className="p-5 bg-discord-darkest hover:bg-gray-700 rounded-lg transition-all text-center border border-gray-700 hover:border-purple-600"
-            >
+            <Link href="/about" className="p-5 bg-discord-darkest hover:bg-gray-700 rounded-lg transition-all text-center border border-gray-700 hover:border-purple-600">
               <FaInfoCircle className="text-3xl text-cyan-400 mx-auto mb-3" />
               <p className="text-white font-semibold text-sm mb-1">About</p>
               <p className="text-discord-text text-xs">About us</p>
@@ -207,10 +194,7 @@ export default function RestrictedPage() {
           <p className="text-sm text-discord-text mb-2">
             If you believe this {banStatus.ban_type === 'permanent' ? 'ban' : 'suspension'} is a mistake, please contact support.
           </p>
-          <Link 
-            href="/help" 
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-all"
-          >
+          <Link href="/help" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-all">
             <FaQuestionCircle />
             Contact Support
           </Link>
