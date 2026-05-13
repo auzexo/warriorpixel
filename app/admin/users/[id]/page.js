@@ -142,30 +142,17 @@ export default function UserDetailPage() {
     try {
       const { data: { user: adminUser } } = await supabase.auth.getUser();
 
-      // Create ban record
-      const { data: banData } = await supabase
-        .from('user_bans')
-        .insert({
-          user_id: params.id,
-          ban_type: 'permanent',
-          reason: banForm.reason.trim(),
-          expires_at: null,
-          banned_by: adminUser?.id,
-          is_active: true
-        })
-        .select()
-        .single();
+      // Use SQL function - bypasses RLS
+      const { data, error } = await supabase.rpc('create_user_ban', {
+        p_user_id: params.id,
+        p_ban_type: 'permanent',
+        p_reason: banForm.reason.trim(),
+        p_expires_at: null,
+        p_banned_by: adminUser?.id
+      });
 
-      // Send notification to user
-      await supabase
-        .from('notifications')
-        .insert({
-          user_id: params.id,
-          title: '❌ Account Permanently Banned',
-          message: `Your account has been permanently banned. Reason: ${banForm.reason}`,
-          type: 'ban',
-          read: false
-        });
+      if (error) throw error;
+      if (!data?.success) throw new Error('Ban failed - no data returned');
 
       // LOG ACTION
       await logAdminAction('user_ban', {
@@ -173,7 +160,7 @@ export default function UserDetailPage() {
         username: user.username,
         ban_type: 'permanent',
         reason: banForm.reason.trim(),
-        ban_id: banData?.id
+        ban_id: data.ban_id
       });
 
       alert('✅ User permanently banned');
@@ -189,44 +176,30 @@ export default function UserDetailPage() {
   };
 
   const handleSuspendUser = async () => {
-      if (!suspendForm.reason.trim()) {
-        alert('❌ Please provide a reason for suspension');
-        return;
-      }
+    if (!suspendForm.reason.trim()) {
+      alert('❌ Please provide a reason for suspension');
+      return;
+    }
 
-      setProcessing(true);
+    setProcessing(true);
 
-      try {
-        const { data: { user: adminUser } } = await supabase.auth.getUser();
+    try {
+      const { data: { user: adminUser } } = await supabase.auth.getUser();
 
-        const durationDays = parseInt(suspendForm.duration);
+      const durationDays = parseInt(suspendForm.duration);
+      const expiresAt = new Date(Date.now() + (durationDays * 24 * 60 * 60 * 1000));
 
-// Simple date math - JavaScript handles timezone automatically
-        const now = new Date(); // Current time in IST
-        const expiresAt = new Date(now.getTime() + (durationDays * 24 * 60 * 60 * 1000));
+      // Use SQL function - bypasses RLS
+      const { data, error } = await supabase.rpc('create_user_ban', {
+        p_user_id: params.id,
+        p_ban_type: 'temporary',
+        p_reason: suspendForm.reason.trim(),
+        p_expires_at: expiresAt.toISOString(),
+        p_banned_by: adminUser?.id
+      });
 
-      const { data: suspendData } = await supabase
-        .from('user_bans')
-        .insert({
-          user_id: params.id,
-          ban_type: 'temporary',
-          reason: suspendForm.reason.trim(),
-          expires_at: expiresAt.toISOString(),
-          banned_by: adminUser?.id,
-          is_active: true
-        })
-        .select()
-        .single();
-
-      await supabase
-        .from('notifications')
-        .insert({
-          user_id: params.id,
-          title: '⏸️ Account Suspended',
-          message: `Your account has been suspended for ${durationDays} days. Reason: ${suspendForm.reason}`,
-          type: 'suspend',
-          read: false
-        });
+      if (error) throw error;
+      if (!data?.success) throw new Error('Suspension failed - no data returned');
 
       // LOG ACTION
       await logAdminAction('user_suspend', {
@@ -236,7 +209,7 @@ export default function UserDetailPage() {
         duration_days: durationDays,
         expires_at: expiresAt.toISOString(),
         reason: suspendForm.reason.trim(),
-        suspend_id: suspendData?.id
+        ban_id: data.ban_id
       });
 
       alert(`✅ User suspended for ${durationDays} days`);
@@ -258,14 +231,13 @@ export default function UserDetailPage() {
     try {
       const { data: { user: adminUser } } = await supabase.auth.getUser();
 
-      await supabase
-        .from('user_bans')
-        .update({
-          is_active: false,
-          unbanned_by: adminUser?.id,
-          unbanned_at: new Date().toISOString()
-        })
-        .eq('id', banId);
+      // Use SQL function - bypasses RLS
+      const { data, error } = await supabase.rpc('lift_user_ban', {
+        p_ban_id: banId,
+        p_unbanned_by: adminUser?.id
+      });
+
+      if (error) throw error;
 
       await supabase
         .from('notifications')
