@@ -38,7 +38,6 @@ export default function UserDetailPage() {
     wallet_real: '0',
     wallet_bonus: '0',
     wallet_gems: '0',
-    wallet_coins: '0',
     wallet_vouchers_20: '0',
     wallet_vouchers_30: '0',
     wallet_vouchers_50: '0',
@@ -68,7 +67,6 @@ export default function UserDetailPage() {
         wallet_real: String(userData.wallet_real || 0),
         wallet_bonus: String(userData.wallet_bonus || 0),
         wallet_gems: String(userData.wallet_gems || 0),
-        wallet_coins: String(userData.wallet_coins || 0),
         wallet_vouchers_20: String(userData.wallet_vouchers_20 || 0),
         wallet_vouchers_30: String(userData.wallet_vouchers_30 || 0),
         wallet_vouchers_50: String(userData.wallet_vouchers_50 || 0),
@@ -142,17 +140,30 @@ export default function UserDetailPage() {
     try {
       const { data: { user: adminUser } } = await supabase.auth.getUser();
 
-      // Use SQL function - bypasses RLS
-      const { data, error } = await supabase.rpc('create_user_ban', {
-        p_user_id: params.id,
-        p_ban_type: 'permanent',
-        p_reason: banForm.reason.trim(),
-        p_expires_at: null,
-        p_banned_by: adminUser?.id
-      });
+      // Create ban record
+      const { data: banData } = await supabase
+        .from('user_bans')
+        .insert({
+          user_id: params.id,
+          ban_type: 'permanent',
+          reason: banForm.reason.trim(),
+          expires_at: null,
+          banned_by: adminUser?.id,
+          is_active: true
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
-      if (!data?.success) throw new Error('Ban failed - no data returned');
+      // Send notification to user
+      await supabase
+        .from('notifications')
+        .insert({
+          user_id: params.id,
+          title: '❌ Account Permanently Banned',
+          message: `Your account has been permanently banned. Reason: ${banForm.reason}`,
+          type: 'ban',
+          read: false
+        });
 
       // LOG ACTION
       await logAdminAction('user_ban', {
@@ -160,7 +171,7 @@ export default function UserDetailPage() {
         username: user.username,
         ban_type: 'permanent',
         reason: banForm.reason.trim(),
-        ban_id: data.ban_id
+        ban_id: banData?.id
       });
 
       alert('✅ User permanently banned');
@@ -176,30 +187,44 @@ export default function UserDetailPage() {
   };
 
   const handleSuspendUser = async () => {
-    if (!suspendForm.reason.trim()) {
-      alert('❌ Please provide a reason for suspension');
-      return;
-    }
+      if (!suspendForm.reason.trim()) {
+        alert('❌ Please provide a reason for suspension');
+        return;
+      }
 
-    setProcessing(true);
+      setProcessing(true);
 
-    try {
-      const { data: { user: adminUser } } = await supabase.auth.getUser();
+      try {
+        const { data: { user: adminUser } } = await supabase.auth.getUser();
 
-      const durationDays = parseInt(suspendForm.duration);
-      const expiresAt = new Date(Date.now() + (durationDays * 24 * 60 * 60 * 1000));
+        const durationDays = parseInt(suspendForm.duration);
 
-      // Use SQL function - bypasses RLS
-      const { data, error } = await supabase.rpc('create_user_ban', {
-        p_user_id: params.id,
-        p_ban_type: 'temporary',
-        p_reason: suspendForm.reason.trim(),
-        p_expires_at: expiresAt.toISOString(),
-        p_banned_by: adminUser?.id
-      });
+// Simple date math - JavaScript handles timezone automatically
+        const now = new Date(); // Current time in IST
+        const expiresAt = new Date(now.getTime() + (durationDays * 24 * 60 * 60 * 1000));
 
-      if (error) throw error;
-      if (!data?.success) throw new Error('Suspension failed - no data returned');
+      const { data: suspendData } = await supabase
+        .from('user_bans')
+        .insert({
+          user_id: params.id,
+          ban_type: 'temporary',
+          reason: suspendForm.reason.trim(),
+          expires_at: expiresAt.toISOString(),
+          banned_by: adminUser?.id,
+          is_active: true
+        })
+        .select()
+        .single();
+
+      await supabase
+        .from('notifications')
+        .insert({
+          user_id: params.id,
+          title: '⏸️ Account Suspended',
+          message: `Your account has been suspended for ${durationDays} days. Reason: ${suspendForm.reason}`,
+          type: 'suspend',
+          read: false
+        });
 
       // LOG ACTION
       await logAdminAction('user_suspend', {
@@ -209,7 +234,7 @@ export default function UserDetailPage() {
         duration_days: durationDays,
         expires_at: expiresAt.toISOString(),
         reason: suspendForm.reason.trim(),
-        ban_id: data.ban_id
+        suspend_id: suspendData?.id
       });
 
       alert(`✅ User suspended for ${durationDays} days`);
@@ -231,14 +256,14 @@ export default function UserDetailPage() {
     try {
       const { data: { user: adminUser } } = await supabase.auth.getUser();
 
-      // Use SQL function - bypasses RLS
-      const { data, error } = await supabase.rpc('lift_user_ban', {
-        p_ban_id: banId,
-        p_unbanned_by: adminUser?.id
-      });
-
-      if (error) throw error;
-
+      await supabase
+        .from('user_bans')
+        .update({
+          is_active: false,
+          unbanned_by: adminUser?.id,
+          unbanned_at: new Date().toISOString()
+        })
+        .eq('id', banId);
 
 
       // LOG ACTION
@@ -342,7 +367,6 @@ export default function UserDetailPage() {
         wallet_real: parseFloat(user.wallet_real || 0),
         wallet_bonus: parseFloat(user.wallet_bonus || 0),
         wallet_gems: parseFloat(user.wallet_gems || 0),
-        wallet_coins: parseFloat(user.wallet_coins || 0),
         wallet_vouchers_20: parseInt(user.wallet_vouchers_20 || 0),
         wallet_vouchers_30: parseInt(user.wallet_vouchers_30 || 0),
         wallet_vouchers_50: parseInt(user.wallet_vouchers_50 || 0)
@@ -352,7 +376,6 @@ export default function UserDetailPage() {
         wallet_real: parseFloat(walletForm.wallet_real || 0),
         wallet_bonus: parseFloat(walletForm.wallet_bonus || 0),
         wallet_gems: parseFloat(walletForm.wallet_gems || 0),
-        wallet_coins: parseFloat(walletForm.wallet_coins || 0),
         wallet_vouchers_20: parseInt(walletForm.wallet_vouchers_20 || 0),
         wallet_vouchers_30: parseInt(walletForm.wallet_vouchers_30 || 0),
         wallet_vouchers_50: parseInt(walletForm.wallet_vouchers_50 || 0)
@@ -614,8 +637,8 @@ export default function UserDetailPage() {
           </div>
           <div className="bg-discord-dark rounded-lg p-4 text-center">
             <FaCoins className="text-2xl text-yellow-400 mx-auto mb-2" />
-            <p className="text-xs text-discord-text mb-1">Coins</p>
-            <p className="text-xl font-bold text-yellow-400">{parseInt(user.wallet_coins || 0)}</p>
+            <p className="text-xs text-discord-text mb-1">Bonus</p>
+            <p className="text-xl font-bold text-yellow-400">₹{parseFloat(user.wallet_bonus || 0).toFixed(2)}</p>
           </div>
           <div className="bg-discord-dark rounded-lg p-4 text-center">
             <FaGem className="text-2xl text-purple-400 mx-auto mb-2" />
@@ -1005,7 +1028,7 @@ export default function UserDetailPage() {
           </div>
         </div>
       )}
-      
+
       {/* Wallet Edit Modal */}
       {showWalletModal && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 overflow-y-auto">
@@ -1020,7 +1043,7 @@ export default function UserDetailPage() {
                 <span>Changes are immediate and logged. Ensure accuracy before saving!</span>
               </p>
             </div>
-      
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-white font-semibold mb-2 text-sm">Real Money (₹)</label>
@@ -1033,11 +1056,12 @@ export default function UserDetailPage() {
                 />
               </div>
               <div>
-                <label className="block text-white font-semibold mb-2 text-sm">Coins</label>
+                <label className="block text-white font-semibold mb-2 text-sm">Bonus (₹)</label>
                 <input
                   type="number"
-                  value={walletForm.wallet_coins}
-                  onChange={(e) => setWalletForm({...walletForm, wallet_coins: e.target.value})}
+                  step="0.01"
+                  value={walletForm.wallet_bonus}
+                  onChange={(e) => setWalletForm({...walletForm, wallet_bonus: e.target.value})}
                   className="w-full px-4 py-3 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-green-600 font-bold"
                 />
               </div>
@@ -1111,4 +1135,4 @@ export default function UserDetailPage() {
       )}
     </AdminLayout>
   );
-                  }
+}
