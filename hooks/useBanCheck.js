@@ -19,7 +19,7 @@ export function useBanCheck() {
     '/videos',
     '/info',
     '/help',
-    '/downloads',
+    '/download',
     '/contact',
     '/about',
     '/restricted'
