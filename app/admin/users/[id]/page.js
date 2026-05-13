@@ -239,14 +239,7 @@ export default function UserDetailPage() {
 
       if (error) throw error;
 
-      await supabase
-        .from('notifications')
-        .insert({
-          user_id: params.id,
-          title: '✅ Access Restored',
-          message: 'Your account access has been restored.',
-          type: 'unban'
-        });
+
 
       // LOG ACTION
       await logAdminAction('user_unban', {
