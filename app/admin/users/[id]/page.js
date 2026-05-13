@@ -145,7 +145,7 @@ export default function UserDetailPage() {
       });
 
       if (error) throw error;
-      if (!data?.success) throw new Error('Ban failed');
+      if (!data?.success) throw new Error('Ban failed - check console');
 
       await logAdminAction('user_ban', {
         user_id: user.id,
@@ -160,7 +160,7 @@ export default function UserDetailPage() {
       setBanForm({ reason: '' });
       loadUserData();
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Ban error:', error);
       alert('❌ Error: ' + error.message);
     } finally {
       setProcessing(false);
@@ -189,7 +189,7 @@ export default function UserDetailPage() {
       });
 
       if (error) throw error;
-      if (!data?.success) throw new Error('Suspension failed');
+      if (!data?.success) throw new Error('Suspension failed - check console');
 
       await logAdminAction('user_suspend', {
         user_id: user.id,
@@ -201,12 +201,12 @@ export default function UserDetailPage() {
         ban_id: data.ban_id
       });
 
-      alert(`✅ User suspended for ${durationDays} days`);
+      alert('✅ User suspended for ' + durationDays + ' days');
       setShowSuspendModal(false);
       setSuspendForm({ duration: '1', reason: '' });
       loadUserData();
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Suspend error:', error);
       alert('❌ Error: ' + error.message);
     } finally {
       setProcessing(false);
@@ -215,7 +215,7 @@ export default function UserDetailPage() {
 
   const handleUnbanUser = async (banId) => {
     const ban = bans.find(b => b.id === banId);
-    if (!confirm(`⚠️ LIFT ${ban.ban_type === 'permanent' ? 'BAN' : 'SUSPENSION'}?\n\nThis will restore user access.`)) return;
+    if (!confirm('Lift ' + (ban.ban_type === 'permanent' ? 'BAN' : 'SUSPENSION') + '?\n\nThis will restore user access.')) return;
 
     try {
       const { data: { user: adminUser } } = await supabase.auth.getUser();
@@ -238,11 +238,7 @@ export default function UserDetailPage() {
       alert('✅ Ban/suspension lifted');
       loadUserData();
     } catch (error) {
-      console.error('Error:', error);
-      alert('❌ Error: ' + error.message);
-    }
-  };
-
+      console.error('Unban error:', error);
       alert('❌ Error: ' + error.message);
     }
   };
