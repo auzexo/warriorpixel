@@ -39,6 +39,8 @@ export default function Sidebar({ isOpen, onClose }) {
     { icon: FaCube, label: 'Minecraft Shop', path: '/minecraft', requireAuth: true, color: 'text-green-400', allowedWhenBanned: false },
     { icon: FaVideo, label: 'Videos', path: '/videos', color: 'text-purple-400', allowedWhenBanned: true },
     { icon: FaGamepad, label: 'Games', path: '/games', requireAuth: true, color: 'text-purple-400', allowedWhenBanned: false },
+    { icon: FaFire,        label: 'Season Pass', path: '/season',      color: 'text-orange-400' },
+    { icon: FaTrophy,      label: 'Leaderboard', path: '/leaderboard', color: 'text-yellow-400' },
     { icon: FaAchievement, label: 'Achievements', path: '/achievements', requireAuth: true, color: 'text-orange-400', allowedWhenBanned: false },
     { icon: FaWallet, label: 'Wallet', path: '/wallet', requireAuth: true, color: 'text-purple-400', allowedWhenBanned: false },
     { icon: FaInfoCircle, label: 'Info & Help', path: '/info', color: 'text-purple-400', allowedWhenBanned: true },
