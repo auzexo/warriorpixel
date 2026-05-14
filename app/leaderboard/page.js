@@ -4,140 +4,102 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import {
-  FaTrophy, FaMedal, FaCrown, FaStar, FaBolt, FaFire,
-  FaGem, FaSkull, FaShieldAlt, FaChartLine, FaGamepad,
-  FaSync, FaUser
+  FaTrophy, FaStar, FaGem, FaCrown, FaBolt,
+  FaShieldAlt, FaMedal, FaSkull, FaFire, FaSync, FaUser
 } from 'react-icons/fa';
 
-// ─── 10 RANK TIERS ───────────────────────────────────────────────
-const RANK_TIERS = [
-  { level: 1,  name: 'Rookie',      color: 'text-gray-400',   bg: 'bg-gray-800',   border: 'border-gray-600',   icon: '🥉', gradient: 'from-gray-700 to-gray-600' },
-  { level: 2,  name: 'Warrior',     color: 'text-amber-600',  bg: 'bg-amber-900',  border: 'border-amber-700',  icon: '⚔️', gradient: 'from-amber-900 to-amber-800' },
-  { level: 3,  name: 'Fighter',     color: 'text-blue-400',   bg: 'bg-blue-900',   border: 'border-blue-600',   icon: '🛡️', gradient: 'from-blue-900 to-blue-800' },
-  { level: 4,  name: 'Champion',    color: 'text-teal-400',   bg: 'bg-teal-900',   border: 'border-teal-600',   icon: '🏆', gradient: 'from-teal-900 to-teal-800' },
-  { level: 5,  name: 'Elite',       color: 'text-yellow-400', bg: 'bg-yellow-900', border: 'border-yellow-600', icon: '⭐', gradient: 'from-yellow-900 to-yellow-800' },
-  { level: 6,  name: 'Master',      color: 'text-orange-400', bg: 'bg-orange-900', border: 'border-orange-600', icon: '🔥', gradient: 'from-orange-900 to-orange-800' },
-  { level: 7,  name: 'Grandmaster', color: 'text-red-400',    bg: 'bg-red-900',    border: 'border-red-600',    icon: '💀', gradient: 'from-red-900 to-red-800' },
-  { level: 8,  name: 'Legend',      color: 'text-purple-400', bg: 'bg-purple-900', border: 'border-purple-600', icon: '💎', gradient: 'from-purple-900 to-purple-800' },
-  { level: 9,  name: 'Mythic',      color: 'text-pink-400',   bg: 'bg-pink-900',   border: 'border-pink-600',   icon: '👑', gradient: 'from-pink-900 to-pink-800' },
-  { level: 10, name: 'Immortal',    color: 'text-yellow-300', bg: 'bg-yellow-900', border: 'border-yellow-400', icon: '💠', gradient: 'from-yellow-800 to-orange-700' },
+// Professional gaming rank tiers with FA icons
+const RANKS = [
+  { level:1,  name:'Recruit',      Icon:FaShieldAlt, color:'text-gray-400',   border:'border-gray-600',   bg:'bg-gray-800',   hex:'#9ca3af' },
+  { level:2,  name:'Iron',         Icon:FaShieldAlt, color:'text-stone-400',  border:'border-stone-600',  bg:'bg-stone-800',  hex:'#a8a29e' },
+  { level:3,  name:'Bronze',       Icon:FaMedal,     color:'text-amber-600',  border:'border-amber-700',  bg:'bg-amber-900',  hex:'#d97706' },
+  { level:4,  name:'Silver',       Icon:FaMedal,     color:'text-slate-300',  border:'border-slate-400',  bg:'bg-slate-800',  hex:'#cbd5e1' },
+  { level:5,  name:'Gold',         Icon:FaTrophy,    color:'text-yellow-400', border:'border-yellow-500', bg:'bg-yellow-900', hex:'#facc15' },
+  { level:6,  name:'Platinum',     Icon:FaGem,       color:'text-cyan-400',   border:'border-cyan-500',   bg:'bg-cyan-900',   hex:'#22d3ee' },
+  { level:7,  name:'Diamond',      Icon:FaGem,       color:'text-blue-400',   border:'border-blue-500',   bg:'bg-blue-900',   hex:'#60a5fa' },
+  { level:8,  name:'Master',       Icon:FaCrown,     color:'text-purple-400', border:'border-purple-500', bg:'bg-purple-900', hex:'#c084fc' },
+  { level:9,  name:'Grandmaster',  Icon:FaCrown,     color:'text-red-400',    border:'border-red-500',    bg:'bg-red-900',    hex:'#f87171' },
+  { level:10, name:'Immortal',     Icon:FaBolt,      color:'text-yellow-300', border:'border-yellow-400', bg:'bg-yellow-800', hex:'#fde047' },
 ];
 
-const getRankTier = (level) => {
-  const capped = Math.min(level || 1, 10);
-  return RANK_TIERS[capped - 1];
-};
+const getRank = (level) => RANKS[Math.min((level || 1), 10) - 1];
 
 const TABS = [
-  { id: 'xp',           label: 'XP',           icon: FaStar,      field: 'xp',                color: 'text-yellow-400' },
-  { id: 'wins',         label: 'Wins',          icon: FaTrophy,    field: 'total_wins',         color: 'text-green-400' },
-  { id: 'achievements', label: 'Achievements',  icon: FaGem,       field: 'achievement_points', color: 'text-purple-400' },
-  { id: 'level',        label: 'Level',         icon: FaChartLine, field: 'level',              color: 'text-blue-400' },
+  { id:'xp',           label:'XP',      Icon:FaStar,      field:'xp',                color:'text-yellow-400' },
+  { id:'wins',         label:'Wins',     Icon:FaTrophy,    field:'total_wins',         color:'text-green-400'  },
+  { id:'achievements', label:'Achiev.',  Icon:FaGem,       field:'achievement_points', color:'text-purple-400' },
+  { id:'level',        label:'Level',    Icon:FaFire,      field:'level',              color:'text-orange-400' },
 ];
 
-const POSITION_STYLES = [
-  { bg: 'bg-yellow-900 bg-opacity-30', border: 'border-yellow-500', medal: '🥇', textColor: 'text-yellow-400', shadow: 'shadow-yellow-900' },
-  { bg: 'bg-gray-700 bg-opacity-30',   border: 'border-gray-400',   medal: '🥈', textColor: 'text-gray-300',   shadow: 'shadow-gray-700' },
-  { bg: 'bg-orange-900 bg-opacity-30', border: 'border-orange-600', medal: '🥉', textColor: 'text-orange-400', shadow: 'shadow-orange-900' },
-];
+const MEDALS = ['🥇','🥈','🥉'];
+
+const fmtScore = (player, tab) => {
+  const v = player[TABS.find(t=>t.id===tab)?.field] || 0;
+  if (tab==='xp') return `${v.toLocaleString()} XP`;
+  if (tab==='wins') return `${v} W`;
+  if (tab==='achievements') return `${v} pts`;
+  if (tab==='level') return `Lv.${v}`;
+  return v;
+};
 
 export default function LeaderboardPage() {
   const { user, profile } = useAuth();
-  const [activeTab, setActiveTab] = useState('xp');
+  const [tab, setTab] = useState('xp');
   const [leaders, setLeaders] = useState([]);
   const [myRank, setMyRank] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState(null);
 
-  useEffect(() => {
-    loadLeaderboard();
-  }, [activeTab]);
+  useEffect(() => { load(); }, [tab]);
 
-  const loadLeaderboard = async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
-
+  const load = async (isRefresh = false) => {
+    isRefresh ? setRefreshing(true) : setLoading(true);
     try {
-      const tab = TABS.find(t => t.id === activeTab);
-
-      // Top 50 users for current tab
-      const { data, error } = await supabase
+      const field = TABS.find(t=>t.id===tab)?.field;
+      const { data } = await supabase
         .from('users')
-        .select('id, username, uid, level, xp, xp_to_next_level, total_wins, achievement_points')
-        .order(tab.field, { ascending: false })
+        .select('id,username,level,xp,xp_to_next_level,total_wins,achievement_points')
+        .order(field, { ascending: false })
         .limit(50);
-
-      if (error) throw error;
-
       setLeaders(data || []);
-      setLastUpdated(new Date());
-
-      // Find current user's rank
       if (user && data) {
-        const rank = data.findIndex(u => u.id === user.id);
-        if (rank !== -1) {
-          setMyRank(rank + 1);
-        } else {
-          // User not in top 50 — fetch their actual position
-          const { count } = await supabase
-            .from('users')
-            .select('id', { count: 'exact', head: true })
-            .gt(tab.field, profile?.[tab.field] || 0);
-          setMyRank((count || 0) + 1);
+        const idx = data.findIndex(u => u.id === user.id);
+        if (idx !== -1) setMyRank(idx + 1);
+        else {
+          const { count } = await supabase.from('users')
+            .select('id', { count:'exact', head:true })
+            .gt(field, profile?.[field] || 0);
+          setMyRank((count||0)+1);
         }
       }
-    } catch (error) {
-      console.error('Leaderboard error:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  const getDisplayValue = (user) => {
-    const tab = TABS.find(t => t.id === activeTab);
-    const val = user[tab.field] || 0;
-    if (activeTab === 'xp') return `${val.toLocaleString()} XP`;
-    if (activeTab === 'wins') return `${val} Wins`;
-    if (activeTab === 'achievements') return `${val} pts`;
-    if (activeTab === 'level') return `Level ${val}`;
-    return val;
-  };
-
-  const getXPProgress = (u) => {
-    if (!u.xp || !u.xp_to_next_level) return 0;
-    return Math.min(100, (u.xp / u.xp_to_next_level) * 100);
+    } catch(e) { console.error(e); }
+    finally { setLoading(false); setRefreshing(false); }
   };
 
   return (
-    <div className="min-h-screen bg-discord-darkest p-3 md:p-6">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-discord-darkest p-3">
+      <div className="max-w-lg mx-auto">
 
         {/* Header */}
-        <div className="text-center mb-6">
-          <div className="flex items-center justify-center gap-3 mb-2">
-            <FaTrophy className="text-3xl text-yellow-400" />
-            <h1 className="text-3xl font-bold text-white">Leaderboard</h1>
-            <FaTrophy className="text-3xl text-yellow-400" />
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <FaTrophy className="text-2xl text-yellow-400" />
+            <h1 className="text-xl font-bold text-white">Leaderboard</h1>
           </div>
-          <p className="text-discord-text text-sm">Top players on WarriorPixel</p>
-          {lastUpdated && (
-            <p className="text-xs text-gray-600 mt-1">
-              Updated {lastUpdated.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}
-            </p>
-          )}
+          <button onClick={() => load(true)} disabled={refreshing}
+            className="flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300">
+            <FaSync className={refreshing ? 'animate-spin' : ''} size={12} />
+            {refreshing ? 'Loading...' : 'Refresh'}
+          </button>
         </div>
 
-        {/* Rank Tiers Reference */}
-        <div className="bg-discord-dark border border-gray-800 rounded-xl p-4 mb-5 overflow-x-auto">
-          <p className="text-xs text-discord-text mb-3 text-center font-semibold">RANK TIERS</p>
-          <div className="flex gap-2 min-w-max mx-auto">
-            {RANK_TIERS.map((tier) => (
-              <div key={tier.level} className={`flex flex-col items-center px-2 py-1 rounded-lg border ${tier.border} ${tier.bg} bg-opacity-30`}>
-                <span className="text-lg">{tier.icon}</span>
-                <span className={`text-xs font-bold ${tier.color}`}>{tier.name}</span>
-                <span className="text-xs text-gray-500">Lv.{tier.level}</span>
+        {/* Rank Tiers - horizontal scroll */}
+        <div className="overflow-x-auto pb-2 mb-4">
+          <div className="flex gap-1.5 min-w-max">
+            {RANKS.map(r => (
+              <div key={r.level} className={`flex items-center gap-1 px-2 py-1.5 rounded-lg border ${r.border} ${r.bg} bg-opacity-30`}>
+                <r.Icon className={r.color} size={12} />
+                <span className={`text-xs font-bold ${r.color} whitespace-nowrap`}>{r.name}</span>
               </div>
             ))}
           </div>
@@ -145,164 +107,105 @@ export default function LeaderboardPage() {
 
         {/* My Rank Card */}
         {user && profile && (
-          <div className="bg-gradient-to-r from-purple-900 to-purple-800 border border-purple-600 rounded-xl p-4 mb-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold text-xl border-2 border-purple-400">
-                  {profile.username?.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <p className="text-white font-bold">{profile.username}</p>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-sm font-bold ${getRankTier(profile.level).color}`}>
-                      {getRankTier(profile.level).icon} {getRankTier(profile.level).name}
-                    </span>
-                    <span className="text-xs text-gray-400">Lv.{profile.level || 1}</span>
-                  </div>
+          <div className="bg-gradient-to-r from-purple-900 to-purple-800 border border-purple-600 rounded-xl p-3 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-purple-600 border-2 border-purple-400 flex items-center justify-center font-bold text-white">
+                {profile.username?.charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-bold text-sm truncate">{profile.username}</p>
+                <div className="flex items-center gap-1.5">
+                  {(() => { const r = getRank(profile.level); return <><r.Icon className={r.color} size={10} /><span className={`text-xs ${r.color}`}>{r.name}</span></>; })()}
+                  <span className="text-xs text-gray-500">· Lv.{profile.level||1}</span>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-xs text-purple-300 mb-1">YOUR RANK</p>
-                <p className="text-3xl font-bold text-white">
-                  {myRank ? `#${myRank}` : '—'}
-                </p>
+              <div className="text-right flex-shrink-0">
+                <p className="text-xs text-purple-300">YOUR RANK</p>
+                <p className="text-2xl font-bold text-white">{myRank ? `#${myRank}` : '—'}</p>
               </div>
             </div>
-
             {/* XP bar */}
-            <div className="mt-3">
-              <div className="flex justify-between text-xs text-purple-300 mb-1">
-                <span>{profile.xp || 0} XP</span>
-                <span>{profile.xp_to_next_level || 100} XP needed</span>
+            <div className="mt-2">
+              <div className="w-full bg-purple-950 rounded-full h-1.5">
+                <div className="bg-gradient-to-r from-yellow-400 to-purple-400 h-full rounded-full"
+                  style={{ width: `${Math.min(100, ((profile.xp||0)/(profile.xp_to_next_level||100))*100)}%` }} />
               </div>
-              <div className="w-full bg-purple-950 rounded-full h-2">
-                <div
-                  className="bg-gradient-to-r from-yellow-400 to-purple-400 h-full rounded-full transition-all"
-                  style={{ width: `${getXPProgress(profile)}%` }}
-                />
-              </div>
+              <p className="text-xs text-purple-400 mt-0.5 text-right">{profile.xp||0}/{profile.xp_to_next_level||100} XP</p>
             </div>
           </div>
         )}
 
         {/* Tabs */}
-        <div className="grid grid-cols-4 gap-2 mb-5">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex flex-col items-center gap-1 py-3 px-2 rounded-xl font-semibold text-xs transition-all border ${
-                activeTab === tab.id
-                  ? 'bg-purple-600 border-purple-500 text-white'
-                  : 'bg-discord-dark border-gray-700 text-discord-text hover:border-purple-600'
-              }`}
-            >
-              <tab.icon className={`text-lg ${activeTab === tab.id ? 'text-white' : tab.color}`} />
-              {tab.label}
+        <div className="grid grid-cols-4 gap-1.5 mb-4">
+          {TABS.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={`flex flex-col items-center gap-1 py-2 rounded-lg text-xs font-semibold border transition-all ${
+                tab===t.id ? 'bg-purple-600 border-purple-500 text-white' : 'bg-discord-dark border-gray-700 text-gray-400 hover:border-purple-600'
+              }`}>
+              <t.Icon className={tab===t.id ? 'text-white' : t.color} size={14} />
+              {t.label}
             </button>
           ))}
         </div>
 
-        {/* Refresh Button */}
-        <div className="flex justify-end mb-3">
-          <button
-            onClick={() => loadLeaderboard(true)}
-            disabled={refreshing}
-            className="flex items-center gap-2 text-xs text-purple-400 hover:text-purple-300 transition-colors"
-          >
-            <FaSync className={refreshing ? 'animate-spin' : ''} />
-            {refreshing ? 'Refreshing...' : 'Refresh'}
-          </button>
-        </div>
-
-        {/* Leaderboard List */}
+        {/* List */}
         {loading ? (
-          <div className="flex justify-center py-16">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+          <div className="flex justify-center py-12">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600" />
           </div>
         ) : leaders.length === 0 ? (
-          <div className="text-center py-16">
-            <FaTrophy className="text-5xl text-gray-600 mx-auto mb-4" />
-            <p className="text-discord-text">No players yet. Be the first!</p>
+          <div className="text-center py-12">
+            <FaTrophy className="text-4xl text-gray-600 mx-auto mb-3" />
+            <p className="text-discord-text text-sm">No players yet. Be the first!</p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {leaders.map((player, index) => {
-              const position = index + 1;
-              const isMe = user && player.id === user.id;
-              const tier = getRankTier(player.level);
-              const posStyle = position <= 3 ? POSITION_STYLES[position - 1] : null;
-
+          <div className="space-y-1.5">
+            {leaders.map((player, i) => {
+              const pos = i + 1;
+              const isMe = user?.id === player.id;
+              const rank = getRank(player.level);
               return (
-                <div
-                  key={player.id}
-                  className={`relative flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                    isMe
-                      ? 'bg-purple-900 bg-opacity-40 border-purple-500 ring-1 ring-purple-500'
-                      : posStyle
-                      ? `${posStyle.bg} ${posStyle.border} border`
-                      : 'bg-discord-dark border-gray-800'
-                  }`}
-                >
-                  {/* Rank Number */}
-                  <div className="flex-shrink-0 w-10 text-center">
-                    {position <= 3 ? (
-                      <span className="text-2xl">{posStyle.medal}</span>
+                <div key={player.id} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all ${
+                  isMe ? 'bg-purple-900 bg-opacity-40 border-purple-500' :
+                  pos===1 ? 'bg-yellow-900 bg-opacity-20 border-yellow-700' :
+                  pos===2 ? 'bg-gray-700 bg-opacity-20 border-gray-600' :
+                  pos===3 ? 'bg-orange-900 bg-opacity-20 border-orange-700' :
+                  'bg-discord-dark border-gray-800'
+                }`}>
+                  {/* Position */}
+                  <div className="w-8 text-center flex-shrink-0">
+                    {pos <= 3 ? (
+                      <span className="text-lg">{MEDALS[pos-1]}</span>
                     ) : (
-                      <span className={`text-lg font-bold ${position <= 10 ? 'text-white' : 'text-gray-500'}`}>
-                        #{position}
-                      </span>
+                      <span className={`text-sm font-bold ${pos<=10?'text-white':'text-gray-500'}`}>#{pos}</span>
                     )}
                   </div>
 
                   {/* Avatar */}
-                  <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg border-2 ${
-                    isMe ? 'bg-purple-600 border-purple-400' : `bg-gradient-to-br ${tier.gradient} border-opacity-50 ${tier.border}`
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border-2 flex-shrink-0 ${
+                    isMe ? 'bg-purple-600 border-purple-400' : `${rank.bg} bg-opacity-60 ${rank.border}`
                   }`}>
-                    <span className="text-white">
-                      {player.username?.charAt(0).toUpperCase() || '?'}
-                    </span>
+                    <span className="text-white">{player.username?.charAt(0).toUpperCase()||'?'}</span>
                   </div>
 
-                  {/* Player Info */}
+                  {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <p className={`font-bold text-sm truncate ${isMe ? 'text-purple-300' : 'text-white'}`}>
-                        {player.username}
-                        {isMe && <span className="text-purple-400 text-xs ml-1">(you)</span>}
-                      </p>
+                    <p className={`font-bold text-sm truncate ${isMe?'text-purple-300':'text-white'}`}>
+                      {player.username}{isMe && <span className="text-purple-400 text-xs ml-1">(you)</span>}
+                    </p>
+                    <div className="flex items-center gap-1">
+                      <rank.Icon className={rank.color} size={9} />
+                      <span className={`text-xs ${rank.color}`}>{rank.name}</span>
+                      <span className="text-xs text-gray-600">· Lv.{player.level||1}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-xs font-bold ${tier.color}`}>
-                        {tier.icon} {tier.name}
-                      </span>
-                      <span className="text-xs text-gray-500">Lv.{player.level || 1}</span>
-                    </div>
-
-                    {/* Mini XP bar for XP tab */}
-                    {activeTab === 'xp' && (
-                      <div className="w-full bg-gray-800 rounded-full h-1 mt-1">
-                        <div
-                          className="bg-gradient-to-r from-yellow-500 to-purple-500 h-full rounded-full"
-                          style={{ width: `${getXPProgress(player)}%` }}
-                        />
-                      </div>
-                    )}
                   </div>
 
                   {/* Score */}
                   <div className="flex-shrink-0 text-right">
                     <p className={`font-bold text-sm ${
-                      position === 1 ? 'text-yellow-400' :
-                      position === 2 ? 'text-gray-300' :
-                      position === 3 ? 'text-orange-400' :
-                      isMe ? 'text-purple-300' : 'text-white'
-                    }`}>
-                      {getDisplayValue(player)}
-                    </p>
-                    {activeTab !== 'level' && (
-                      <p className="text-xs text-gray-500">{player.total_wins || 0}W</p>
-                    )}
+                      pos===1?'text-yellow-400':pos===2?'text-gray-300':pos===3?'text-orange-400':isMe?'text-purple-300':'text-white'
+                    }`}>{fmtScore(player, tab)}</p>
+                    {tab!=='wins' && <p className="text-xs text-gray-600">{player.total_wins||0}W</p>}
                   </div>
                 </div>
               );
@@ -312,22 +215,18 @@ export default function LeaderboardPage() {
 
         {/* Footer stats */}
         {!loading && leaders.length > 0 && (
-          <div className="mt-4 grid grid-cols-3 gap-3">
-            <div className="bg-discord-dark border border-gray-800 rounded-lg p-3 text-center">
-              <FaUser className="text-xl text-blue-400 mx-auto mb-1" />
-              <p className="text-white font-bold">{leaders.length}+</p>
-              <p className="text-xs text-discord-text">Players</p>
-            </div>
-            <div className="bg-discord-dark border border-gray-800 rounded-lg p-3 text-center">
-              <FaStar className="text-xl text-yellow-400 mx-auto mb-1" />
-              <p className="text-white font-bold">{(leaders[0]?.xp || 0).toLocaleString()}</p>
-              <p className="text-xs text-discord-text">Top XP</p>
-            </div>
-            <div className="bg-discord-dark border border-gray-800 rounded-lg p-3 text-center">
-              <FaTrophy className="text-xl text-green-400 mx-auto mb-1" />
-              <p className="text-white font-bold">{leaders[0]?.total_wins || 0}</p>
-              <p className="text-xs text-discord-text">Top Wins</p>
-            </div>
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            {[
+              { Icon:FaUser,   color:'text-blue-400',   label:'Players',  val:`${leaders.length}+` },
+              { Icon:FaStar,   color:'text-yellow-400', label:'Top XP',   val:(leaders[0]?.xp||0).toLocaleString() },
+              { Icon:FaTrophy, color:'text-green-400',  label:'Top Wins', val:leaders[0]?.total_wins||0 },
+            ].map(({Icon,color,label,val}) => (
+              <div key={label} className="bg-discord-dark border border-gray-800 rounded-lg p-2 text-center">
+                <Icon className={`${color} mx-auto mb-1`} size={16} />
+                <p className="text-white font-bold text-sm">{val}</p>
+                <p className="text-xs text-discord-text">{label}</p>
+              </div>
+            ))}
           </div>
         )}
 
