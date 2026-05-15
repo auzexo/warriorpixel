@@ -1,5 +1,6 @@
 'use client';
 
+import { UserBadges } from '@/components/UserBadges';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
@@ -279,6 +280,7 @@ export default function ProfilePage() {
                   <FaCheckCircle className="text-blue-400 text-xl md:text-2xl" title="Verified Profile" />
                 )}
               </h1>
+                  <UserBadges userId={user.id} compact={true} />
               <div className="space-y-1 text-sm md:text-base">
                 <div className="flex items-center justify-center md:justify-start gap-2 text-purple-200">
                   <FaIdCard className="text-purple-400" />
@@ -356,6 +358,8 @@ export default function ProfilePage() {
             <p className="text-xl md:text-2xl font-bold text-green-400">{profile.total_games || 0}</p>
           </div>
         </div>
+
+        <UserBadges userId={user.id} compact={false} />
 
         {/* Wallet Section */}
         <div className="bg-discord-dark border border-gray-800 rounded-xl p-4 md:p-6 mb-4">
