@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { formatISTDate, getTimeLeft } from '@/lib/timeUtils';
+import { DailyMissions } from '@/components/DailyMissions';
 import {
-  FaFire, FaStar, FaGem, FaCrown, FaLock,
+  FaFire, FaGem, FaCrown, FaLock,
   FaCheckCircle, FaChevronLeft, FaChevronRight, FaClock,
-  FaBolt, FaCalendarAlt, FaShieldAlt, FaGift
+  FaBolt, FaCalendarAlt, FaShieldAlt
 } from 'react-icons/fa';
 
 const PASS = {
@@ -72,7 +73,7 @@ export default function SeasonPage() {
       setUserSeason(us);
       if (us.current_tier > 0) setPage(Math.floor((us.current_tier - 1) / 5));
 
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date(Date.now() + 19800000).toISOString().split('T')[0];
       const { data: login } = await supabase
         .from('daily_logins').select('*')
         .eq('user_id', user.id).eq('login_date', today).single();
@@ -215,10 +216,9 @@ export default function SeasonPage() {
               <p className="text-orange-500 text-xs">90 days</p>
             </div>
           </div>
-          {/* XP Progress */}
           <div className="flex justify-between text-xs text-orange-300 mb-1">
             <span>Tier {currentTier}/{season.max_tiers}</span>
-            <span>{userSeason?.season_xp || 0} XP · {xpProgress}/100</span>
+            <span>{userSeason?.season_xp || 0} XP · {xpProgress}/100 to next</span>
           </div>
           <div className="bg-red-950 rounded-full h-2">
             <div className="bg-gradient-to-r from-orange-500 to-yellow-400 h-full rounded-full transition-all"
@@ -229,9 +229,9 @@ export default function SeasonPage() {
         {/* View Tabs */}
         <div className="grid grid-cols-3 gap-1.5 mb-4">
           {[
-            { id:'pass',  label:'Season Pass', Icon:FaShieldAlt  },
-            { id:'login', label:'Daily Login',  Icon:FaCalendarAlt },
-            { id:'earn',  label:'Earn XP',      Icon:FaBolt       },
+            { id:'pass',     label:'Season Pass', Icon:FaShieldAlt   },
+            { id:'missions', label:'Missions',     Icon:FaBolt        },
+            { id:'login',    label:'Daily Login',  Icon:FaCalendarAlt },
           ].map(v => (
             <button key={v.id} onClick={() => setView(v.id)}
               className={`flex flex-col items-center gap-1 py-2 rounded-lg text-xs font-semibold border transition-all ${
@@ -243,10 +243,9 @@ export default function SeasonPage() {
           ))}
         </div>
 
-        {/* ── SEASON PASS VIEW ── */}
+        {/* ── SEASON PASS ── */}
         {view === 'pass' && (
           <>
-            {/* Pass Cards - each column fixed width */}
             <div className="grid grid-cols-3 gap-2 mb-4">
               {(['free','premium','warrior']).map(pt => {
                 const p = PASS[pt];
@@ -268,7 +267,6 @@ export default function SeasonPage() {
               })}
             </div>
 
-            {/* Tier Navigation */}
             <div className="flex items-center justify-between mb-2">
               <button onClick={() => setPage(p => Math.max(0, p-1))} disabled={page===0}
                 className="p-2 bg-discord-dark border border-gray-700 rounded-lg disabled:opacity-30 text-white">
@@ -283,7 +281,6 @@ export default function SeasonPage() {
               </button>
             </div>
 
-            {/* Tier Rewards */}
             <div className="space-y-2">
               {pageTiers.map(tier => {
                 const reached = currentTier >= tier;
@@ -292,7 +289,6 @@ export default function SeasonPage() {
                   <div key={tier} className={`bg-discord-dark border rounded-xl p-3 ${
                     isCurr ? 'border-yellow-500' : reached ? 'border-green-900' : 'border-gray-800'
                   }`}>
-                    {/* Tier header */}
                     <div className="flex items-center gap-2 mb-2">
                       <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 flex-shrink-0 ${
                         reached ? 'bg-green-900 border-green-500 text-green-300' :
@@ -303,11 +299,10 @@ export default function SeasonPage() {
                         <p className={`text-xs font-bold ${reached?'text-green-400':isCurr?'text-yellow-400':'text-gray-500'}`}>
                           Tier {tier}{isCurr && <span className="ml-1 text-yellow-500">← Current</span>}
                         </p>
-                        <p className="text-xs text-gray-600">{tier * 100} Season XP required</p>
+                        <p className="text-xs text-gray-600">{tier * 100} Season XP</p>
                       </div>
                     </div>
 
-                    {/* Reward columns — each column is 1/3 width, content truncated */}
                     <div className="grid grid-cols-3 gap-1.5">
                       {(['free','premium','warrior']).map(pt => {
                         const rw = getReward(tier, pt);
@@ -316,19 +311,18 @@ export default function SeasonPage() {
                         const access = hasPass(pt);
                         const p = PASS[pt];
                         const key = `${pt}_${tier}`;
-
                         return (
                           <div key={pt} className={`rounded-lg p-1.5 text-center border min-w-0 ${
-                            claimed    ? 'bg-green-900 bg-opacity-20 border-green-800' :
-                            claimable  ? `${p.bg} bg-opacity-30 ${p.border}` :
-                            access     ? `bg-discord-darkest ${p.border} border-opacity-20` :
-                                         'bg-discord-darkest border-gray-800'
+                            claimed   ? 'bg-green-900 bg-opacity-20 border-green-800' :
+                            claimable ? `${p.bg} bg-opacity-30 ${p.border}` :
+                            access    ? `bg-discord-darkest ${p.border} border-opacity-20` :
+                                        'bg-discord-darkest border-gray-800'
                           }`}>
                             {rw ? (
                               <>
                                 <div className="text-base mb-0.5">{rw.icon || REWARD_ICON[rw.reward_type] || '🎁'}</div>
-                                <p className={`text-xs font-bold leading-tight mb-1 overflow-hidden ${p.color}`}
-                                   style={{ display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>
+                                <p className={`text-xs font-bold leading-tight mb-1 ${p.color}`}
+                                  style={{ display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>
                                   {rw.reward_label}
                                 </p>
                                 {!access ? (
@@ -363,30 +357,22 @@ export default function SeasonPage() {
               })}
             </div>
 
-            {/* Pass value info */}
             <div className="mt-4 bg-discord-dark border border-gray-800 rounded-xl p-3">
               <div className="grid grid-cols-3 gap-2 text-xs text-center">
-                <div>
-                  <p className="text-gray-400 font-bold mb-0.5">🆓 Free</p>
-                  <p className="text-gray-500">XP + coins</p>
-                  <p className="text-green-600 text-xs">Always free</p>
-                </div>
-                <div>
-                  <p className="text-yellow-400 font-bold mb-0.5">💎 Premium</p>
-                  <p className="text-gray-500">~₹65 value</p>
-                  <p className="text-yellow-600 text-xs">{season.premium_cost_coins}🪙</p>
-                </div>
-                <div>
-                  <p className="text-purple-400 font-bold mb-0.5">⚔️ Warrior</p>
-                  <p className="text-gray-500">~₹130+ value</p>
-                  <p className="text-purple-600 text-xs">{season.elite_cost_gems}💎</p>
-                </div>
+                <div><p className="text-gray-400 font-bold mb-0.5">🆓 Free</p><p className="text-gray-500">XP + coins</p><p className="text-green-600 text-xs">Always free</p></div>
+                <div><p className="text-yellow-400 font-bold mb-0.5">💎 Premium</p><p className="text-gray-500">~₹65 value</p><p className="text-yellow-600 text-xs">{season.premium_cost_coins}🪙</p></div>
+                <div><p className="text-purple-400 font-bold mb-0.5">⚔️ Warrior</p><p className="text-gray-500">~₹130+ value</p><p className="text-purple-600 text-xs">{season.elite_cost_gems}💎</p></div>
               </div>
             </div>
           </>
         )}
 
-        {/* ── DAILY LOGIN VIEW ── */}
+        {/* ── MISSIONS TAB — DailyMissions component ── */}
+        {view === 'missions' && (
+          <DailyMissions onXPEarned={() => load()} />
+        )}
+
+        {/* ── DAILY LOGIN ── */}
         {view === 'login' && (
           <div className="space-y-4">
             <div className="bg-gradient-to-br from-blue-900 to-purple-900 border border-blue-600 rounded-xl p-4 text-center">
@@ -407,7 +393,6 @@ export default function SeasonPage() {
               </button>
             </div>
 
-            {/* Milestones */}
             <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
               <p className="text-white font-bold mb-3 text-sm">🏆 Streak Milestones</p>
               <div className="space-y-2">
@@ -430,60 +415,6 @@ export default function SeasonPage() {
                     </div>
                   );
                 })}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── EARN XP VIEW ── */}
-        {view === 'earn' && (
-          <div className="space-y-3">
-            <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
-              <h3 className="text-white font-bold mb-3 text-sm flex items-center gap-2">
-                <FaBolt className="text-yellow-400" size={14} /> How to Earn Season XP
-              </h3>
-              <div className="space-y-2">
-                {[
-                  { icon:'🎮', label:'Join Tournament',   xp:'+20–50 XP' },
-                  { icon:'🏆', label:'Win Tournament',    xp:'+100–200 XP' },
-                  { icon:'🎯', label:'Claim Achievement', xp:'+25–75 XP' },
-                  { icon:'📅', label:'Daily Login',       xp:'+25 XP (more on streak)' },
-                ].map(({ icon, label, xp }) => (
-                  <div key={label} className="flex items-center justify-between bg-discord-darkest rounded-lg p-2.5 border border-gray-800">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl flex-shrink-0">{icon}</span>
-                      <span className="text-white text-sm font-semibold">{label}</span>
-                    </div>
-                    <span className="text-yellow-400 text-xs font-bold flex-shrink-0 ml-2">{xp}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 bg-discord-darkest rounded-lg p-2 border border-gray-800">
-                <p className="text-xs text-discord-text text-center">
-                  Every <strong className="text-white">100 Season XP</strong> = 1 tier · <strong className="text-white">90 tiers</strong> total this season
-                </p>
-              </div>
-            </div>
-
-            {/* Daily reward scale */}
-            <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
-              <p className="text-white font-bold mb-3 text-sm">📈 Daily Reward Scale</p>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                {[
-                  { label:'Day 1–2',   val:'30–36 coins' },
-                  { label:'Day 3',     val:'56 coins + 5 gems' },
-                  { label:'Day 7',     val:'500 coins 🎉' },
-                  { label:'Day 14',    val:'₹20 Voucher 🎫' },
-                  { label:'Day 30',    val:'₹30 Voucher 🎫' },
-                  { label:'Day 60',    val:'30 Gems 💎' },
-                  { label:'Day 90',    val:'₹50 Voucher 🎟️' },
-                  { label:'Every 7d', val:'Gems bonus 💎' },
-                ].map(({ label, val }) => (
-                  <div key={label} className="bg-discord-darkest rounded-lg p-2 border border-gray-800">
-                    <p className="text-gray-400 font-semibold">{label}</p>
-                    <p className="text-white">{val}</p>
-                  </div>
-                ))}
               </div>
             </div>
           </div>
