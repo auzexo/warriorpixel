@@ -76,172 +76,155 @@ export default function LeaderboardPage() {
   };
 
   return (
-    // overflow-x-hidden on BOTH wrappers — prevents any child from causing horizontal scroll
-    <div className="min-h-screen bg-discord-darkest overflow-x-hidden">
-      <div className="p-3 w-full overflow-x-hidden">
-        <div className="max-w-lg mx-auto w-full">
+    <div className="min-h-screen bg-discord-darkest p-3">
+      <div className="max-w-lg mx-auto">
 
-          {/* Header */}
-          <div className="flex items-center justify-between mb-3">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <FaTrophy className="text-xl text-yellow-400" />
+            <h1 className="text-lg font-bold text-white">Leaderboard</h1>
+          </div>
+          <button onClick={() => load(true)} disabled={refreshing}
+            className="flex items-center gap-1 text-xs text-purple-400">
+            <FaSync className={refreshing ? 'animate-spin' : ''} size={11} />
+            {refreshing ? 'Loading' : 'Refresh'}
+          </button>
+        </div>
+
+        {/* Rank tiers — flex-wrap (no horizontal scroll, no overflow) */}
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {RANKS.map(r => (
+            <div key={r.level}
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg border ${r.border} ${r.bg} bg-opacity-30`}>
+              <r.Icon className={r.color} size={10} />
+              <span className={`text-xs font-bold ${r.color}`}>{r.name}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* My rank card */}
+        {user && profile && (
+          <div className="bg-gradient-to-r from-purple-900 to-purple-800 border border-purple-600 rounded-xl p-3 mb-3">
             <div className="flex items-center gap-2">
-              <FaTrophy className="text-xl text-yellow-400" />
-              <h1 className="text-lg font-bold text-white">Leaderboard</h1>
+              <div className="w-9 h-9 rounded-full bg-purple-600 border-2 border-purple-400 flex items-center justify-center font-bold text-white flex-shrink-0">
+                {profile.username?.charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-bold text-sm truncate">{profile.username}</p>
+                <div className="flex items-center gap-1">
+                  {(() => { const r = getRank(profile.level);
+                    return <><r.Icon className={r.color} size={9} /><span className={`text-xs ${r.color}`}>{r.name}</span></>; })()}
+                  <span className="text-xs text-gray-500">· Lv.{profile.level || 1}</span>
+                </div>
+              </div>
+              <div className="flex-shrink-0 bg-purple-950 border border-purple-700 rounded-lg px-2 py-1 text-center w-14">
+                <p className="text-xs text-purple-300 leading-tight">RANK</p>
+                <p className="text-base font-bold text-white leading-tight">
+                  {myRank ? `#${myRank}` : '—'}
+                </p>
+              </div>
             </div>
-            <button onClick={() => load(true)} disabled={refreshing}
-              className="flex items-center gap-1 text-xs text-purple-400">
-              <FaSync className={refreshing ? 'animate-spin' : ''} size={11} />
-              {refreshing ? 'Loading' : 'Refresh'}
+            <div className="mt-2 bg-purple-950 rounded-full h-1.5">
+              <div className="bg-gradient-to-r from-yellow-400 to-purple-400 h-full rounded-full"
+                style={{ width: `${Math.min(100, ((profile.xp || 0) / (profile.xp_to_next_level || 100)) * 100)}%` }} />
+            </div>
+            <p className="text-xs text-purple-400 mt-0.5 text-right">
+              {profile.xp || 0}/{profile.xp_to_next_level || 100} XP
+            </p>
+          </div>
+        )}
+
+        {/* Tabs */}
+        <div className="grid grid-cols-4 gap-1 mb-3">
+          {TABS.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={`flex flex-col items-center gap-0.5 py-2 rounded-lg text-xs font-semibold border transition-all ${
+                tab === t.id
+                  ? 'bg-purple-600 border-purple-500 text-white'
+                  : 'bg-discord-dark border-gray-700 text-gray-400'
+              }`}>
+              <t.Icon className={tab === t.id ? 'text-white' : t.color} size={13} />
+              {t.label}
             </button>
-          </div>
+          ))}
+        </div>
 
-          {/* Rank tiers — NO negative margins, simple overflow-x-auto */}
-          <div className="overflow-x-auto pb-2 mb-3 w-full">
-            <div className="flex gap-1.5" style={{ width: 'max-content' }}>
-              {RANKS.map(r => (
-                <div key={r.level}
-                  className={`flex items-center gap-1 px-2 py-1 rounded-lg border ${r.border} ${r.bg} bg-opacity-30 flex-shrink-0`}>
-                  <r.Icon className={r.color} size={10} />
-                  <span className={`text-xs font-bold ${r.color} whitespace-nowrap`}>{r.name}</span>
-                </div>
-              ))}
-            </div>
+        {/* Player list */}
+        {loading ? (
+          <div className="flex justify-center py-10">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600" />
           </div>
-
-          {/* My rank card */}
-          {user && profile && (
-            <div className="bg-gradient-to-r from-purple-900 to-purple-800 border border-purple-600 rounded-xl p-3 mb-3 w-full">
-              <div className="flex items-center gap-2 w-full">
-                <div className="w-9 h-9 rounded-full bg-purple-600 border-2 border-purple-400 flex items-center justify-center font-bold text-white flex-shrink-0">
-                  {profile.username?.charAt(0).toUpperCase()}
-                </div>
-                {/* Name — flex-1 with min-w-0 so it shrinks instead of overflowing */}
-                <div className="flex-1 min-w-0 overflow-hidden">
-                  <p className="text-white font-bold text-sm truncate">{profile.username}</p>
-                  <div className="flex items-center gap-1">
-                    {(() => {
-                      const r = getRank(profile.level);
-                      return <><r.Icon className={r.color} size={9} /><span className={`text-xs ${r.color}`}>{r.name}</span></>;
-                    })()}
-                    <span className="text-xs text-gray-500 flex-shrink-0">· Lv.{profile.level || 1}</span>
+        ) : leaders.length === 0 ? (
+          <div className="text-center py-10">
+            <FaTrophy className="text-4xl text-gray-600 mx-auto mb-3" />
+            <p className="text-discord-text text-sm">No players yet!</p>
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {leaders.map((player, i) => {
+              const pos = i + 1;
+              const isMe = user?.id === player.id;
+              const rank = getRank(player.level);
+              return (
+                <div key={player.id}
+                  className={`flex items-center gap-2 px-2.5 py-2 rounded-xl border ${
+                    isMe    ? 'bg-purple-900 bg-opacity-40 border-purple-500' :
+                    pos===1 ? 'bg-yellow-900 bg-opacity-15 border-yellow-800' :
+                    pos===2 ? 'bg-gray-700 bg-opacity-15 border-gray-600' :
+                    pos===3 ? 'bg-orange-900 bg-opacity-15 border-orange-800' :
+                              'bg-discord-dark border-gray-800'
+                  }`}>
+                  <div className="w-7 text-center flex-shrink-0">
+                    {pos <= 3
+                      ? <span className="text-base">{MEDALS[pos - 1]}</span>
+                      : <span className={`text-xs font-bold ${pos <= 10 ? 'text-white' : 'text-gray-500'}`}>#{pos}</span>}
+                  </div>
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs border flex-shrink-0 ${
+                    isMe ? 'bg-purple-600 border-purple-400' : `${rank.bg} bg-opacity-60 ${rank.border}`
+                  }`}>
+                    <span className="text-white">{player.username?.charAt(0).toUpperCase() || '?'}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`font-bold text-xs truncate ${isMe ? 'text-purple-300' : 'text-white'}`}>
+                      {player.username}{isMe && <span className="text-purple-400 ml-1">(you)</span>}
+                    </p>
+                    <div className="flex items-center gap-1">
+                      <rank.Icon className={rank.color} size={8} />
+                      <span className={`text-xs ${rank.color}`}>{rank.name}</span>
+                      <span className="text-xs text-gray-600">·Lv.{player.level || 1}</span>
+                    </div>
+                  </div>
+                  <div className="flex-shrink-0 text-right w-16">
+                    <p className={`font-bold text-xs ${
+                      pos===1?'text-yellow-400':pos===2?'text-gray-300':
+                      pos===3?'text-orange-400':isMe?'text-purple-300':'text-white'
+                    }`}>{fmtScore(player, tab)}</p>
+                    {tab !== 'wins' && <p className="text-xs text-gray-600">{player.total_wins || 0}W</p>}
                   </div>
                 </div>
-                {/* Rank box — fixed width, never overflows */}
-                <div className="flex-shrink-0 bg-purple-950 border border-purple-700 rounded-lg px-2 py-1 text-center min-w-[52px]">
-                  <p className="text-xs text-purple-300 leading-tight">RANK</p>
-                  <p className="text-base font-bold text-white leading-tight">
-                    {myRank ? `#${myRank}` : '—'}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-2 w-full bg-purple-950 rounded-full h-1.5">
-                <div className="bg-gradient-to-r from-yellow-400 to-purple-400 h-full rounded-full"
-                  style={{ width: `${Math.min(100, ((profile.xp || 0) / (profile.xp_to_next_level || 100)) * 100)}%` }} />
-              </div>
-              <p className="text-xs text-purple-400 mt-0.5 text-right">
-                {profile.xp || 0}/{profile.xp_to_next_level || 100} XP
-              </p>
-            </div>
-          )}
+              );
+            })}
+          </div>
+        )}
 
-          {/* Tabs */}
-          <div className="grid grid-cols-4 gap-1 mb-3">
-            {TABS.map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)}
-                className={`flex flex-col items-center gap-0.5 py-2 rounded-lg text-xs font-semibold border transition-all ${
-                  tab === t.id
-                    ? 'bg-purple-600 border-purple-500 text-white'
-                    : 'bg-discord-dark border-gray-700 text-gray-400'
-                }`}>
-                <t.Icon className={tab === t.id ? 'text-white' : t.color} size={13} />
-                {t.label}
-              </button>
+        {/* Footer */}
+        {!loading && leaders.length > 0 && (
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {[
+              { Icon:FaUser,   color:'text-blue-400',   label:'Players', val:`${leaders.length}+` },
+              { Icon:FaStar,   color:'text-yellow-400', label:'Top XP',  val:(leaders[0]?.xp||0).toLocaleString() },
+              { Icon:FaTrophy, color:'text-green-400',  label:'Top Wins',val:leaders[0]?.total_wins||0 },
+            ].map(({ Icon, color, label, val }) => (
+              <div key={label} className="bg-discord-dark border border-gray-800 rounded-lg p-2 text-center">
+                <Icon className={`${color} mx-auto mb-1`} size={13} />
+                <p className="text-white font-bold text-sm">{val}</p>
+                <p className="text-xs text-discord-text">{label}</p>
+              </div>
             ))}
           </div>
+        )}
 
-          {/* Player list */}
-          {loading ? (
-            <div className="flex justify-center py-10">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600" />
-            </div>
-          ) : leaders.length === 0 ? (
-            <div className="text-center py-10">
-              <FaTrophy className="text-4xl text-gray-600 mx-auto mb-3" />
-              <p className="text-discord-text text-sm">No players yet!</p>
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              {leaders.map((player, i) => {
-                const pos = i + 1;
-                const isMe = user?.id === player.id;
-                const rank = getRank(player.level);
-                return (
-                  <div key={player.id}
-                    className={`flex items-center gap-2 px-2.5 py-2 rounded-xl border w-full ${
-                      isMe    ? 'bg-purple-900 bg-opacity-40 border-purple-500' :
-                      pos===1 ? 'bg-yellow-900 bg-opacity-15 border-yellow-800' :
-                      pos===2 ? 'bg-gray-700 bg-opacity-15 border-gray-600' :
-                      pos===3 ? 'bg-orange-900 bg-opacity-15 border-orange-800' :
-                                'bg-discord-dark border-gray-800'
-                    }`}>
-
-                    <div className="w-7 text-center flex-shrink-0">
-                      {pos <= 3
-                        ? <span className="text-base">{MEDALS[pos - 1]}</span>
-                        : <span className={`text-xs font-bold ${pos <= 10 ? 'text-white' : 'text-gray-500'}`}>#{pos}</span>
-                      }
-                    </div>
-
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs border flex-shrink-0 ${
-                      isMe ? 'bg-purple-600 border-purple-400' : `${rank.bg} bg-opacity-60 ${rank.border}`
-                    }`}>
-                      <span className="text-white">{player.username?.charAt(0).toUpperCase() || '?'}</span>
-                    </div>
-
-                    <div className="flex-1 min-w-0 overflow-hidden">
-                      <p className={`font-bold text-xs truncate ${isMe ? 'text-purple-300' : 'text-white'}`}>
-                        {player.username}
-                        {isMe && <span className="text-purple-400 ml-1">(you)</span>}
-                      </p>
-                      <div className="flex items-center gap-1">
-                        <rank.Icon className={rank.color} size={8} />
-                        <span className={`text-xs ${rank.color}`}>{rank.name}</span>
-                        <span className="text-xs text-gray-600">·Lv.{player.level || 1}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex-shrink-0 text-right min-w-[48px]">
-                      <p className={`font-bold text-xs ${
-                        pos===1 ? 'text-yellow-400' : pos===2 ? 'text-gray-300' :
-                        pos===3 ? 'text-orange-400' : isMe ? 'text-purple-300' : 'text-white'
-                      }`}>{fmtScore(player, tab)}</p>
-                      {tab !== 'wins' && (
-                        <p className="text-xs text-gray-600">{player.total_wins || 0}W</p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Footer stats */}
-          {!loading && leaders.length > 0 && (
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              {[
-                { Icon: FaUser,   color: 'text-blue-400',   label: 'Players', val: `${leaders.length}+` },
-                { Icon: FaStar,   color: 'text-yellow-400', label: 'Top XP',  val: (leaders[0]?.xp || 0).toLocaleString() },
-                { Icon: FaTrophy, color: 'text-green-400',  label: 'Top Wins',val: leaders[0]?.total_wins || 0 },
-              ].map(({ Icon, color, label, val }) => (
-                <div key={label} className="bg-discord-dark border border-gray-800 rounded-lg p-2 text-center">
-                  <Icon className={`${color} mx-auto mb-1`} size={13} />
-                  <p className="text-white font-bold text-sm">{val}</p>
-                  <p className="text-xs text-discord-text">{label}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-        </div>
       </div>
     </div>
   );
