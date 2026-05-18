@@ -44,7 +44,6 @@ export default function AdminDashboard() {
     { name: 'Tournaments', path: '/admin/tournaments', icon: FaTrophy, color: 'purple', desc: 'Create and manage tournaments' },
     { name: 'Users', path: '/admin/users', icon: FaUsers, color: 'blue', desc: 'View and moderate users' },
     { name: 'Guilds', path: '/admin/guilds', icon: FaShieldAlt, color: 'indigo', desc: 'Manage guild system' },
-    { label: 'Season Management', path: '/admin/seasons', icon: '🔥' }
   ];
 
   const contentSections = [
