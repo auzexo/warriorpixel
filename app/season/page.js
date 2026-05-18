@@ -23,13 +23,6 @@ const REWARD_ICON = {
   badge:'👑', ticket:'🎮'
 };
 
-const STREAK_MILESTONES = [
-  { day:7,  reward:'500 Coins',   icon:'🪙' },
-  { day:14, reward:'₹20 Voucher', icon:'🎫' },
-  { day:30, reward:'₹30 Voucher', icon:'🎫' },
-  { day:60, reward:'30 Gems',     icon:'💎' },
-  { day:90, reward:'₹50 Voucher', icon:'🎟️' },
-];
 
 export default function SeasonPage() {
   const { user, profile, refreshProfile } = useAuth();
@@ -44,6 +37,7 @@ export default function SeasonPage() {
   const [page, setPage] = useState(0);
   const [view, setView] = useState('pass');
   const [toast, setToast] = useState(null);
+  const [streakMilestones, setStreakMilestones] = useState([]);
 
   const showToast = (text, type = 'success') => {
     setToast({ text, type });
@@ -78,8 +72,17 @@ export default function SeasonPage() {
         .from('daily_logins').select('*')
         .eq('user_id', user.id).eq('login_date', today).single();
       setLoginData(login || null);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+
+            // Load streak milestones from database (not hardcoded)
+            const { data: milestoneData } = await supabase
+              .from('streak_reward_config')
+              .select('*')
+              .eq('is_milestone', true)
+              .order('streak_day');
+            setStreakMilestones(milestoneData || []);
+
+          } catch (e) { console.error(e); }
+          finally { setLoading(false); }
   }, [user]);
 
   useEffect(() => { load(); }, [load]);
@@ -396,26 +399,33 @@ export default function SeasonPage() {
             <div className="bg-discord-dark border border-gray-800 rounded-xl p-4">
               <p className="text-white font-bold mb-3 text-sm">🏆 Streak Milestones</p>
               <div className="space-y-2">
-                {STREAK_MILESTONES.map(({ day, reward, icon }) => {
-                  const achieved = loginStreak >= day;
-                  return (
-                    <div key={day} className={`flex items-center gap-3 p-2.5 rounded-lg border ${
-                      achieved ? 'bg-green-900 bg-opacity-20 border-green-700' :
-                      loginStreak === day - 1 ? 'bg-yellow-900 bg-opacity-20 border-yellow-700' :
-                      'bg-discord-darkest border-gray-800'
-                    }`}>
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs border-2 flex-shrink-0 ${
-                        achieved ? 'bg-green-900 border-green-500 text-green-300' : 'bg-gray-800 border-gray-600 text-gray-500'
-                      }`}>{achieved ? '✓' : `${day}d`}</div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white text-xs font-bold">Day {day} Streak</p>
-                        <p className="text-gray-400 text-xs">{icon} {reward}</p>
-                      </div>
-                      {achieved && <FaCheckCircle className="text-green-400 flex-shrink-0" size={14} />}
-                    </div>
-                  );
-                })}
-              </div>
+                              {streakMilestones.length === 0 ? (
+                                <div className="text-center py-4">
+                                  <p className="text-discord-text text-sm">No milestones configured yet</p>
+                                </div>
+                              ) : streakMilestones.map((m) => {
+                                const achieved = loginStreak >= m.streak_day;
+                                return (
+                                  <div key={m.streak_day} className={`flex items-center gap-3 p-2.5 rounded-lg border ${
+                                    achieved ? 'bg-green-900 bg-opacity-20 border-green-700' :
+                                    loginStreak === m.streak_day - 1 ? 'bg-yellow-900 bg-opacity-20 border-yellow-700' :
+                                    'bg-discord-darkest border-gray-800'
+                                  }`}>
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs border-2 flex-shrink-0 ${
+                                      achieved ? 'bg-green-900 border-green-500 text-green-300' : 'bg-gray-800 border-gray-600 text-gray-500'
+                                    }`}>{achieved ? '✓' : `${m.streak_day}d`}</div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-white text-xs font-bold">Day {m.streak_day} Streak</p>
+                                      <p className="text-gray-400 text-xs">
+                                        {m.icon} {m.reward_amount} {m.reward_type.replace(/_/g, ' ')}
+                                      </p>
+                                      {m.label && <p className="text-gray-600 text-xs italic">{m.label}</p>}
+                                    </div>
+                                    {achieved && <FaCheckCircle className="text-green-400 flex-shrink-0" size={14} />}
+                                  </div>
+                                );
+                              })}
+                            </div>
             </div>
           </div>
         )}
