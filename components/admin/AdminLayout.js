@@ -20,7 +20,10 @@ import {
   FaUserShield,
   FaVideo,
   FaKey,
-  FaCrown
+  FaCrown,
+  FaFire,
+  FaBolt,
+  FaCalendarAlt
 } from 'react-icons/fa';
 
 export default function AdminLayout({ children }) {
@@ -99,6 +102,24 @@ export default function AdminLayout({ children }) {
           name: 'Videos & Content', 
           path: '/admin/content', 
           icon: FaVideo,
+          permission: PERMISSIONS.ANNOUNCEMENT_CREATE
+        },
+        { 
+          name: 'Season Management', 
+          path: '/admin/seasons', 
+          icon: FaFire,
+          permission: PERMISSIONS.ANNOUNCEMENT_CREATE
+        },
+        { 
+          name: 'Missions', 
+          path: '/admin/seasons/missions', 
+          icon: FaBolt,
+          permission: PERMISSIONS.ANNOUNCEMENT_CREATE
+        },
+        { 
+          name: 'Streak Config', 
+          path: '/admin/seasons/streaks', 
+          icon: FaCalendarAlt,
           permission: PERMISSIONS.ANNOUNCEMENT_CREATE
         }
       ]
