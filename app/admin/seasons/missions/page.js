@@ -127,6 +127,19 @@ export default function AdminMissionsPage() {
     } catch (e) { showToast(`❌ ${e.message}`, 'error'); }
   };
 
+  const handleResetToday = async () => {
+      if (!confirm(
+        'Reset ALL users\' missions for today?\n\n' +
+        'This deletes today\'s assignments so users get fresh ones with the latest template values.\n\n' +
+        'Users keep their progress until they next open the Missions tab.'
+      )) return;
+      try {
+        const { data, error } = await supabase.rpc('admin_reset_daily_missions');
+        if (error) throw error;
+        showToast(`✅ ${data.message}`);
+      } catch (e) { showToast(`❌ ${e.message}`, 'error'); }
+    };
+
   const filtered = filterDiff === 'all'
     ? templates
     : templates.filter(t => t.difficulty === filterDiff);
@@ -160,10 +173,16 @@ export default function AdminMissionsPage() {
               {templates.length} total · {templates.filter(t => t.is_active).length} active
             </p>
           </div>
-          <button onClick={openCreate}
-            className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-bold">
-            <FaPlus /> New Mission
-          </button>
+          <div className="flex gap-2">
+                      <button onClick={handleResetToday}
+                        className="flex items-center gap-1.5 px-3 py-2 bg-orange-700 hover:bg-orange-600 text-white rounded-lg text-sm font-bold">
+                        🔄 Reset Today
+                      </button>
+                      <button onClick={openCreate}
+                        className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-bold">
+                        <FaPlus /> New Mission
+                      </button>
+                    </div>
         </div>
 
         {/* Stats */}
