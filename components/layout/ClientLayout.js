@@ -10,42 +10,23 @@ import AuthModal from '../auth/AuthModal';
 import LoadingScreen from './LoadingScreen';
 import CookieConsent from '../legal/CookieConsent';
 
-// Pages that don't require login
 const publicRoutes = [
-  '/',
-  '/videos',
-  '/info',
-  '/download',
-  '/downloads',
-  '/home',
-  '/terms',
-  '/privacy',
-  '/help',
-  '/about',
-  '/contact',
+  '/', '/videos', '/info', '/download', '/downloads',
+  '/home', '/terms', '/privacy', '/help', '/about', '/contact',
 ];
 
-// Pages that banned/suspended users CAN access
 const allowedForBannedUsers = [
-  '/',
-  '/videos',
-  '/info',
-  '/download',
-  '/downloads',
-  '/help',
-  '/about',
-  '/contact',
-  '/terms',
-  '/privacy',
-  '/restricted',
-  '/home',
+  '/', '/videos', '/info', '/download', '/downloads',
+  '/help', '/about', '/contact', '/terms', '/privacy',
+  '/restricted', '/home',
 ];
 
 export default function ClientLayout({ children }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, profile, loading } = useAuth();
-  const { banStatus, isBanned, loading: banLoading, checked: banChecked } = useBanCheck();
+  const { user, loading } = useAuth();
+  const { isBanned, loading: banLoading, checked: banChecked } = useBanCheck();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
@@ -54,60 +35,67 @@ export default function ClientLayout({ children }) {
     pathname === r || pathname.startsWith(r + '/')
   );
   const isAdminRoute = pathname?.startsWith('/admin');
-  const isAuthCallback = pathname?.startsWith('/auth/');
-  const requiresAuth = !isPublicRoute && !isAdminRoute && !isAuthCallback;
+  const isAuthRoute = pathname?.startsWith('/auth/');
+  const requiresAuth = !isPublicRoute && !isAdminRoute && !isAuthRoute;
 
-  // Check if current page is allowed for banned users
-  const isAllowedForBanned = allowedForBannedUsers.some(route =>
-    pathname === route || pathname.startsWith(route + '/')
+  const isAllowedForBanned = allowedForBannedUsers.some(r =>
+    pathname === r || pathname.startsWith(r + '/')
   );
 
-  // Auth check
+  // Auth check — with 4-second timeout so loading never gets stuck forever
   useEffect(() => {
     if (!loading) {
       setAuthChecked(true);
-      if (requiresAuth && !user) {
-        setShowAuthModal(true);
-      } else {
-        setShowAuthModal(false);
-      }
+      return;
     }
-  }, [loading, requiresAuth, user]);
+    // Safety timeout: if auth takes more than 4 seconds, proceed anyway
+    const timeout = setTimeout(() => {
+      setAuthChecked(true);
+    }, 4000);
+    return () => clearTimeout(timeout);
+  }, [loading]);
 
-  // Ban check: redirect banned users from protected pages
   useEffect(() => {
-    if (user && banChecked && isBanned && !isAllowedForBanned && !isAdminRoute && !isAuthCallback) {
+    if (!authChecked) return;
+    if (requiresAuth && !user) {
+      setShowAuthModal(true);
+    } else {
+      setShowAuthModal(false);
+    }
+  }, [authChecked, requiresAuth, user]);
+
+  // Ban redirect
+  useEffect(() => {
+    if (user && banChecked && isBanned && !isAllowedForBanned && !isAdminRoute && !isAuthRoute) {
       router.push('/restricted');
     }
-  }, [user, isBanned, banChecked, isAllowedForBanned, pathname, isAdminRoute, isAuthCallback, router]);
+  }, [user, isBanned, banChecked, isAllowedForBanned, pathname, isAdminRoute, isAuthRoute, router]);
 
   // Close sidebar on navigation
   useEffect(() => {
     setSidebarOpen(false);
   }, [pathname]);
 
-  // Show loading while checking auth or ban status
-  if (loading || !authChecked || (user && banLoading)) {
-    return <LoadingScreen />;
+  // Only show loading spinner briefly — never block the whole app
+  // banLoading is fast (cached after first check), but don't block on it
+  const showLoading = !authChecked && loading;
+
+  if (isAdminRoute || isAuthRoute) {
+    return <>{children}</>;
   }
 
-  if (isAdminRoute || isAuthCallback) {
-    return <>{children}</>;
+  if (showLoading) {
+    return <LoadingScreen />;
   }
 
   return (
     <div className="min-h-screen bg-discord-darkest text-white">
       <Topbar onMenuClick={() => setSidebarOpen(true)} />
-
       <div className="flex">
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <main className="flex-1 p-4 md:p-6 lg:p-8">{children}</main>
       </div>
-
-      {showAuthModal && !user && requiresAuth && authChecked && (
-        <AuthModal />
-      )}
-
+      {showAuthModal && !user && requiresAuth && authChecked && <AuthModal />}
       <CookieConsent />
     </div>
   );
