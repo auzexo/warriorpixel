@@ -9,48 +9,31 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    checkSession();
+    let mounted = true;
 
-    // Listen for auth changes
+  // ← ADD THIS: Check session immediately on mount
+  // Prevents stuck loading when returning to site
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      if (session?.user) {
+        setUser(session.user);
+        loadProfile(session.user.id); // whatever your profile load function is
+      }
+      setLoading(false); // ← Always resolve loading quickly
+    });
+
+  // Existing listener stays for real-time auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event);
-        
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          setUser(session?.user ?? null);
-          if (session?.user) {
-            await loadProfile(session.user.id);
-          }
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setProfile(null);
-          // Clear all local storage
-          localStorage.clear();
-          sessionStorage.clear();
-        }
+        if (!mounted) return;
+        if (event === 'SIGNED_IN') { ... }
+        if (event === 'SIGNED_OUT') { ... }
       }
     );
 
-    // Refresh session every 5 minutes
-    const refreshInterval = setInterval(async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error('Session refresh error:', error);
-        // Clear stale session
-        await supabase.auth.signOut();
-      } else if (session) {
-        // Refresh token if needed
-        const { error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError) {
-          console.error('Token refresh error:', refreshError);
-        }
-      }
-    }, 5 * 60 * 1000); // Every 5 minutes
-
     return () => {
+      mounted = false;
       subscription.unsubscribe();
-      clearInterval(refreshInterval);
     };
   }, []);
 
