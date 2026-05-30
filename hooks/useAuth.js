@@ -1,46 +1,76 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 
 export function useAuth() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const mountedRef = useRef(true);
+  const profileLoadedFor = useRef(null); // prevent duplicate loadProfile calls
 
   useEffect(() => {
-    let mounted = true;
+    mountedRef.current = true;
 
-  // ← ADD THIS: Check session immediately on mount
-  // Prevents stuck loading when returning to site
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return;
-      if (session?.user) {
-        setUser(session.user);
-        loadProfile(session.user.id); // whatever your profile load function is
-      }
-      setLoading(false); // ← Always resolve loading quickly
-    });
+    // Safety timeout — loading never gets stuck more than 5 seconds
+    const loadingTimeout = setTimeout(() => {
+      if (mountedRef.current) setLoading(false);
+    }, 5000);
 
-  // Existing listener stays for real-time auth changes
+    // Check existing session immediately on mount
+    checkSession().finally(() => clearTimeout(loadingTimeout));
+
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (!mounted) return;
-        if (event === 'SIGNED_IN') { ... }
-        if (event === 'SIGNED_OUT') { ... }
+        if (!mountedRef.current) return;
+
+        if (
+          event === 'SIGNED_IN' ||
+          event === 'TOKEN_REFRESHED' ||
+          event === 'INITIAL_SESSION' // ← FIX: handle returning users
+        ) {
+          const currentUser = session?.user ?? null;
+          setUser(currentUser);
+
+          if (currentUser && profileLoadedFor.current !== currentUser.id) {
+            profileLoadedFor.current = currentUser.id;
+            await loadProfile(currentUser.id);
+          }
+          // Always resolve loading on any auth event
+          if (mountedRef.current) setLoading(false);
+
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setProfile(null);
+          profileLoadedFor.current = null;
+          if (mountedRef.current) setLoading(false);
+
+          // Only clear Supabase keys — not ALL localStorage
+          Object.keys(localStorage).forEach(key => {
+            if (key.includes('supabase') || key.includes('sb-')) {
+              localStorage.removeItem(key);
+            }
+          });
+        }
       }
     );
 
     return () => {
-      mounted = false;
+      mountedRef.current = false;
+      clearTimeout(loadingTimeout);
       subscription.unsubscribe();
+      // NOTE: Removed manual refreshInterval — supabase autoRefreshToken handles this
     };
   }, []);
 
   const checkSession = async () => {
     try {
       const { data: { session }, error } = await supabase.auth.getSession();
-      
+
+      if (!mountedRef.current) return;
+
       if (error) {
         console.error('Session check error:', error);
         setUser(null);
@@ -49,23 +79,27 @@ export function useAuth() {
         return;
       }
 
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        await loadProfile(session.user.id);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+
+      if (currentUser) {
+        profileLoadedFor.current = currentUser.id;
+        await loadProfile(currentUser.id);
       }
+
     } catch (error) {
       console.error('Check session error:', error);
-      setUser(null);
-      setProfile(null);
+      if (mountedRef.current) {
+        setUser(null);
+        setProfile(null);
+      }
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   };
 
   const loadProfile = async (userId) => {
-    if (!userId) return;
-    
+    if (!userId || !mountedRef.current) return;
     try {
       const { data, error } = await supabase
         .from('users')
@@ -77,43 +111,31 @@ export function useAuth() {
         console.error('Error loading profile:', error);
         return;
       }
-
-      setProfile(data);
+      if (mountedRef.current) setProfile(data);
     } catch (error) {
       console.error('Load profile error:', error);
     }
   };
 
-  // PUBLIC FUNCTION: Manually refresh profile
   const refreshProfile = async () => {
-    if (user?.id) {
-      await loadProfile(user.id);
-    }
+    if (user?.id) await loadProfile(user.id);
   };
 
   const logout = async () => {
     try {
-      // Clear all storage first
-      localStorage.clear();
-      sessionStorage.clear();
-      
-      // Sign out from Supabase
+      // Only clear Supabase session from localStorage
+      Object.keys(localStorage).forEach(key => {
+        if (key.includes('supabase') || key.includes('sb-')) {
+          localStorage.removeItem(key);
+        }
+      });
       await supabase.auth.signOut();
-      
-      // Force reload to clear all state
       window.location.href = '/';
     } catch (error) {
       console.error('Logout error:', error);
-      // Force reload anyway
       window.location.href = '/';
     }
   };
 
-  return {
-    user,
-    profile,
-    loading,
-    logout,
-    refreshProfile, // ← ADDED THIS!
-  };
+  return { user, profile, loading, logout, refreshProfile };
 }
