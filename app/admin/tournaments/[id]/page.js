@@ -230,21 +230,46 @@ export default function ManageTournamentPage() {
           if (transactionError) {
             console.error('⚠️ Transaction logging error:', transactionError);
           }
-        } else {
-          // No prize but still participated
-          const { error: statsError } = await supabase
-            .from('users')
-            .update({
-              total_games: (participant.users.total_games || 0) + 1,
-              stat_tournaments_joined: (participant.users.stat_tournaments_joined || 0) + 1,
-              stat_total_kills: (participant.users.stat_total_kills || 0) + kills
-            })
-            .eq('id', participant.user_id);
-
-          if (statsError) {
-            console.error('⚠️ Stats update error:', statsError);
-          }
         }
+
+        // Save to tournament_results for public results display
+        const position = isFirst ? 1 : isSecond ? 2 : isThird ? 3 : isBooyah ? 1 : null;
+        await supabase.from('tournament_results')
+          .upsert({
+            tournament_id: params.id,
+            user_id: participant.user_id,
+            username: participant.users?.username,
+            in_game_name: participant.in_game_name,
+            position: position,
+            kills: parseInt(killCounts[participant.id]) || 0,
+            prize_amount: totalPrize,
+            prize_type: 'real_money',
+            distributed: totalPrize > 0
+          }, { onConflict: 'tournament_id,user_id' });
+
+        if (!totalPrize) {
+          // Still update stats for non-winners
+          await supabase.from('users').update({
+            total_games: (participant.users.total_games || 0) + 1,
+            stat_tournaments_joined: (participant.users.stat_tournaments_joined || 0) + 1,
+            stat_total_kills: (participant.users.stat_total_kills || 0) + (parseInt(killCounts[participant.id]) || 0)
+          }).eq('id', participant.user_id);
+        }
+      }
+      // Award XP and season XP to all participants via SQL
+      for (const participant of participants) {
+        const kills = parseInt(killCounts[participant.id]) || 0;
+        const isBooyah = participant.id === booyahWinner;
+        const xpAmount = isBooyah ? 200 + kills * 5 : 50 + kills * 5;
+        await supabase.rpc('award_xp', {
+          p_user_id: participant.user_id,
+          p_xp_amount: xpAmount,
+          p_source: 'tournament_result'
+        });
+        await supabase.rpc('add_season_xp', {
+          p_user_id: participant.user_id,
+          p_xp_amount: Math.floor(xpAmount / 2)
+        });
       }
 
       // Mark tournament as completed
@@ -348,6 +373,13 @@ export default function ManageTournamentPage() {
               Custom Tournament
             </span>
           )}
+          <span className={`px-3 py-1 rounded-full text-sm font-semibold border ${
+                      tournament.vouchers_allowed
+                        ? 'bg-green-900 bg-opacity-30 border-green-600 text-green-300'
+                        : 'bg-red-900 bg-opacity-30 border-red-700 text-red-400'
+                    }`}>
+                      {tournament.vouchers_allowed ? '🎫 Vouchers Allowed' : '🚫 No Vouchers'}
+                    </span>
         </div>
       </div>
 
