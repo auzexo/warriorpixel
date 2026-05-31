@@ -784,44 +784,7 @@ export default function TournamentsPage() {
         </div>
       )}
 
-{/* Results Modal */}
-{showResults && (
-  <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-    <div className="bg-discord-dark border border-yellow-600 rounded-xl max-w-md w-full max-h-[80vh] overflow-y-auto p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-white font-bold text-lg">🏆 Tournament Results</h3>
-        <button onClick={() => setShowResults(null)} className="text-gray-400 hover:text-white">✕</button>
-      </div>
-      {(results[showResults] || []).length === 0 ? (
-        <p className="text-discord-text text-center py-6">Results not yet published</p>
-      ) : (
-        <div className="space-y-2">
-          {(results[showResults] || []).map((r, i) => (
-            <div key={r.id} className={`flex items-center gap-3 p-2.5 rounded-lg border ${
-              r.position === 1 ? 'bg-yellow-900 bg-opacity-30 border-yellow-600' :
-              r.position === 2 ? 'bg-gray-700 bg-opacity-30 border-gray-500' :
-              r.position === 3 ? 'bg-orange-900 bg-opacity-30 border-orange-700' :
-              'bg-discord-darkest border-gray-800'
-            }`}>
-              <span className="text-xl flex-shrink-0">
-                {r.position === 1 ? '🥇' : r.position === 2 ? '🥈' : r.position === 3 ? '🥉' : `#${r.position}`}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-white font-bold text-sm truncate">{r.in_game_name || r.username}</p>
-                <p className="text-xs text-gray-400">{r.kills} kills · {r.points} pts</p>
-              </div>
-              {r.prize_amount > 0 && (
-                <span className="text-green-400 font-bold text-sm flex-shrink-0">
-                  {r.prize_type === 'real_money' ? `₹${r.prize_amount}` : `${r.prize_amount} coins`}
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  </div>
-)}
+
       {/* Modal - CONTINUES WITH SAME MODAL CODE AS ORIGINAL... */}
       {showModal && selectedTournament && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-3" onClick={closeModal}>
@@ -1054,6 +1017,44 @@ export default function TournamentsPage() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+    {/* Results Modal */}
+      {showResults && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-discord-dark border border-yellow-600 rounded-xl max-w-md w-full max-h-[80vh] overflow-y-auto p-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-white font-bold text-lg">🏆 Tournament Results</h3>
+              <button onClick={() => setShowResults(null)} className="text-gray-400 hover:text-white">✕</button>
+            </div>
+            {(results[showResults] || []).length === 0 ? (
+              <p className="text-discord-text text-center py-6">Results not yet published</p>
+            ) : (
+              <div className="space-y-2">
+                {(results[showResults] || []).map((r, i) => (
+                  <div key={r.id} className={`flex items-center gap-3 p-2.5 rounded-lg border ${
+                    r.position === 1 ? 'bg-yellow-900 bg-opacity-30 border-yellow-600' :
+                    r.position === 2 ? 'bg-gray-700 bg-opacity-30 border-gray-500' :
+                    r.position === 3 ? 'bg-orange-900 bg-opacity-30 border-orange-700' :
+                    'bg-discord-darkest border-gray-800'
+                  }`}>
+                    <span className="text-xl flex-shrink-0">
+                      {r.position === 1 ? '🥇' : r.position === 2 ? '🥈' : r.position === 3 ? '🥉' : `#${r.position}`}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-bold text-sm truncate">{r.in_game_name || r.username}</p>
+                      <p className="text-xs text-gray-400">{r.kills} kills · {r.points} pts</p>
+                    </div>
+                    {r.prize_amount > 0 && (
+                      <span className="text-green-400 font-bold text-sm flex-shrink-0">
+                        {r.prize_type === 'real_money' ? `₹${r.prize_amount}` : `${r.prize_amount} coins`}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
