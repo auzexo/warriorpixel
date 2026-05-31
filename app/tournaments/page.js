@@ -66,13 +66,6 @@ export default function TournamentsPage() {
     };
   }, [filter, user]);
 
-// Countdown timer — updates every second
-  useEffect(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    calcCountdown();
-    timerRef.current = setInterval(calcCountdown, 1000);
-    return () => clearInterval(timerRef.current);
-  }, [calcCountdown]);
 
   const loadUserJoinedTournaments = async () => {
     if (!user) return;
@@ -352,6 +345,13 @@ export default function TournamentsPage() {
     setResults(prev => ({ ...prev, [tournamentId]: data || [] }));
     setShowResults(tournamentId);
   };
+  // Countdown timer — updates every second
+    useEffect(() => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      calcCountdown();
+      timerRef.current = setInterval(calcCountdown, 1000);
+      return () => clearInterval(timerRef.current);
+    }, [calcCountdown]);
 
   // Show loading while checking ban status
   if (banLoading || !banChecked) {
