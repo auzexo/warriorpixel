@@ -28,7 +28,8 @@ export default function CreateTournamentPage() {
     start_time: '',
     status: 'upcoming',
     room_id: '',
-    room_password: ''
+    room_password: '',
+    vouchers_allowed: null
   });
 
   useEffect(() => {
@@ -94,6 +95,11 @@ export default function CreateTournamentPage() {
       return;
     }
 
+    if (formData.vouchers_allowed === null || formData.vouchers_allowed === undefined) {
+      alert('❌ Please decide whether vouchers are allowed for this tournament');
+      return;
+    }
+
     setCreating(true);
 
     try {
@@ -114,6 +120,7 @@ export default function CreateTournamentPage() {
         rules: formData.rules.trim() || null,
         room_id: formData.room_id.trim() || null,
         room_password: formData.room_password.trim() || null,
+        vouchers_allowed: formData.vouchers_allowed,
         preset_id: usePreset && selectedPreset ? selectedPreset.id : null,
         created_by: user?.id || null
       };
@@ -385,6 +392,38 @@ export default function CreateTournamentPage() {
               />
             </div>
           </div>
+                  {/* Vouchers Toggle - REQUIRED */}
+        <div className="bg-discord-dark border border-gray-800 rounded-xl p-5">
+          <label className="block text-white font-semibold mb-1">
+            🎫 Allow Entry Vouchers? <span className="text-red-400">*</span>
+          </label>
+          <p className="text-xs text-discord-text mb-3">
+            Can players use ₹20/₹30/₹50 vouchers to pay entry fee instead of real money?
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <button type="button"
+              onClick={() => setFormData({...formData, vouchers_allowed: true})}
+              className={`py-3 rounded-lg font-bold border transition-all ${
+                formData.vouchers_allowed === true
+                  ? 'bg-green-700 border-green-500 text-white'
+                  : 'bg-discord-darkest border-gray-700 text-gray-400 hover:border-green-600'
+              }`}>
+              ✅ Yes, allow vouchers
+            </button>
+            <button type="button"
+              onClick={() => setFormData({...formData, vouchers_allowed: false})}
+              className={`py-3 rounded-lg font-bold border transition-all ${
+                formData.vouchers_allowed === false
+                  ? 'bg-red-800 border-red-600 text-white'
+                  : 'bg-discord-darkest border-gray-700 text-gray-400 hover:border-red-700'
+              }`}>
+              🚫 No vouchers
+            </button>
+          </div>
+          {formData.vouchers_allowed === null && (
+            <p className="text-red-400 text-xs mt-2">⚠️ You must select an option before creating</p>
+          )}
+        </div>
         </div>
 
         {/* Actions */}
