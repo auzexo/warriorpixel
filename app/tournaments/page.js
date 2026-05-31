@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { useBanCheck } from '@/hooks/useBanCheck';
@@ -22,6 +22,12 @@ export default function TournamentsPage() {
   const [joining, setJoining] = useState(false);
   const [userParticipation, setUserParticipation] = useState(null);
   const [joinedTournamentIds, setJoinedTournamentIds] = useState(new Set());
+  const [countdown, setCountdown] = useState({});
+  const [liveCounts, setLiveCounts] = useState({});
+  const [results, setResults] = useState({});
+  const [showResults, setShowResults] = useState(null);
+  const channelRef = useRef(null);
+  const timerRef = useRef(null);
   const [joinData, setJoinData] = useState({
     in_game_name: '',
     in_game_id: ''
@@ -29,10 +35,44 @@ export default function TournamentsPage() {
 
   useEffect(() => {
     loadTournaments();
-    if (user) {
-      loadUserJoinedTournaments();
-    }
+    if (user) loadUserJoinedTournaments();
+
+  // Realtime: live participant count updates
+    channelRef.current = supabase
+      .channel('live-participants')
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'tournament_participants'
+      }, payload => {
+        const tid = payload.new?.tournament_id;
+        if (!tid) return;
+        setTournaments(prev => prev.map(t =>
+          t.id === tid ? { ...t, participantCount: (t.participantCount || 0) + 1 } : t
+        ));
+        setLiveCounts(prev => ({ ...prev, [tid]: (prev[tid] || 0) + 1 }));
+      })
+      .on('postgres_changes', {
+        event: 'DELETE', schema: 'public', table: 'tournament_participants'
+      }, payload => {
+        const tid = payload.old?.tournament_id;
+        if (!tid) return;
+        setTournaments(prev => prev.map(t =>
+          t.id === tid ? { ...t, participantCount: Math.max(0, (t.participantCount || 1) - 1) } : t
+        ));
+      })
+      .subscribe();
+
+    return () => {
+      if (channelRef.current) supabase.removeChannel(channelRef.current);
+    };
   }, [filter, user]);
+
+// Countdown timer — updates every second
+  useEffect(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    calcCountdown();
+    timerRef.current = setInterval(calcCountdown, 1000);
+    return () => clearInterval(timerRef.current);
+  }, [calcCountdown]);
 
   const loadUserJoinedTournaments = async () => {
     if (!user) return;
@@ -288,6 +328,31 @@ export default function TournamentsPage() {
     }
   };
 
+  const calcCountdown = useCallback(() => {
+    const next = {};
+    tournaments.forEach(t => {
+      if (t.status !== 'upcoming') return;
+      const diff = new Date(t.start_time) - Date.now();
+      if (diff <= 0) { next[t.id] = null; return; }
+      const d = Math.floor(diff / 86400000);
+      const h = Math.floor((diff % 86400000) / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      next[t.id] = d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`;
+    });
+    setCountdown(next);
+  }, [tournaments]);
+
+  const loadResults = async (tournamentId) => {
+    const { data } = await supabase
+      .from('tournament_results')
+      .select('*, users(username)')
+      .eq('tournament_id', tournamentId)
+      .order('position');
+    setResults(prev => ({ ...prev, [tournamentId]: data || [] }));
+    setShowResults(tournamentId);
+  };
+
   // Show loading while checking ban status
   if (banLoading || !banChecked) {
     return (
@@ -353,6 +418,23 @@ export default function TournamentsPage() {
           </div>
         ) : (
           <>
+
+          {/* LIVE NOW banner */}
+          {tournaments.some(t => t.status === 'live') && (
+            <div className="bg-red-600 bg-opacity-20 border border-red-500 rounded-xl p-3 mb-4 flex items-center gap-3">
+              <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+              <div>
+                <p className="text-red-400 font-bold text-sm">
+                  🔴 {tournaments.filter(t => t.status === 'live').length} Tournament{tournaments.filter(t => t.status === 'live').length > 1 ? 's' : ''} LIVE NOW!
+                </p>
+                <p className="text-red-300 text-xs">Join before spots fill up</p>
+              </div>
+              <button onClick={() => setFilter('live')} className="ml-auto text-xs bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg font-bold">
+                View Live
+              </button>
+            </div>
+          )}
+  
             {/* Filters */}
             <div className="flex gap-2 mb-5 overflow-x-auto pb-2 -mx-3 px-3">
               <button
@@ -426,7 +508,11 @@ export default function TournamentsPage() {
 
                     <div className="flex items-start justify-between mb-2 gap-2">
                       <div className="flex-1 min-w-0">
+                        {/* Status badge + live pulse */}
                         <div className={`${statusBadge.bg} px-2 py-0.5 rounded inline-flex items-center gap-1 mb-1.5`}>
+                          {tournament.status === 'live' && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                          )}
                           <span className="text-xs">{statusBadge.icon}</span>
                           <span className="text-white font-bold text-xs">{statusBadge.text}</span>
                         </div>
@@ -462,13 +548,25 @@ export default function TournamentsPage() {
                     </div>
 
                     <div className="bg-discord-darkest rounded p-2 mb-2">
-                      <div className="flex items-start gap-1.5">
-                        <FaClock className="text-cyan-400 flex-shrink-0 mt-0.5 text-xs" />
+                      <div className="flex items-center gap-1.5">
+                        <FaClock className="text-cyan-400 flex-shrink-0 text-xs" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs text-discord-text mb-0.5">Start</p>
-                          <p className="text-white font-semibold text-xs break-words leading-tight">
-                            {formatISTDate(tournament.start_time, true)}
-                          </p>
+                          {tournament.status === 'upcoming' && countdown[tournament.id] ? (
+                            <>
+                              <p className="text-xs text-discord-text">Starts in</p>
+                              <p className="text-yellow-400 font-bold text-sm">{countdown[tournament.id]}</p>
+                            </>
+                          ) : tournament.status === 'live' ? (
+                            <>
+                              <p className="text-xs text-red-400 font-bold animate-pulse">🔴 Tournament in progress</p>
+                              <p className="text-xs text-discord-text">{formatISTDate(tournament.start_time, true)}</p>
+                            </>
+                          ) : (
+                           <>
+                              <p className="text-xs text-discord-text">Started</p>
+                              <p className="text-white text-xs">{formatISTDate(tournament.start_time, true)}</p>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -564,6 +662,15 @@ export default function TournamentsPage() {
           Completed
         </button>
       </div>
+  {tournament.status === 'completed' && (
+    <button
+      onClick={() => loadResults(tournament.id)}
+      className="w-full mt-1 py-1.5 rounded-lg font-bold text-xs bg-yellow-700 hover:bg-yellow-600 text-white flex items-center justify-center gap-1"
+    >
+    🏆 View Results
+    </button>
+  )}
+
 
       {/* Tournament Cards - ULTRA COMPACT */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -677,6 +784,44 @@ export default function TournamentsPage() {
         </div>
       )}
 
+{/* Results Modal */}
+{showResults && (
+  <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+    <div className="bg-discord-dark border border-yellow-600 rounded-xl max-w-md w-full max-h-[80vh] overflow-y-auto p-4">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-white font-bold text-lg">🏆 Tournament Results</h3>
+        <button onClick={() => setShowResults(null)} className="text-gray-400 hover:text-white">✕</button>
+      </div>
+      {(results[showResults] || []).length === 0 ? (
+        <p className="text-discord-text text-center py-6">Results not yet published</p>
+      ) : (
+        <div className="space-y-2">
+          {(results[showResults] || []).map((r, i) => (
+            <div key={r.id} className={`flex items-center gap-3 p-2.5 rounded-lg border ${
+              r.position === 1 ? 'bg-yellow-900 bg-opacity-30 border-yellow-600' :
+              r.position === 2 ? 'bg-gray-700 bg-opacity-30 border-gray-500' :
+              r.position === 3 ? 'bg-orange-900 bg-opacity-30 border-orange-700' :
+              'bg-discord-darkest border-gray-800'
+            }`}>
+              <span className="text-xl flex-shrink-0">
+                {r.position === 1 ? '🥇' : r.position === 2 ? '🥈' : r.position === 3 ? '🥉' : `#${r.position}`}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-bold text-sm truncate">{r.in_game_name || r.username}</p>
+                <p className="text-xs text-gray-400">{r.kills} kills · {r.points} pts</p>
+              </div>
+              {r.prize_amount > 0 && (
+                <span className="text-green-400 font-bold text-sm flex-shrink-0">
+                  {r.prize_type === 'real_money' ? `₹${r.prize_amount}` : `${r.prize_amount} coins`}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
+)}
       {/* Modal - CONTINUES WITH SAME MODAL CODE AS ORIGINAL... */}
       {showModal && selectedTournament && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-3" onClick={closeModal}>
