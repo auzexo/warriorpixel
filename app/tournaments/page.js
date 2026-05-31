@@ -662,14 +662,7 @@ export default function TournamentsPage() {
           Completed
         </button>
       </div>
-  {tournament.status === 'completed' && (
-    <button
-      onClick={() => loadResults(tournament.id)}
-      className="w-full mt-1 py-1.5 rounded-lg font-bold text-xs bg-yellow-700 hover:bg-yellow-600 text-white flex items-center justify-center gap-1"
-    >
-    🏆 View Results
-    </button>
-  )}
+
 
 
       {/* Tournament Cards - ULTRA COMPACT */}
@@ -758,6 +751,16 @@ export default function TournamentsPage() {
                   </div>
                 </div>
               </div>
+
+              {/* View Results Button - only for completed tournaments */}
+              {tournament.status === 'completed' && (
+                <button
+                  onClick={() => loadResults(tournament.id)}
+                  className="w-full mb-1 py-1.5 rounded-lg font-bold text-xs bg-yellow-700 hover:bg-yellow-600 text-white flex items-center justify-center gap-1"
+                >
+                  🏆 View Results
+                </button>
+              )}
 
               {/* View Details Button */}
               <button
