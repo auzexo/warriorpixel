@@ -303,12 +303,12 @@ export default function AdminLayout({ children }) {
                     <p className="text-sm font-semibold text-white truncate">{adminSession?.admin_id || profile?.username || 'Admin'}</p>
                     <p className="text-xs text-discord-text flex items-center gap-1">
                       <FaUserShield className="text-red-400" />
-                      {adminSession.permissions.includes('full_access') ? 'Super Admin' : 'Admin'}
+                      {adminSession.is_super_admin ? 'Super Admin' : 'Admin'}
                     </p>
                   </div>
                 </div>
                 <div className="text-xs text-discord-text">
-                  <p>Permissions: {adminSession.permissions.includes('full_access') ? 'Full Access' : adminSession.permissions.length}</p>
+                  <p>Permissions: {adminSession.is_super_admin ? 'Full Access' : `${adminSession.permissions?.length || 0} permissions`}</p>
                 </div>
               </div>
 
