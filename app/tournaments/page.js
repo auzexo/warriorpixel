@@ -151,12 +151,12 @@ export default function TournamentsPage() {
   const closeModal = () => {
     setShowModal(false);
     setSelectedTournament(null);
-    setUserParticipation(null);
-    setJoinData({ in_game_name: '', in_game_id: '' });
     setPaymentMethod('real_money');
+    setUserParticipation(null);
+    setJoinData({ in_game_name: '', in_game_id: '' })
   };
 
-  const [paymentMethod, setPaymentMethod] = useState('real_money');
+
 
   const handleJoin = async () => {
     if (isBanned) { alert('Your account is restricted.'); return; }
