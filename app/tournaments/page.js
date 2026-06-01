@@ -28,6 +28,7 @@ export default function TournamentsPage() {
   const [showResults, setShowResults] = useState(null);
   const channelRef = useRef(null);
   const timerRef = useRef(null);
+  const [paymentMethod, setPaymentMethod] = useState('real_money');
   const [joinData, setJoinData] = useState({
     in_game_name: '',
     in_game_id: ''
@@ -152,9 +153,50 @@ export default function TournamentsPage() {
     setSelectedTournament(null);
     setUserParticipation(null);
     setJoinData({ in_game_name: '', in_game_id: '' });
+    setPaymentMethod('real_money');
   };
 
+  const [paymentMethod, setPaymentMethod] = useState('real_money');
+
   const handleJoin = async () => {
+    if (isBanned) { alert('Your account is restricted.'); return; }
+    if (!user) { alert('Please login to join tournaments'); return; }
+    if (!joinData.in_game_name?.trim() || !joinData.in_game_id?.trim()) {
+      alert('Please enter your In-Game Name and ID'); return;
+    }
+    if (selectedTournament.participantCount >= selectedTournament.max_participants) {
+      alert('Tournament is full!'); return;
+    }
+    if (!['upcoming','live'].includes(selectedTournament.status)) {
+      alert('Tournament is not open for joining!'); return;
+    }
+
+    setJoining(true);
+    try {
+      const { data, error } = await supabase.rpc('join_tournament_atomic', {
+        p_user_id:        user.id,
+        p_tournament_id:  selectedTournament.id,
+        p_in_game_name:   joinData.in_game_name.trim(),
+        p_in_game_id:     joinData.in_game_id.trim(),
+        p_payment_type:   paymentMethod
+      });
+
+      if (error) throw error;
+      if (!data.success) throw new Error(data.error);
+
+      alert(`✅ Successfully joined!\n\nSeat: #${data.seat_number}\nIn-Game Name: ${joinData.in_game_name}`);
+      closeModal();
+      await refreshProfile(); // Update wallet display immediately
+      await loadTournaments();
+      await loadUserJoinedTournaments();
+
+    } catch (err) {
+      console.error('Join error:', err);
+      alert('❌ ' + err.message);
+    } finally {
+      setJoining(false);
+    }
+  };
     // BAN CHECK: Prevent banned/suspended users from joining
     if (banStatus) {
       alert(`❌ Cannot Join Tournament\n\nYour account is currently ${banStatus.ban_type === 'permanent' ? 'banned' : 'suspended'}.\n\nReason: ${banStatus.reason}\n\nYou cannot participate in tournaments at this time.`);
@@ -981,6 +1023,93 @@ export default function TournamentsPage() {
                         className="w-full px-3 py-2 bg-discord-darkest border border-gray-700 text-white rounded-lg focus:outline-none focus:border-purple-600 text-sm"
                       />
                     </div>
+                          {/* Payment method selector */}
+              {parseFloat(selectedTournament?.entry_fee || 0) > 0 && (
+                <div className="mb-4">
+                  <p className="text-white text-sm font-semibold mb-2">
+                    💳 Payment Method
+                  </p>
+                  <div className="space-y-2">
+                    {/* Real money option */}
+                    <button type="button"
+                      onClick={() => setPaymentMethod('real_money')}
+                      className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
+                        paymentMethod === 'real_money'
+                          ? 'bg-green-900 bg-opacity-30 border-green-600'
+                          : 'bg-discord-darkest border-gray-700'
+                      }`}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">💵</span>
+                        <div className="text-left">
+                          <p className="text-white text-xs font-bold">Wallet Balance</p>
+                          <p className="text-xs text-gray-400">₹{parseFloat(profile?.wallet_real || 0).toFixed(2)} available</p>
+                        </div>
+                      </div>
+                      {paymentMethod === 'real_money' && <span className="text-green-400 text-xs font-bold">✓ Selected</span>}
+                    </button>
+
+                    {/* Voucher options — only if tournament allows vouchers */}
+                    {selectedTournament?.vouchers_allowed && (
+                      <>
+                        {parseFloat(selectedTournament.entry_fee) <= 20 && parseInt(profile?.wallet_vouchers_20 || 0) > 0 && (
+                          <button type="button"
+                            onClick={() => setPaymentMethod('voucher_20')}
+                            className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
+                              paymentMethod === 'voucher_20'
+                                ? 'bg-yellow-900 bg-opacity-30 border-yellow-600'
+                                : 'bg-discord-darkest border-gray-700'
+                            }`}>
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg">🎫</span>
+                              <div className="text-left">
+                                <p className="text-white text-xs font-bold">₹20 Voucher</p>
+                                <p className="text-xs text-gray-400">{profile?.wallet_vouchers_20} voucher(s) available</p>
+                              </div>
+                            </div>
+                            {paymentMethod === 'voucher_20' && <span className="text-yellow-400 text-xs font-bold">✓ Selected</span>}
+                          </button>
+                        )}
+                        {parseFloat(selectedTournament.entry_fee) <= 30 && parseInt(profile?.wallet_vouchers_30 || 0) > 0 && (
+                          <button type="button"
+                            onClick={() => setPaymentMethod('voucher_30')}
+                            className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
+                              paymentMethod === 'voucher_30'
+                                ? 'bg-yellow-900 bg-opacity-30 border-yellow-600'
+                                : 'bg-discord-darkest border-gray-700'
+                            }`}>
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg">🎫</span>
+                              <div className="text-left">
+                                <p className="text-white text-xs font-bold">₹30 Voucher</p>
+                                <p className="text-xs text-gray-400">{profile?.wallet_vouchers_30} voucher(s) available</p>
+                              </div>
+                            </div>
+                            {paymentMethod === 'voucher_30' && <span className="text-yellow-400 text-xs font-bold">✓ Selected</span>}
+                          </button>
+                        )}
+                        {parseFloat(selectedTournament.entry_fee) <= 50 && parseInt(profile?.wallet_vouchers_50 || 0) > 0 && (
+                          <button type="button"
+                            onClick={() => setPaymentMethod('voucher_50')}
+                            className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
+                              paymentMethod === 'voucher_50'
+                                ? 'bg-yellow-900 bg-opacity-30 border-yellow-600'
+                                : 'bg-discord-darkest border-gray-700'
+                            }`}>
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg">🎟️</span>
+                              <div className="text-left">
+                                <p className="text-white text-xs font-bold">₹50 Voucher</p>
+                                <p className="text-xs text-gray-400">{profile?.wallet_vouchers_50} voucher(s) available</p>
+                              </div>
+                            </div>
+                            {paymentMethod === 'voucher_50' && <span className="text-yellow-400 text-xs font-bold">✓ Selected</span>}
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
                     <button
                       onClick={handleJoin}
                       disabled={joining || selectedTournament.participantCount >= selectedTournament.max_participants}
