@@ -313,42 +313,7 @@ export default function TournamentsPage() {
 
       // Join tournament
       const { error: joinError } = await supabase
-        .from('tournament_participants')
-        .insert({
-          tournament_id: selectedTournament.id,
-          user_id: user.id,
-          in_game_name: joinData.in_game_name.trim(),
-          in_game_id: joinData.in_game_id.trim(),
-          seat_number: nextSeatNumber
-        });
 
-      if (joinError) {
-        console.error('Join error:', joinError);
-        
-        // Refund if payment was made
-        if (entryFee > 0) {
-          const currentBalance = parseFloat(profile?.wallet_real || 0);
-          await supabase
-            .from('users')
-            .update({ wallet_real: currentBalance + entryFee })
-            .eq('id', user.id);
-        }
-        
-        throw new Error('Failed to join tournament');
-      }
-
-      alert(`✅ Successfully joined!\n\nYour Seat: #${nextSeatNumber}\nIn-Game Name: ${joinData.in_game_name}`);
-      closeModal();
-      await loadTournaments();
-      await loadUserJoinedTournaments();
-      
-    } catch (error) {
-      console.error('Join error:', error);
-      alert('❌ ' + error.message);
-    } finally {
-      setJoining(false);
-    }
-  };
 
   const getStatusBadge = (status) => {
     switch (status) {
