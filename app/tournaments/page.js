@@ -899,7 +899,7 @@ export default function TournamentsPage() {
                     {/* Voucher options — only if tournament allows vouchers */}
                     {selectedTournament?.vouchers_allowed && (
                       <>
-                        {parseFloat(selectedTournament.entry_fee) <= 20 && parseInt(profile?.wallet_vouchers_20 || 0) > 0 && (
+                        parseFloat(selectedTournament.entry_fee) === 20 && parseInt(profile?.wallet_vouchers_20 || 0) > 0 && (
                           <button type="button"
                             onClick={() => setPaymentMethod('voucher_20')}
                             className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
@@ -917,7 +917,7 @@ export default function TournamentsPage() {
                             {paymentMethod === 'voucher_20' && <span className="text-yellow-400 text-xs font-bold">✓ Selected</span>}
                           </button>
                         )}
-                        {parseFloat(selectedTournament.entry_fee) <= 30 && parseInt(profile?.wallet_vouchers_30 || 0) > 0 && (
+                        {parseFloat(selectedTournament.entry_fee) === 30 && parseInt(profile?.wallet_vouchers_30 || 0) > 0 && (
                           <button type="button"
                             onClick={() => setPaymentMethod('voucher_30')}
                             className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
@@ -935,7 +935,7 @@ export default function TournamentsPage() {
                             {paymentMethod === 'voucher_30' && <span className="text-yellow-400 text-xs font-bold">✓ Selected</span>}
                           </button>
                         )}
-                        {parseFloat(selectedTournament.entry_fee) <= 50 && parseInt(profile?.wallet_vouchers_50 || 0) > 0 && (
+                        {parseFloat(selectedTournament.entry_fee) === 50 && parseInt(profile?.wallet_vouchers_50 || 0) > 0 && (
                           <button type="button"
                             onClick={() => setPaymentMethod('voucher_50')}
                             className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
